@@ -8,6 +8,8 @@ import dotenv from "dotenv";
 import { parseArgs } from "./lib/args.mjs";
 import { ensureDir, readJson, writeJson } from "./lib/fsx.mjs";
 import { readWorkbookTable, normalizeWorkbookObjects } from "./lib/input.mjs";
+import { writeSimpleXlsx } from "./lib/simple-xlsx-writer.mjs";
+import { fileHyperlink, folderHyperlink, hyperlinkFormula } from "./lib/link-cells.mjs";
 
 dotenv.config({ quiet: true });
 
@@ -52,6 +54,24 @@ const defaultDocs = [
   "outputs/free-mode-guide.md",
   "outputs/agent-setup-pack.md",
   "outputs/full-test-report.md"
+];
+
+const queueProgressHeaders = [
+  "TRF Queue Status",
+  "TRF Queue Run ID",
+  "TRF Queue Tool Name",
+  "TRF Queue Final Video",
+  "TRF Queue Final MP4 Path",
+  "TRF Queue Generated Folder",
+  "TRF Queue Generated Folder Path",
+  "TRF Queue Vids Cache",
+  "TRF Queue Vids Cache Path",
+  "TRF Queue Google Vids",
+  "TRF Queue Google Vids URL",
+  "TRF Queue Prepared Workbook",
+  "TRF Queue Run Folder",
+  "TRF Queue Error",
+  "TRF Queue Updated At"
 ];
 
 function json(res, statusCode, data) {
@@ -1013,6 +1033,80 @@ function runSummary(run) {
   };
 }
 
+function normalizeProgressHeader(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function tableWithoutQueueProgressColumns(table) {
+  const progressHeaderSet = new Set(queueProgressHeaders.map(normalizeProgressHeader));
+  const keepIndexes = table.headers
+    .map((header, index) => ({ header, index }))
+    .filter((item) => !progressHeaderSet.has(normalizeProgressHeader(item.header)));
+
+  return {
+    headers: keepIndexes.map((item) => item.header),
+    dataRows: table.dataRows.map((row) => keepIndexes.map((item) => row[item.index] ?? ""))
+  };
+}
+
+function queueProgressValues(item) {
+  if (!item) {
+    return queueProgressHeaders.map(() => "");
+  }
+
+  const report = item.report || {};
+  return [
+    item.status || "",
+    item.runId || "",
+    report.toolName || "",
+    report.mp4Path ? fileHyperlink(report.mp4Path, "Open video") : "",
+    report.mp4Path || "",
+    report.generatedFolder ? folderHyperlink(report.generatedFolder, "Open generated") : "",
+    report.generatedFolder || "",
+    report.vidsClipCacheFolder ? folderHyperlink(report.vidsClipCacheFolder, "Open cache") : "",
+    report.vidsClipCacheFolder || "",
+    report.vidsUrl ? hyperlinkFormula(report.vidsUrl, "Open Google Vids") : "",
+    report.vidsUrl || "",
+    report.preparedWorkbook ? fileHyperlink(report.preparedWorkbook, "Open workbook") : "",
+    report.outputDir ? folderHyperlink(report.outputDir, "Open run") : "",
+    report.error || "",
+    item.endedAt || item.startedAt || ""
+  ];
+}
+
+async function writeQueueProgressWorkbook(queue) {
+  if (!queue?.progressWorkbook) {
+    return "";
+  }
+
+  const table = tableWithoutQueueProgressColumns(await readWorkbookTable(queue.input));
+  const itemByRow = new Map(queue.items.map((item) => [item.row, item]));
+  const rows = [
+    [...table.headers, ...queueProgressHeaders],
+    ...table.dataRows.map((row, index) => {
+      const sourceRow = index + 2;
+      return [...row, ...queueProgressValues(itemByRow.get(sourceRow))];
+    })
+  ];
+
+  await writeSimpleXlsx(queue.progressWorkbook, rows, "Queue Progress");
+  return queue.progressWorkbook;
+}
+
+async function recordQueueProgress(queue) {
+  try {
+    await writeQueueProgressWorkbook(queue);
+    queue.progressWorkbookError = "";
+  } catch (error) {
+    queue.progressWorkbookError = error.message;
+    queue.note = queue.note || `Progress workbook update failed: ${error.message}`;
+  }
+}
+
 function publicQueue(queue) {
   const counts = queue.items.reduce((acc, item) => {
     acc[item.status] = (acc[item.status] || 0) + 1;
@@ -1023,6 +1117,8 @@ function publicQueue(queue) {
     status: queue.status,
     input: queue.input,
     options: queue.options,
+    progressWorkbook: queue.progressWorkbook || "",
+    progressWorkbookError: queue.progressWorkbookError || "",
     startedAt: queue.startedAt,
     endedAt: queue.endedAt,
     activeRunId: queue.activeRunId,
@@ -1057,18 +1153,21 @@ async function pumpQueue(queue) {
         item.status = "canceled";
       }
     }
+    await recordQueueProgress(queue);
     return;
   }
   if (queue.activeRunId) {
     return;
   }
   if (finishQueueIfDone(queue)) {
+    await recordQueueProgress(queue);
     return;
   }
 
   const next = queue.items.find((item) => item.status === "pending");
   if (!next) {
     finishQueueIfDone(queue);
+    await recordQueueProgress(queue);
     return;
   }
 
@@ -1102,14 +1201,17 @@ async function pumpQueue(queue) {
             item.status = "paused";
           }
         }
+        await recordQueueProgress(queue);
         return;
       }
 
+      await recordQueueProgress(queue);
       await pumpQueue(queue);
     }
   });
   next.runId = run.id;
   queue.activeRunId = run.id;
+  await recordQueueProgress(queue);
 }
 
 async function startQueue(body) {
@@ -1119,11 +1221,14 @@ async function startQueue(body) {
   }
   const options = normalizeRunBody(body);
   const id = `queue-${timestampSlug()}`;
+  const progressWorkbook = path.resolve(projectRoot, "outputs", "runs", id, "queue-progress.xlsx");
   const queue = {
     id,
     status: "queued",
     input: options.input,
     options,
+    progressWorkbook,
+    progressWorkbookError: "",
     startedAt: new Date().toISOString(),
     endedAt: null,
     activeRunId: "",
@@ -1140,11 +1245,13 @@ async function startQueue(body) {
     }))
   };
   queues.set(id, queue);
+  await recordQueueProgress(queue);
   setTimeout(() => {
     pumpQueue(queue).catch((error) => {
       queue.status = "failed";
       queue.note = error.message;
       queue.endedAt = new Date().toISOString();
+      recordQueueProgress(queue).catch(() => {});
     });
   }, 0);
   return queue;
@@ -1168,6 +1275,7 @@ async function stopQueue(id) {
       }
     }
   }
+  await recordQueueProgress(queue);
   return queue;
 }
 

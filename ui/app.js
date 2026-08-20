@@ -1061,10 +1061,25 @@ function renderQueue(queue) {
   const estimate = queue.quotaEstimate || {};
   els.queueMeta.textContent = [
     queue.note || "",
+    queue.progressWorkbook ? `Progress workbook: ${shortPath(queue.progressWorkbook)}` : "",
+    queue.progressWorkbookError ? `Workbook update issue: ${queue.progressWorkbookError}` : "",
     `Estimate: ${estimate.aiVideoClips || 0} AI video + ${estimate.avatarClips || 0} avatar requests.`,
     queue.activeRunId ? `Active run: ${queue.activeRunId}` : ""
   ].filter(Boolean).join("\n");
-  els.queueList.innerHTML = queue.items.map((item) => {
+  const progressItem = queue.progressWorkbook ? `
+    <div class="mini-item">
+      <div class="mini-item-header">
+        <div class="mini-title">Queue progress workbook</div>
+        <span class="pill ready">LIVE</span>
+      </div>
+      <div class="mini-meta">${escapeHtml(queue.progressWorkbook)}</div>
+      <div class="mini-actions">
+        <button class="secondary-button" data-action="open-path" data-path="${escapeHtml(queue.progressWorkbook)}" type="button">Open Workbook</button>
+        <button class="secondary-button" data-action="open-path" data-path="${escapeHtml(directoryOf(queue.progressWorkbook))}" type="button">Folder</button>
+      </div>
+    </div>
+  ` : "";
+  els.queueList.innerHTML = progressItem + queue.items.map((item) => {
     const report = item.report || {};
     const title = report.toolName || `Excel row ${item.row}`;
     const meta = [

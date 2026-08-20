@@ -136,7 +136,7 @@ Dashboard production controls:
 - `Vids clip cache`: every tool folder has `vids-clips/`; local MP4 uses cached Google Vids/avatar clips first when they exist.
 - `Vids Hybrid`: Google Vids generation with avatar on scenes `1,2,6` and best-effort real tool screenshot ingredients on scenes `3,4,5`.
 - `Full Vids`: Google Vids generation for all scenes; use only when quota is available.
-- `Run Queue`: runs multiple Excel rows one by one. Use `Video limit` or `Specific rows` like `2,3,5-7`.
+- `Run Queue`: runs multiple Excel rows one by one. Use `Video limit` or `Specific rows` like `2,3,5-7`. The dashboard creates a live `queue-progress.xlsx` file and updates it after each row with status, run folder, generated folder, cache folder, Google Vids URL, final MP4 path, and errors.
 - `Quota planner`: manual tracker for AI video/avatar monthly limits and used counts. It estimates requests before a queue starts, marks profiles as `LIMIT USED` when Vids reports a quota/limit error, and lets you manually mark or clear that state.
 - `History`: keeps recent runs in `work/ui-state.json` so you can preview, open folders, view logs, and retry rows after refresh.
 - `Profile list`: shows all saved Google Vids browser profiles, including detected Google account name/email when Chrome profile metadata contains it.

@@ -351,7 +351,7 @@ Dashboard modes:
 ```text
 Script + Assets -> prepares script, scene plan, screenshots, recordings, prompts, and workbook links only.
 Local MP4 -> creates a free local video with captions, voiceover, music, and real tool proof.
-Vids Hybrid -> uses Google Vids with avatar scenes 1,2,7 and screenshot proof scenes 3,4,5,6.
+Vids Hybrid -> uses Google Vids with avatar scenes 1,2,6 and screenshot proof scenes 3,4,5.
 Full Vids -> asks Google Vids to generate all scenes; use only when quota is available.
 ```
 
@@ -361,6 +361,8 @@ Queue:
 Video limit: number of Excel rows to process from Start row.
 Specific rows: optional exact list, for example 2,3,5-7.
 Queue runs one row at a time.
+queue-progress.xlsx is created inside outputs/runs/queue-.../ and updated after each row.
+The progress workbook stores row status, run folder, generated folder, cache folder, Google Vids URL, final MP4 path, and errors.
 If Google Vids reports quota limit, pending Google rows pause automatically.
 The exhausted profile is marked LIMIT USED in profile cards and dropdowns.
 ```
