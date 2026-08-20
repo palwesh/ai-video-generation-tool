@@ -346,6 +346,7 @@ function historyEntryForRun(run) {
     outputDir: run.outputDir,
     toolDir: report.toolDir || "",
     preparedWorkbook: report.preparedWorkbook || "",
+    sourceWorkbookUpdate: report.sourceWorkbookUpdate || null,
     mp4Path: report.mp4Path || "",
     driveSyncStatus: report.driveSyncStatus || "",
     driveSyncError: report.driveSyncError || "",
@@ -827,6 +828,9 @@ function runArgsFromBody(body, outputDir) {
   if (body.driveSyncDir) {
     runArgs.push("--drive-sync-dir", String(body.driveSyncDir));
   }
+  if (body.updateSourceWorkbook) {
+    runArgs.push("--update-source-workbook");
+  }
 
   if (mode === "prep") {
     runArgs.push("--prep-only");
@@ -1050,6 +1054,7 @@ function runSummary(run) {
     generatedFolder: report.generatedFolder || "",
     generatedFiles: report.generatedFiles || [],
     preparedWorkbook: report.preparedWorkbook || "",
+    sourceWorkbookUpdate: report.sourceWorkbookUpdate || null,
     toolName: report.selectedRow?.tool_name || "",
     error: report.error || report.googleVidsError || "",
     quotaHit: quotaHitFromReport(report),

@@ -2,6 +2,7 @@ const els = {
   serverStatus: document.getElementById("serverStatus"),
   inputPath: document.getElementById("inputPath"),
   driveSyncDir: document.getElementById("driveSyncDir"),
+  updateSourceWorkbook: document.getElementById("updateSourceWorkbook"),
   toolSelect: document.getElementById("toolSelect"),
   loadToolsBtn: document.getElementById("loadToolsBtn"),
   rowNumber: document.getElementById("rowNumber"),
@@ -569,6 +570,7 @@ function buildRunBody(rowOverride = null) {
   return {
     input: els.inputPath.value,
     driveSyncDir: els.driveSyncDir.value.trim(),
+    updateSourceWorkbook: els.updateSourceWorkbook.checked,
     row: Number(rowOverride || els.rowNumber.value || 2),
     mode: state.mode,
     maxScenes: Number(els.maxScenes.value || 6),
@@ -1415,6 +1417,7 @@ els.refreshDocsBtn.addEventListener("click", () => {
   els.queueLimit,
   els.queueRows,
   els.driveSyncDir,
+  els.updateSourceWorkbook,
   els.avatarScenes,
   els.ingredientScenes,
   els.quotaAiLimit,

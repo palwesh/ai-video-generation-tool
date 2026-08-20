@@ -1113,6 +1113,8 @@ When the final MP4 exists, the agent copies the full tool folder and `final-vide
 
 The workbook row is updated with Drive sync status, Drive video path/link, Drive folder path/link, and final video link. These are local synced Drive links. Google Drive Desktop uploads the files in the background. Public web share links need Drive sharing/API setup.
 
+Default behavior is to write an enriched workbook copy in the run folder. To write the same links back into the original source Excel file, enable `Update source Excel after run` in the dashboard or pass `--update-source-workbook`. The agent creates a backup first under `outputs/runs/.../source-workbook-backups/`.
+
 ## Suggested Next Improvements
 
 Best next upgrades:

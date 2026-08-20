@@ -130,6 +130,14 @@ TRF Final Video Link
 
 These are local synced Drive links. Google Drive Desktop uploads them to Drive in the background. Public web share links still need Google Drive sharing/API setup.
 
+By default the agent writes an enriched workbook copy in the run folder. To update the original source Excel file after each run, enable `Update source Excel after run` in the dashboard or pass:
+
+```bash
+--update-source-workbook
+```
+
+The agent creates a backup first under `outputs/runs/.../source-workbook-backups/`.
+
 ## One-Video Agent
 
 Use this for one complete tool reel from your Excel file. It selects one row, captures the actual tool page first, creates a short 30-60 second Hook-Body-CTA Reel plan, writes the prepared workbook, and opens/fills Google Vids when requested.

@@ -106,6 +106,21 @@ function setExtraValue(values, header, value) {
   }
 }
 
+function normalizeHeader(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function baseWorkbookColumns(table) {
+  const extraHeaderSet = new Set(extraHeaders.map(normalizeHeader));
+  return table.headers
+    .map((header, index) => ({ header, index }))
+    .filter((item) => !extraHeaderSet.has(normalizeHeader(item.header)));
+}
+
 function selectedRowFrom(normalizedRows) {
   if (args.row) {
     const wanted = Number(args.row);
@@ -211,16 +226,18 @@ function enrichmentFor(normalized, result, final = {}) {
 
 async function writePreparedWorkbook(table, normalizedRows, selectedRow, result, final = {}) {
   const normalizedBySourceRow = new Map(normalizedRows.map((row) => [row.source_row_number, row]));
+  const baseColumns = baseWorkbookColumns(table);
   const outputRows = [
-    [...table.headers, ...extraHeaders],
+    [...baseColumns.map((item) => item.header), ...extraHeaders],
     ...table.dataRows.map((row, index) => {
       const sourceRowNumber = index + 2;
       const normalized = normalizedBySourceRow.get(sourceRowNumber);
+      const baseRow = baseColumns.map((item) => row[item.index] ?? "");
       if (!normalized) {
-        return [...row, ...extraHeaders.map(() => "")];
+        return [...baseRow, ...extraHeaders.map(() => "")];
       }
       const selected = sourceRowNumber === selectedRow.source_row_number;
-      return [...row, ...enrichmentFor(normalized, selected ? result : null, selected ? final : {})];
+      return [...baseRow, ...enrichmentFor(normalized, selected ? result : null, selected ? final : {})];
     })
   ];
 
@@ -502,6 +519,57 @@ async function archiveGeneratedFile(result, steps, generatedFiles, options = {})
   return entry;
 }
 
+async function updateSourceWorkbookIfRequested(steps) {
+  if (!args["update-source-workbook"]) {
+    return null;
+  }
+
+  if (path.extname(inputPath).toLowerCase() !== ".xlsx") {
+    const message = "Source workbook write-back is only supported for .xlsx files.";
+    steps.push({ name: "source_workbook_update_skipped", ok: false, reason: message });
+    return { ok: false, skipped: true, error: message };
+  }
+
+  const backupDir = path.join(batchDir, "source-workbook-backups");
+  await ensureDir(backupDir);
+  const sourceBase = path.basename(inputPath, path.extname(inputPath))
+    .replace(/[/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, "-")
+    .toLowerCase() || "source-workbook";
+  const backupPath = path.join(backupDir, `${sourceBase}-${new Date().toISOString().replace(/[:.]/g, "-")}.xlsx`);
+
+  try {
+    await fs.copyFile(inputPath, backupPath);
+    await fs.copyFile(preparedWorkbookPath, inputPath);
+    steps.push({
+      name: "source_workbook_updated",
+      ok: true,
+      sourceWorkbook: inputPath,
+      backupPath,
+      preparedWorkbook: preparedWorkbookPath
+    });
+    return {
+      ok: true,
+      sourceWorkbook: inputPath,
+      backupPath
+    };
+  } catch (error) {
+    steps.push({
+      name: "source_workbook_update_failed",
+      ok: false,
+      sourceWorkbook: inputPath,
+      backupPath,
+      error: error.message
+    });
+    return {
+      ok: false,
+      sourceWorkbook: inputPath,
+      backupPath,
+      error: error.message
+    };
+  }
+}
+
 async function main() {
   await ensureDir(batchDir);
 
@@ -562,6 +630,7 @@ async function main() {
   let qaStatus = prepOnly ? "Prep only; render or generate before posting" : generateInVids || localOnly ? "Needs final human review before posting" : "Dry-run only";
   let driveSync = null;
   let driveSyncError = "";
+  let sourceWorkbookUpdate = null;
   const finalWorkbookPayload = () => ({
     vidsStatus: googleVidsStatus,
     vidsUrl,
@@ -574,7 +643,8 @@ async function main() {
     driveSyncStatus: driveSync?.status || (driveSyncError ? `Drive sync failed: ${driveSyncError}` : driveSyncDir ? (mp4Path ? "Drive sync pending" : "Skipped; no final MP4") : "Not uploaded"),
     driveVideoPath: driveSync?.driveVideoPath || "",
     driveFolderPath: driveSync?.driveFolderPath || "",
-    driveManifestPath: driveSync?.driveManifestPath || ""
+    driveManifestPath: driveSync?.driveManifestPath || "",
+    sourceWorkbookUpdate
   });
 
   if (prepOnly) {
@@ -895,7 +965,8 @@ async function main() {
     driveSyncError,
     driveFolderPath: driveSync?.driveFolderPath || "",
     driveVideoPath: driveSync?.driveVideoPath || "",
-    driveManifestPath: driveSync?.driveManifestPath || ""
+    driveManifestPath: driveSync?.driveManifestPath || "",
+    sourceWorkbookUpdate
   });
   await writeJson(reportPath, report);
   const agentReportCopy = await archiveGeneratedFile(result, steps, generatedFiles, {
@@ -926,6 +997,9 @@ async function main() {
     label: "Prepared workbook",
     note: "Final prepared workbook copy saved inside the selected tool folder."
   });
+  sourceWorkbookUpdate = await updateSourceWorkbookIfRequested(steps);
+  report.sourceWorkbookUpdate = sourceWorkbookUpdate;
+  await writeJson(reportPath, report);
   if (driveSyncDir && mp4Path && !driveSyncError) {
     driveSync = await syncToolOutputToDrive({
       rootDir: driveSyncDir,
