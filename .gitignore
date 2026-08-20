@@ -1,0 +1,27 @@
+.DS_Store
+
+# Local dependencies and package/cache output
+node_modules/
+npm-debug.log*
+*.log
+
+# Secrets and machine-specific environment files
+.env
+.env.local
+.env.*.local
+
+# Browser profiles, Google login state, quota state, UI history, and local caches
+work/
+chrome/
+
+# Generated reels, screenshots, recordings, prepared workbooks, and render assets
+outputs/
+public/tool-reel-assets/
+
+# Large generated media files should stay local or in Drive, not git
+*.mp4
+*.mov
+*.webm
+*.wav
+*.aiff
+*.mp3

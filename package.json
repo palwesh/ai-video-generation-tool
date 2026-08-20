@@ -1,0 +1,42 @@
+{
+  "name": "tool-reel-factory",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Batch automation for tool promo reel scripts, scene prompts, and website captures.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "batch": "node src/run-batch.mjs",
+    "free": "node src/run-batch.mjs --no-ai",
+    "free:capture": "node src/run-batch.mjs --no-ai --capture",
+    "prep": "node src/prepare-assets.mjs",
+    "prep:free": "node src/prepare-assets.mjs --no-ai",
+    "prep:free:capture": "node src/prepare-assets.mjs --no-ai --capture",
+    "sample": "node src/run-batch.mjs --input inputs/sample-tools.csv --limit 1 --no-ai",
+    "sample:capture": "node src/run-batch.mjs --input inputs/sample-tools.csv --limit 1 --no-ai --capture",
+    "ui": "node src/ui-server.mjs",
+    "agent:one-video": "node src/run-one-video-agent.mjs",
+    "render:local": "node src/render-local-reel.mjs",
+    "vids:login": "node src/google-vids-login.mjs",
+    "vids:check": "node src/google-vids-check.mjs",
+    "vids:operate": "node src/google-vids-operate.mjs",
+    "vids:export": "node src/google-vids-export.mjs",
+    "vids:queue": "node src/google-vids-queue.mjs",
+    "workbook:update": "node src/update-prepared-workbook.mjs",
+    "drive:download-vid": "node src/download-google-vid.mjs",
+    "browser:install": "playwright install chromium"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.512",
+    "@remotion/media": "^4.0.512",
+    "dotenv": "^17.2.1",
+    "fflate": "^0.8.3",
+    "playwright": "^1.54.2",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "read-excel-file": "^6.0.1",
+    "remotion": "^4.0.512"
+  }
+}

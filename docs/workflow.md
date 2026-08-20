@@ -1,0 +1,45 @@
+# Automation Workflow
+
+## V1 Pipeline
+
+1. Read Excel or CSV rows.
+2. Normalize each tool row.
+3. Resolve AltF Tool relative routes with `https://www.altftool.com/` when needed.
+4. Optionally open the tool URL with Playwright.
+5. Capture desktop screenshot, full-page screenshot, fictional demo assets, real tool demo before/after screenshots, a desktop demo WebM recording, mobile screenshot, and a short mobile scroll WebM recording.
+6. Generate or improve a Hinglish reel script.
+7. Convert the script into exactly 7 scenes of 10 seconds each.
+8. Save Google Vids-ready scene prompts.
+9. Save post caption and hashtags.
+10. Create an enriched workbook copy with output columns for asset paths, Vids status, Drive status, final MP4 path, and QA.
+
+## Google Vids Reality
+
+Google Vids supports prompt-based AI clips and MP4 download, but a stable public API for creating a full Vid from prompts is not clearly available. The current reliable plan is:
+
+- Generate prompts automatically.
+- Use a persistent browser profile logged in with the second email.
+- Use Playwright browser automation to fill scene prompts in Google Vids.
+- Attach captured tool screenshots as Ingredients on proof-heavy scenes when Google Vids exposes a selectable upload route.
+- Submit and insert generated clips after a human-approved dry-run.
+- Download the final MP4 from Vids or Drive.
+
+Tested browser automation status:
+
+- Login/profile check works with `npm run vids:check`.
+- Single-scene prompt fill works with `npm run vids:operate -- --scene 1`.
+- Scene 1 generate + insert works with `--submit --insert`.
+- Appending Scene 2 to an existing Vids file works with `--new-scene-first --skip-portrait`.
+- Screenshot Ingredients are attempted and reported for Scene 3/4. If the current Google Vids UI opens only Drive/Photos and no local chooser, prompts fall back to URL-based real-tool instructions.
+- AI Video panel recovery works after Ingredients and Avatar changes.
+- Compact prompts are used in Google Vids, so each 10-second clip stays focused and easier to generate.
+- Google sign-in/account-chooser pages fail fast with a clear login/profile error instead of silently filling the wrong page.
+- MP4 export/download works with `npm run vids:export`.
+- Free local 70-second MP4 rendering works with real screenshots/recording, captions, voiceover, and music.
+
+## Future V2
+
+- Google Sheets sync.
+- Human review dashboard.
+- Batch retry/resume for Google Vids scene generation.
+- Auto-download MP4 from Drive when the Vids file ID is available.

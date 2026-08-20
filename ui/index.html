@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tool Reel Factory</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace">
+        <aside class="panel controls-panel">
+          <div class="brand-row">
+            <div>
+              <p class="eyebrow">ALT F TOOL</p>
+              <h1>Tool Reel Factory</h1>
+            </div>
+            <span id="serverStatus" class="status-dot">Ready</span>
+          </div>
+
+          <div class="field">
+            <label for="inputPath">Excel file</label>
+            <input id="inputPath" type="text" autocomplete="off">
+          </div>
+
+          <div class="tool-row">
+            <div class="field">
+              <label for="toolSelect">Tool row</label>
+              <select id="toolSelect"></select>
+            </div>
+            <button id="loadToolsBtn" class="secondary-button" type="button">Load</button>
+          </div>
+
+          <div class="field-grid">
+            <div class="field">
+              <label for="rowNumber">Excel row</label>
+              <input id="rowNumber" type="number" min="2" value="2">
+            </div>
+            <div class="field">
+              <label for="maxScenes">Scenes</label>
+              <input id="maxScenes" type="number" min="1" max="7" value="7">
+            </div>
+          </div>
+
+          <div class="profile-box queue-config">
+            <div class="section-label">Queue</div>
+            <div class="field-grid">
+              <div class="field">
+                <label for="queueStartRow">Start row</label>
+                <input id="queueStartRow" type="number" min="2" value="2">
+              </div>
+              <div class="field">
+                <label for="queueLimit">Video limit</label>
+                <input id="queueLimit" type="number" min="1" max="50" value="1">
+              </div>
+            </div>
+            <div class="field">
+              <label for="queueRows">Specific rows</label>
+              <input id="queueRows" type="text" placeholder="2,3,5-7" autocomplete="off">
+            </div>
+            <div class="button-row">
+              <button id="queueBtn" class="secondary-button" type="button">Run Queue</button>
+              <button id="stopQueueBtn" class="danger-button" type="button" disabled>Stop Queue</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Mode</label>
+            <div class="segmented" role="radiogroup" aria-label="Mode">
+              <button class="segment" data-mode="prep" type="button">Script + Assets</button>
+              <button class="segment active" data-mode="local" type="button">Local MP4</button>
+              <button class="segment" data-mode="google" type="button">Vids Hybrid</button>
+              <button class="segment" data-mode="google-full" type="button">Full Vids</button>
+            </div>
+          </div>
+
+          <div id="googleVidsConfig" class="profile-box google-config">
+            <div class="config-head">
+              <div>
+                <div class="section-label">Google Vids config</div>
+                <p id="profileCount" class="small-note">0 profiles added</p>
+              </div>
+              <button id="refreshProfilesBtn" class="secondary-button" type="button">Refresh</button>
+            </div>
+            <div id="profileList" class="profile-list"></div>
+            <div class="field">
+              <label for="primaryProfile">Primary profile</label>
+              <select id="primaryProfile"></select>
+            </div>
+            <div class="field">
+              <label for="fallbackProfile">Fallback profile</label>
+              <select id="fallbackProfile"></select>
+            </div>
+            <label class="check-line">
+              <input id="useOnlyPrimary" type="checkbox">
+              <span>Use only primary</span>
+            </label>
+            <label class="check-line">
+              <input id="useAvatar" type="checkbox" checked>
+              <span>Select Vids avatar</span>
+            </label>
+            <div class="field">
+              <label for="avatarChoice">Avatar</label>
+              <select id="avatarChoice"></select>
+            </div>
+            <div class="field">
+              <label for="avatarScenes">Avatar scenes</label>
+              <input id="avatarScenes" type="text" value="1,2,7" autocomplete="off">
+            </div>
+            <label class="check-line">
+              <input id="useIngredients" type="checkbox" checked>
+              <span>Use tool screenshots</span>
+            </label>
+            <div class="field">
+              <label for="ingredientScenes">Screenshot scenes</label>
+              <input id="ingredientScenes" type="text" value="3,4,5,6" autocomplete="off">
+            </div>
+
+            <div class="quota-card">
+              <div class="quota-head">
+                <div>
+                  <div class="section-label">Quota planner</div>
+                  <p id="quotaEstimate">No Google Vids quota used in local mode.</p>
+                </div>
+                <button id="saveQuotaBtn" class="secondary-button" type="button">Save</button>
+              </div>
+              <div class="field">
+                <label for="quotaPlan">Plan note</label>
+                <input id="quotaPlan" type="text" value="Manual / free" autocomplete="off">
+              </div>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="quotaAiLimit">AI video limit</label>
+                  <input id="quotaAiLimit" type="number" min="0" value="10">
+                </div>
+                <div class="field">
+                  <label for="quotaAiUsed">AI video used</label>
+                  <input id="quotaAiUsed" type="number" min="0" value="0">
+                </div>
+              </div>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="quotaAvatarLimit">Avatar limit</label>
+                  <input id="quotaAvatarLimit" type="number" min="0" value="10">
+                </div>
+                <div class="field">
+                  <label for="quotaAvatarUsed">Avatar used</label>
+                  <input id="quotaAvatarUsed" type="number" min="0" value="0">
+                </div>
+              </div>
+              <label class="check-line quota-limit-used">
+                <input id="quotaExhausted" type="checkbox">
+                <span>Mark Vids limit used</span>
+              </label>
+              <p id="quotaNote" class="small-note">Update this manually when Google shows used quota.</p>
+            </div>
+          </div>
+
+          <details class="advanced">
+            <summary>Advanced</summary>
+            <div class="field">
+              <label for="customProfile">Custom profile path</label>
+              <input id="customProfile" type="text" placeholder="work/google-vids-profile-3" autocomplete="off">
+            </div>
+            <label class="check-line">
+              <input id="reuseUrl" type="checkbox">
+              <span>Reuse same Vids URL on fallback</span>
+            </label>
+            <label class="check-line">
+              <input id="noLocalFallback" type="checkbox">
+              <span>Disable local MP4 fallback</span>
+            </label>
+          </details>
+
+          <div class="button-row">
+            <button id="runBtn" class="primary-button" type="button">Run One Video</button>
+            <button id="stopBtn" class="danger-button" type="button" disabled>Stop</button>
+          </div>
+
+          <div class="profile-login">
+            <div class="field">
+              <label for="loginProfile">Login profile</label>
+              <select id="loginProfile"></select>
+            </div>
+            <button id="loginBtn" class="secondary-button" type="button">Open Login</button>
+          </div>
+
+          <div class="profile-login new-profile-row">
+            <div class="field">
+              <label for="newProfileName">New profile</label>
+              <input id="newProfileName" type="text" placeholder="google-vids-profile-3" autocomplete="off">
+            </div>
+            <div class="profile-button-stack">
+              <button id="addProfileOnlyBtn" class="secondary-button" type="button">Add Profile</button>
+              <button id="addProfileBtn" class="secondary-button" type="button">Add + Login</button>
+            </div>
+          </div>
+        </aside>
+
+        <section class="output-stack">
+          <section class="panel run-summary">
+            <div>
+              <p class="eyebrow">RUN CONTROL</p>
+              <h2 id="runTitle">No active run</h2>
+              <p id="runHint" class="summary-hint">Select a row, choose a mode, then run one reel or a queue.</p>
+            </div>
+            <div class="summary-actions">
+              <button id="retryBtn" class="secondary-button" type="button" disabled>Retry Last</button>
+              <button id="openVideoBtn" class="secondary-button" type="button" disabled>Open Video</button>
+              <button id="openVideoFolderBtn" class="secondary-button" type="button" disabled>Video Folder</button>
+              <button id="openGeneratedFolderBtn" class="secondary-button" type="button" disabled>Generated</button>
+              <button id="openCacheFolderBtn" class="secondary-button" type="button" disabled>Vids Cache</button>
+              <button id="openRunFolderBtn" class="secondary-button" type="button" disabled>Run Folder</button>
+            </div>
+          </section>
+
+          <section class="insight-grid" aria-label="Automation status">
+            <article class="insight-card">
+              <p class="eyebrow">SELECTED</p>
+              <strong id="selectedToolInfo">No tool loaded</strong>
+              <span id="selectedToolMeta">Load Excel tools first.</span>
+            </article>
+            <article class="insight-card">
+              <p class="eyebrow">MODE</p>
+              <strong id="modeInfo">Local MP4</strong>
+              <span id="modeMeta">7 scenes, row 2</span>
+            </article>
+            <article class="insight-card">
+              <p class="eyebrow">PROFILES</p>
+              <strong id="profileInfo">0 added</strong>
+              <span id="profileMeta">Refresh profiles to check login/quota.</span>
+            </article>
+            <article class="insight-card">
+              <p class="eyebrow">OUTPUT</p>
+              <strong id="outputInfo">Waiting</strong>
+              <span id="outputMeta">Generated folders will appear after a run.</span>
+            </article>
+          </section>
+
+          <nav class="tab-bar" aria-label="Dashboard tabs">
+            <button class="tab-button active" data-tab="run" type="button">Run</button>
+            <button class="tab-button" data-tab="queue" type="button">Queue & History</button>
+            <button class="tab-button" data-tab="profiles" type="button">Profiles & Limits</button>
+            <button class="tab-button" data-tab="docs" type="button">Docs</button>
+          </nav>
+
+          <section id="tab-run" class="tab-panel active">
+            <section class="terminal-panel">
+              <div class="terminal-bar">
+                <span>Terminal</span>
+                <span id="runState">idle</span>
+              </div>
+              <pre id="terminal" class="terminal-output">Ready.
+</pre>
+            </section>
+
+            <section class="panel result-panel">
+              <div class="result-copy">
+                <p class="eyebrow">OUTPUT</p>
+                <h2 id="resultTitle">Waiting for a run</h2>
+                <p id="resultMeta">Final video, workbook, and folder links will appear here.</p>
+              </div>
+              <video id="videoPreview" controls playsinline></video>
+            </section>
+          </section>
+
+          <section id="tab-queue" class="tab-panel">
+            <section class="panel status-panel">
+              <div class="status-column">
+                <p class="eyebrow">QUEUE</p>
+                <h2 id="queueTitle">No queue running</h2>
+                <p id="queueMeta">Use Run Queue for multiple Excel rows.</p>
+                <div id="queueList" class="mini-list"></div>
+              </div>
+              <div class="status-column">
+                <p class="eyebrow">HISTORY</p>
+                <h2>Recent videos</h2>
+                <div id="historyList" class="mini-list"></div>
+              </div>
+            </section>
+          </section>
+
+          <section id="tab-profiles" class="tab-panel">
+            <section class="panel profile-center-panel">
+              <div class="profile-center-head">
+                <div>
+                  <p class="eyebrow">GOOGLE VIDS</p>
+                  <h2>Profiles & Limits</h2>
+                  <p id="profileCenterStats" class="summary-hint">Refresh profiles to check login and quota state.</p>
+                </div>
+                <button id="profileCenterRefreshBtn" class="secondary-button" type="button">Refresh Profiles</button>
+              </div>
+              <div id="profileLimitSummary" class="profile-limit-summary"></div>
+              <div id="profileLimitList" class="profile-limit-list"></div>
+            </section>
+          </section>
+
+          <section id="tab-docs" class="tab-panel">
+            <section class="panel docs-panel">
+              <div class="docs-head">
+                <div>
+                  <p class="eyebrow">DOCUMENTATION</p>
+                  <h2 id="docTitle">Automation docs</h2>
+                  <p id="docStats" class="summary-hint">Loading docs...</p>
+                </div>
+                <div class="docs-actions">
+                  <select id="docScope" aria-label="Document scope">
+                    <option value="current">Selected doc</option>
+                    <option value="all">All docs one page</option>
+                  </select>
+                  <select id="docSelect" aria-label="Document"></select>
+                  <button id="refreshDocsBtn" class="secondary-button" type="button">Refresh</button>
+                </div>
+              </div>
+              <div class="docs-search-row">
+                <div class="field">
+                  <label for="docSearch">Search docs</label>
+                  <input id="docSearch" type="search" placeholder="setup, google vids, limit, command..." autocomplete="off">
+                </div>
+                <span id="docMatchCount" class="status-dot">0 matches</span>
+              </div>
+              <div class="docs-layout">
+                <aside class="doc-toc">
+                  <p class="eyebrow">SECTIONS</p>
+                  <div id="docToc" class="toc-list"></div>
+                </aside>
+                <article id="docContent" class="doc-content">Loading docs...</article>
+              </div>
+            </section>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
