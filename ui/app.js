@@ -14,6 +14,17 @@ const els = {
   stopQueueBtn: document.getElementById("stopQueueBtn"),
   freeVideoProviders: document.getElementById("freeVideoProviders"),
   providerHelp: document.getElementById("providerHelp"),
+  aiMediaStatus: document.getElementById("aiMediaStatus"),
+  useAiScript: document.getElementById("useAiScript"),
+  aiProvider: document.getElementById("aiProvider"),
+  aiModel: document.getElementById("aiModel"),
+  ttsProvider: document.getElementById("ttsProvider"),
+  ttsVoice: document.getElementById("ttsVoice"),
+  ttsModel: document.getElementById("ttsModel"),
+  avatarReferenceImages: document.getElementById("avatarReferenceImages"),
+  avatarClipProvider: document.getElementById("avatarClipProvider"),
+  heygenVoiceId: document.getElementById("heygenVoiceId"),
+  generateAvatarClips: document.getElementById("generateAvatarClips"),
   googleVidsConfig: document.getElementById("googleVidsConfig"),
   profileCount: document.getElementById("profileCount"),
   profileList: document.getElementById("profileList"),
@@ -95,6 +106,9 @@ const state = {
   eventSource: null,
   profiles: [],
   docs: [],
+  aiDefaults: {},
+  voiceoverDefaults: {},
+  avatarGenerationDefaults: {},
   docCache: new Map(),
   tools: [],
   history: [],
@@ -579,6 +593,16 @@ function buildRunBody(rowOverride = null) {
     mode: state.mode,
     maxScenes: Number(els.maxScenes.value || 6),
     freeVideoProviders: els.freeVideoProviders.value.trim(),
+    useAiScript: els.useAiScript.checked,
+    aiProvider: els.aiProvider.value,
+    aiModel: els.aiModel.value.trim(),
+    ttsProvider: els.ttsProvider.value,
+    ttsVoice: els.ttsVoice.value.trim(),
+    ttsModel: els.ttsModel.value.trim(),
+    avatarReferenceImages: els.avatarReferenceImages.value.trim(),
+    avatarClipProvider: els.avatarClipProvider.value,
+    heygenVoiceId: els.heygenVoiceId.value.trim(),
+    generateAvatarClips: els.generateAvatarClips.checked,
     profiles: selectedProfiles(),
     useAvatar: els.useAvatar.checked,
     avatar: els.avatarChoice.value,
@@ -588,6 +612,53 @@ function buildRunBody(rowOverride = null) {
     reuseUrlOnFallback: els.reuseUrl.checked,
     noLocalFallback: els.noLocalFallback.checked
   };
+}
+
+function updateAiMediaStatus() {
+  if (!els.aiMediaStatus) return;
+  const ai = state.aiDefaults || {};
+  const voice = state.voiceoverDefaults || {};
+  const avatar = state.avatarGenerationDefaults || {};
+  const aiOk = els.aiProvider.value === "gemini" ? ai.hasGeminiKey : ai.hasOpenAiKey;
+  const voiceOk = els.ttsProvider.value === "openai"
+    ? voice.hasOpenAiKey
+    : els.ttsProvider.value === "elevenlabs"
+      ? voice.hasElevenLabsKey
+      : true;
+  const avatarOk = els.avatarClipProvider.value === "heygen"
+    ? avatar.hasHeyGenKey && (avatar.hasHeyGenVoiceId || Boolean(els.heygenVoiceId.value.trim()))
+    : true;
+  const parts = [
+    els.useAiScript.checked ? `LLM ${aiOk ? "ready" : "key missing"}` : "LLM off",
+    `Voice ${voiceOk ? "ready" : "key missing"}`,
+    els.avatarReferenceImages.value.trim() ? `Avatar ${avatarOk ? "ready" : "key/voice missing"}` : "Avatar refs optional"
+  ];
+  els.aiMediaStatus.textContent = parts.join(" | ");
+  els.aiMediaStatus.style.color = aiOk && voiceOk && avatarOk ? "#137a42" : "#9f2b22";
+}
+
+function syncAiMediaModels() {
+  const ai = state.aiDefaults || {};
+  const voice = state.voiceoverDefaults || {};
+  if (els.aiProvider.value === "gemini" && (!els.aiModel.value.trim() || /^gpt-/i.test(els.aiModel.value.trim()))) {
+    els.aiModel.value = ai.defaultGeminiModel || "gemini-2.5-pro";
+  }
+  if (els.aiProvider.value === "openai" && (!els.aiModel.value.trim() || /^gemini/i.test(els.aiModel.value.trim()))) {
+    els.aiModel.value = ai.defaultModel || "gpt-5-mini";
+  }
+  if (els.ttsProvider.value === "elevenlabs") {
+    if (!els.ttsModel.value.trim() || /^gpt-/i.test(els.ttsModel.value.trim())) {
+      els.ttsModel.value = voice.elevenLabsModel || "eleven_multilingual_v2";
+    }
+  } else if (els.ttsProvider.value === "openai") {
+    if (!els.ttsModel.value.trim() || /^eleven/i.test(els.ttsModel.value.trim())) {
+      els.ttsModel.value = voice.openaiModel || "gpt-4o-mini-tts";
+    }
+    if (!els.ttsVoice.value.trim()) {
+      els.ttsVoice.value = voice.openaiVoice || "verse";
+    }
+  }
+  updateAiMediaStatus();
 }
 
 function estimateRowCount() {
@@ -754,6 +825,7 @@ function updateInfoCards() {
   ].filter(Boolean).join(" | ");
   els.outputInfo.textContent = outputParts[0] || (latestHistory ? "Recent output" : "Waiting");
   els.outputMeta.textContent = outputParts.length ? outputParts.join(" | ") : (latestOutputParts.join(" | ") || "Generated folders will appear after a run.");
+  updateAiMediaStatus();
   els.runHint.textContent = state.activeRunId
     ? `Running ${modeLabel(state.mode)} for row ${row}. Watch terminal logs below.`
     : `Ready for ${modeLabel(state.mode)} on row ${row}.`;
@@ -800,6 +872,19 @@ async function loadDefaults() {
   els.avatarScenes.value = data.googleVids?.defaultAvatarScenes || "1,2,6";
   els.ingredientScenes.value = data.googleVids?.defaultIngredientScenes || "3,4,5";
   els.freeVideoProviders.value = data.freeVideoProviders?.defaultProviders || els.freeVideoProviders.value || "capcut,pika,runway,canva,did,shotstack";
+  state.aiDefaults = data.ai || {};
+  state.voiceoverDefaults = data.voiceover || {};
+  state.avatarGenerationDefaults = data.avatarGeneration || {};
+  els.useAiScript.checked = Boolean(data.ai?.defaultEnabled);
+  els.aiProvider.value = data.ai?.defaultProvider || "openai";
+  els.aiModel.value = data.ai?.defaultModel || "gpt-5-mini";
+  els.ttsProvider.value = data.voiceover?.defaultProvider || "local";
+  els.ttsVoice.value = data.voiceover?.openaiVoice || "verse";
+  els.ttsModel.value = data.voiceover?.openaiModel || "gpt-4o-mini-tts";
+  els.avatarReferenceImages.value = data.avatarGeneration?.referenceImages || "";
+  els.avatarClipProvider.value = data.avatarGeneration?.defaultProvider || "manual";
+  els.heygenVoiceId.value = data.avatarGeneration?.heygenVoiceId || "";
+  syncAiMediaModels();
   if (data.freeVideoProviders?.options?.length) {
     els.providerHelp.textContent = `Creates prompt packs for: ${data.freeVideoProviders.options.map((item) => item.label || item.id).join(", ")}. Download clips into vids-clips/scene-XX.mp4, then Local MP4 uses them.`;
   }
@@ -1016,6 +1101,9 @@ function showResult(run) {
       report.vidsSceneClips?.length ? `Vids scene clips: ${report.vidsSceneClips.length}` : "",
       report.generatedFolder ? `Generated: ${report.generatedFolder}` : "",
       report.freeVideoProviderPackFolder ? `Providers: ${report.freeVideoProviderPackFolder}` : "",
+      report.voiceoverPackFolder ? `Voice pack: ${report.voiceoverPackFolder}` : "",
+      report.naturalVoiceoverFolder ? `Natural voice: ${report.naturalVoiceoverFolder}` : "",
+      report.avatarReferencePackFolder ? `Avatar pack: ${report.avatarReferencePackFolder}` : "",
       report.generatedFiles?.length ? `Generated saved: ${report.generatedFiles.length}` : "",
       report.vidsClipCacheFolder ? `Vids cache: ${report.vidsClipCacheFolder}` : "",
       report.cachedVidsClips?.length ? `Cached clips: ${report.cachedVidsClips.length}` : "",
@@ -1032,6 +1120,8 @@ function showResult(run) {
       report.vidsUrl,
       report.generatedFolder ? `Generated: ${report.generatedFolder}` : "",
       report.freeVideoProviderPackFolder ? `Providers: ${report.freeVideoProviderPackFolder}` : "",
+      report.voiceoverPackFolder ? `Voice pack: ${report.voiceoverPackFolder}` : "",
+      report.avatarReferencePackFolder ? `Avatar pack: ${report.avatarReferencePackFolder}` : "",
       report.vidsClipCacheFolder ? `Vids cache: ${report.vidsClipCacheFolder}` : ""
     ].filter(Boolean).join("\n");
     return;
@@ -1041,6 +1131,8 @@ function showResult(run) {
     els.resultMeta.textContent = [
       report.generatedFolder ? `Generated: ${report.generatedFolder}` : "",
       report.freeVideoProviderPackFolder ? `Providers: ${report.freeVideoProviderPackFolder}` : "",
+      report.voiceoverPackFolder ? `Voice pack: ${report.voiceoverPackFolder}` : "",
+      report.avatarReferencePackFolder ? `Avatar pack: ${report.avatarReferencePackFolder}` : "",
       report.vidsClipCacheFolder ? `Vids cache: ${report.vidsClipCacheFolder}` : "",
       report.preparedWorkbook ? `Workbook: ${report.preparedWorkbook}` : "",
       report.error || ""
@@ -1447,6 +1539,16 @@ els.refreshDocsBtn.addEventListener("click", () => {
   els.driveSyncDir,
   els.updateSourceWorkbook,
   els.freeVideoProviders,
+  els.useAiScript,
+  els.aiProvider,
+  els.aiModel,
+  els.ttsProvider,
+  els.ttsVoice,
+  els.ttsModel,
+  els.avatarReferenceImages,
+  els.avatarClipProvider,
+  els.heygenVoiceId,
+  els.generateAvatarClips,
   els.avatarScenes,
   els.ingredientScenes,
   els.quotaAiLimit,
@@ -1455,6 +1557,12 @@ els.refreshDocsBtn.addEventListener("click", () => {
   els.quotaAvatarUsed
 ].forEach((element) => {
   element.addEventListener("input", () => {
+    syncAiMediaModels();
+    updateQuotaEstimate();
+    updateInfoCards();
+  });
+  element.addEventListener("change", () => {
+    syncAiMediaModels();
     updateQuotaEstimate();
     updateInfoCards();
   });

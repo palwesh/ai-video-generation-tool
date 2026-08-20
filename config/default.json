@@ -5,6 +5,27 @@
   "sceneDurationSeconds": 10,
   "style": "realistic, modern, professional SaaS/UGC",
   "aiModel": "gpt-5-mini",
+  "ai": {
+    "enabled": false,
+    "provider": "openai",
+    "openaiModel": "gpt-5-mini",
+    "geminiModel": "gemini-2.5-pro"
+  },
+  "voiceover": {
+    "provider": "local",
+    "openaiModel": "gpt-4o-mini-tts",
+    "openaiVoice": "verse",
+    "elevenLabsModel": "eleven_multilingual_v2",
+    "note": "Use local for built-in macOS/Windows TTS. Use openai or elevenlabs when API keys are configured."
+  },
+  "avatarGeneration": {
+    "provider": "manual",
+    "providers": "heygen,did,runway,veo,pika",
+    "referenceImages": "",
+    "scenes": "1,2,6",
+    "heygenVoiceId": "",
+    "note": "Use manual to prepare prompts. Use heygen only when HEYGEN_API_KEY and HEYGEN_VOICE_ID are configured."
+  },
   "toolBaseUrl": "https://www.altftool.com/",
   "capture": {
     "enabled": false,

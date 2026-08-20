@@ -159,3 +159,21 @@ export function buildOpenAiRequest(row, captureSummary, config) {
     }
   };
 }
+
+export function buildGeminiRequest(row, captureSummary, config) {
+  const reelConfig = resolveReelConfig(config);
+  return {
+    systemInstruction: {
+      parts: [{ text: buildSystemPrompt(reelConfig) }]
+    },
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: buildUserPrompt(row, captureSummary, config) }]
+      }
+    ],
+    generationConfig: {
+      responseMimeType: "application/json"
+    }
+  };
+}

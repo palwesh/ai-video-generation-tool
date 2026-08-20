@@ -1137,6 +1137,53 @@ The workbook row is updated with Drive sync status, Drive video path/link, Drive
 
 Default behavior is to write an enriched workbook copy in the run folder. To write the same links back into the original source Excel file, enable `Update source Excel after run` in the dashboard or pass `--update-source-workbook`. The agent creates a backup first under `outputs/runs/.../source-workbook-backups/`.
 
+## AI Media Providers
+
+The dashboard now has an AI + voice + avatar section.
+
+Provider roles:
+
+```text
+LLM script:
+- OpenAI: set OPENAI_API_KEY, choose openai, model gpt-5-mini or newer.
+- Gemini: set GEMINI_API_KEY, choose gemini, model gemini-2.5-pro.
+
+Natural voice:
+- Local TTS: free fallback, but robotic.
+- OpenAI TTS: set OPENAI_API_KEY, provider openai, model gpt-4o-mini-tts, voice verse/marin/cedar/etc.
+- ElevenLabs: set ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID, provider elevenlabs.
+
+Avatar image/video:
+- Add 1-3 own/consented image paths in Avatar images.
+- Prompt pack mode creates avatar-generation folders for HeyGen, D-ID, Runway, Veo, and Pika.
+- HeyGen API mode needs HEYGEN_API_KEY and HEYGEN_VOICE_ID.
+```
+
+Recommended reel structure:
+
+```text
+Scene 1: avatar hook clip if available.
+Scene 2: avatar/tool intro.
+Scene 3-5: real tool screenshots and recordings.
+Scene 6: avatar CTA plus safety reminder.
+```
+
+Commands:
+
+```bash
+npm run voiceover:generate -- --tool-dir outputs/runs/.../tool-folder --provider openai --voice verse
+npm run voiceover:generate -- --tool-dir outputs/runs/.../tool-folder --provider elevenlabs --voice YOUR_ELEVENLABS_VOICE_ID
+npm run avatar:generate -- --tool-dir outputs/runs/.../tool-folder --provider heygen --scenes 1,2,6 --voice-id YOUR_HEYGEN_VOICE_ID
+```
+
+Privacy/safety:
+
+```text
+Use only your own image/voice or media where you have clear permission.
+Do not use real client/customer data in tool demos.
+Final videos still need human review before posting.
+```
+
 ## Suggested Next Improvements
 
 Best next upgrades:
@@ -1144,7 +1191,7 @@ Best next upgrades:
 ```text
 1. Add a review screen in dashboard to preview scene script before video generation.
 2. Add pause/resume persistence for queues after dashboard restart.
-3. Add better AI voice provider option for more natural voiceover.
+3. Add better AI voice provider option for fully automated natural voiceover. Current practical fix: `npm run voiceover:pack` creates scene scripts and the renderer auto-uses `voiceovers/scene-01.mp3`, `scene-02.mp3`, etc. before built-in TTS.
 4. Add Google Drive API sharing to produce public web share links automatically.
 5. Add automatic Instagram caption export per row.
 6. Add manual approval step before spending Google Vids quota.

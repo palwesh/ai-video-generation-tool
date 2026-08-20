@@ -24,6 +24,10 @@ const publicAssetRoot = path.resolve("public", "tool-reel-assets");
 const audioEnabled = !args["no-audio"];
 const sayVoice = args.voice || process.env.TRF_SAY_VOICE || "";
 const sayRate = String(args["voice-rate"] || process.env.TRF_SAY_RATE || 205);
+const spokenField = args["spoken-field"] || process.env.TRF_SPOKEN_FIELD || "voiceover_audio";
+const customVoiceoverDir = args["voiceover-dir"]
+  ? path.resolve(args["voiceover-dir"])
+  : path.join(toolDir || process.cwd(), "voiceovers");
 
 if (!toolDir) {
   console.error("Missing --tool-dir.");
@@ -52,6 +56,16 @@ async function copyAsset(source, destinationDir, name) {
   const destination = path.join(destinationDir, `${name}${extension}`);
   await fs.copyFile(source, destination);
   return path.relative(path.resolve("public"), destination).split(path.sep).join("/");
+}
+
+async function firstExisting(paths) {
+  for (const filePath of paths) {
+    const existing = await accessOrNull(filePath);
+    if (existing) {
+      return existing;
+    }
+  }
+  return null;
 }
 
 async function copyCachedVidsAssets(toolDir, assetDir, sceneCount = 6) {
@@ -282,13 +296,28 @@ async function createAudioAssets(scenes, assetDir, outputDir, durationSeconds = 
 
   const voiceovers = [];
   for (const [index, scene] of scenes.entries()) {
+    const sceneNumber = index + 1;
+    const customVoiceover = await firstExisting([
+      path.join(customVoiceoverDir, `scene-${String(sceneNumber).padStart(2, "0")}.wav`),
+      path.join(customVoiceoverDir, `scene-${String(sceneNumber).padStart(2, "0")}.mp3`),
+      path.join(customVoiceoverDir, `scene-${String(sceneNumber).padStart(2, "0")}.m4a`),
+      path.join(customVoiceoverDir, `voiceover-scene-${sceneNumber}.wav`),
+      path.join(customVoiceoverDir, `voiceover-scene-${sceneNumber}.mp3`),
+      path.join(customVoiceoverDir, `voiceover-scene-${sceneNumber}.m4a`)
+    ]);
+    if (customVoiceover) {
+      voiceovers.push(await copyAsset(customVoiceover, assetDir, `voiceover-scene-${sceneNumber}`));
+      continue;
+    }
+
     const wavPath = path.join(assetDir, `voiceover-scene-${index + 1}.wav`);
     const aiffPath = path.join(tempDir, `voiceover-scene-${index + 1}.aiff`);
+    const spokenText = String(scene?.[spokenField] || scene?.spoken_voiceover || scene?.voiceover || "").trim();
     try {
       if (voiceoverMode === "macos-say") {
-        voiceovers.push(await createMacVoiceoverWav(scene.voiceover, wavPath, aiffPath));
+        voiceovers.push(await createMacVoiceoverWav(spokenText, wavPath, aiffPath));
       } else if (voiceoverMode === "windows-sapi") {
-        voiceovers.push(await createWindowsVoiceoverWav(scene.voiceover, wavPath, tempDir));
+        voiceovers.push(await createWindowsVoiceoverWav(spokenText, wavPath, tempDir));
       } else {
         voiceovers.push("");
       }
@@ -310,6 +339,8 @@ async function createAudioAssets(scenes, assetDir, outputDir, durationSeconds = 
   return {
     enabled: Boolean(voiceovers.some(Boolean) || music),
     voiceoverMode,
+    spokenField,
+    customVoiceoverDir,
     voiceovers,
     music,
     warnings
@@ -377,6 +408,14 @@ const desktopDemoBefore = captureFiles.find((file) => file.endsWith("desktop-dem
 const desktopDemoAfter = captureFiles.find((file) => file.endsWith("desktop-demo-after.png"));
 const desktopDemoVideo = captureFiles.find((file) => file.endsWith("desktop-demo.webm"));
 const mobileScrollVideo = captureFiles.find((file) => file.endsWith("mobile-scroll.webm"));
+const avatarHostImage = args["avatar-host"]
+  ? path.resolve(args["avatar-host"])
+  : await accessOrNull(path.join(toolDir, "avatar-host.png"))
+    || await accessOrNull(path.join(toolDir, "avatar-host.jpg"))
+    || await accessOrNull(path.join(toolDir, "avatar-host.jpeg"))
+    || await accessOrNull(path.join(toolDir, "generated", "avatar-host.png"))
+    || await accessOrNull(path.join(toolDir, "generated", "avatar-host.jpg"))
+    || await accessOrNull(path.join(toolDir, "generated", "avatar-host.jpeg"));
 
 const assets = {
   desktop: await copyAsset(desktopTop, assetDir, "desktop-top"),
@@ -385,7 +424,8 @@ const assets = {
   demoBefore: await copyAsset(desktopDemoBefore, assetDir, "desktop-demo-before"),
   demoAfter: await copyAsset(desktopDemoAfter, assetDir, "desktop-demo-after"),
   demoVideo: await copyAsset(desktopDemoVideo, assetDir, "desktop-demo"),
-  mobileScroll: await copyAsset(mobileScrollVideo, assetDir, "mobile-scroll")
+  mobileScroll: await copyAsset(mobileScrollVideo, assetDir, "mobile-scroll"),
+  avatarHost: await copyAsset(avatarHostImage, assetDir, "avatar-host")
 };
 const vidsCacheAssets = await copyCachedVidsAssets(toolDir, assetDir, scenePlan.scenes.length);
 assets.vidsClips = vidsCacheAssets.sceneClips;

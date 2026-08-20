@@ -28,6 +28,17 @@ const defaultAvatar = googleVidsConfig.defaultAvatar || "auto";
 const defaultAvatarScenes = googleVidsConfig.defaultAvatarScenes || "1,2,6";
 const defaultIngredientScenes = googleVidsConfig.defaultIngredientScenes || "3,4,5";
 const defaultFreeVideoProviders = appConfig.freeVideoProviders?.defaultProviders || "capcut,pika,runway,canva,did,shotstack";
+const defaultAiProvider = appConfig.ai?.provider || "openai";
+const defaultAiModel = appConfig.ai?.openaiModel || appConfig.aiModel || "gpt-5-mini";
+const defaultGeminiModel = appConfig.ai?.geminiModel || "gemini-2.5-pro";
+const defaultVoiceoverProvider = appConfig.voiceover?.provider || "local";
+const defaultOpenAiTtsModel = appConfig.voiceover?.openaiModel || "gpt-4o-mini-tts";
+const defaultOpenAiTtsVoice = appConfig.voiceover?.openaiVoice || "verse";
+const defaultElevenLabsModel = appConfig.voiceover?.elevenLabsModel || "eleven_multilingual_v2";
+const defaultAvatarGenerationProvider = appConfig.avatarGeneration?.provider || "manual";
+const defaultAvatarReferenceImages = appConfig.avatarGeneration?.referenceImages || "";
+const defaultAvatarGenerationProviders = appConfig.avatarGeneration?.providers || "heygen,did,runway,veo,pika";
+const defaultHeygenVoiceId = appConfig.avatarGeneration?.heygenVoiceId || "";
 const avatarOptions = Array.isArray(googleVidsConfig.avatarOptions) && googleVidsConfig.avatarOptions.length
   ? googleVidsConfig.avatarOptions
   : [{ label: "Auto Realistic", value: "auto" }];
@@ -235,6 +246,33 @@ function normalizeRunBody(body = {}) {
   }
   if (!String(normalized.freeVideoProviders || "").trim()) {
     normalized.freeVideoProviders = defaultFreeVideoProviders;
+  }
+  if (!String(normalized.aiProvider || "").trim()) {
+    normalized.aiProvider = defaultAiProvider;
+  }
+  if (!String(normalized.aiModel || "").trim()) {
+    normalized.aiModel = normalized.aiProvider === "gemini" ? defaultGeminiModel : defaultAiModel;
+  }
+  if (!String(normalized.ttsProvider || "").trim()) {
+    normalized.ttsProvider = defaultVoiceoverProvider;
+  }
+  if (!String(normalized.ttsModel || "").trim()) {
+    normalized.ttsModel = normalized.ttsProvider === "elevenlabs" ? defaultElevenLabsModel : defaultOpenAiTtsModel;
+  }
+  if (!String(normalized.ttsVoice || "").trim()) {
+    normalized.ttsVoice = defaultOpenAiTtsVoice;
+  }
+  if (!String(normalized.avatarReferenceImages || "").trim()) {
+    normalized.avatarReferenceImages = defaultAvatarReferenceImages;
+  }
+  if (!String(normalized.avatarClipProvider || "").trim()) {
+    normalized.avatarClipProvider = defaultAvatarGenerationProvider;
+  }
+  if (!String(normalized.avatarPackProviders || "").trim()) {
+    normalized.avatarPackProviders = defaultAvatarGenerationProviders;
+  }
+  if (!String(normalized.heygenVoiceId || "").trim()) {
+    normalized.heygenVoiceId = defaultHeygenVoiceId;
   }
 
   return normalized;
@@ -850,6 +888,35 @@ function runArgsFromBody(body, outputDir) {
   if (normalized.freeVideoProviders) {
     runArgs.push("--free-video-providers", String(normalized.freeVideoProviders));
   }
+  if (body.useAiScript) {
+    runArgs.push("--ai");
+    runArgs.push("--ai-provider", String(normalized.aiProvider || defaultAiProvider));
+    if (normalized.aiModel) {
+      runArgs.push("--ai-model", String(normalized.aiModel));
+    }
+  }
+  if (normalized.ttsProvider && !["local", "none", "off"].includes(String(normalized.ttsProvider).toLowerCase())) {
+    runArgs.push("--tts-provider", String(normalized.ttsProvider));
+    if (normalized.ttsModel) {
+      runArgs.push("--tts-model", String(normalized.ttsModel));
+    }
+    if (normalized.ttsVoice) {
+      runArgs.push("--tts-voice", String(normalized.ttsVoice));
+    }
+  }
+  if (normalized.avatarReferenceImages) {
+    runArgs.push("--creator-images", String(normalized.avatarReferenceImages));
+    runArgs.push("--avatar-pack-providers", String(normalized.avatarPackProviders || defaultAvatarGenerationProviders));
+    if (normalized.avatarClipProvider) {
+      runArgs.push("--avatar-provider", String(normalized.avatarClipProvider));
+    }
+    if (normalized.generateAvatarClips) {
+      runArgs.push("--generate-avatar-clips");
+    }
+    if (normalized.heygenVoiceId) {
+      runArgs.push("--heygen-voice-id", String(normalized.heygenVoiceId));
+    }
+  }
 
   if (mode === "prep" || mode === "free-providers") {
     runArgs.push("--prep-only");
@@ -1463,6 +1530,31 @@ async function handleApi(req, res, pathname, searchParams) {
         freeVideoProviders: {
           defaultProviders: defaultFreeVideoProviders,
           options: availableFreeVideoProviders
+        },
+        ai: {
+          defaultEnabled: Boolean(appConfig.ai?.enabled),
+          defaultProvider: defaultAiProvider,
+          defaultModel: defaultAiModel,
+          defaultGeminiModel,
+          hasOpenAiKey: Boolean(process.env.OPENAI_API_KEY),
+          hasGeminiKey: Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY)
+        },
+        voiceover: {
+          defaultProvider: defaultVoiceoverProvider,
+          openaiModel: defaultOpenAiTtsModel,
+          openaiVoice: defaultOpenAiTtsVoice,
+          elevenLabsModel: defaultElevenLabsModel,
+          hasOpenAiKey: Boolean(process.env.OPENAI_API_KEY),
+          hasElevenLabsKey: Boolean(process.env.ELEVENLABS_API_KEY)
+        },
+        avatarGeneration: {
+          defaultProvider: defaultAvatarGenerationProvider,
+          providers: defaultAvatarGenerationProviders,
+          referenceImages: defaultAvatarReferenceImages,
+          scenes: appConfig.avatarGeneration?.scenes || defaultAvatarScenes,
+          heygenVoiceId: defaultHeygenVoiceId,
+          hasHeyGenKey: Boolean(process.env.HEYGEN_API_KEY),
+          hasHeyGenVoiceId: Boolean(process.env.HEYGEN_VOICE_ID || defaultHeygenVoiceId)
         },
         driveSync: {
           rootDir: process.env.TRF_DRIVE_SYNC_DIR || appConfig.driveSync?.rootDir || ""

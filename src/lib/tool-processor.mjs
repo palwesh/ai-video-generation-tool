@@ -21,7 +21,10 @@ import { writeFreeVideoProviderPack } from "./free-video-providers.mjs";
 export async function processToolRow(row, batchDir, config, options = {}) {
   const sceneConfig = {
     ...config,
-    sceneCount: options.sceneCount || config.sceneCount
+    sceneCount: options.sceneCount || config.sceneCount,
+    aiProvider: options.aiProvider || config.ai?.provider || config.aiProvider,
+    aiModel: options.aiModel || config.ai?.openaiModel || config.aiModel,
+    geminiModel: options.aiModel || config.ai?.geminiModel || config.geminiModel
   };
   const slug = slugify(row.tool_name || row.topic || row.tool_url);
   const runDir = path.join(batchDir, slug);

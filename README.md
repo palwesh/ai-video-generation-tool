@@ -349,6 +349,62 @@ npm run render:local -- --tool-dir outputs/runs/one-video-agent-.../tool-folder 
 
 The local MP4 is a free Reel with captions, captured tool screenshots, recorded tool usage where available, generated scene voiceover, subtle music, and a creator/avatar badge. Add `--no-audio` to `render:local` only if you want a silent visual draft.
 
+For a less robotic final voice, export a human voiceover pack and record or generate each scene as a separate audio file:
+
+```bash
+npm run voiceover:pack -- --tool-dir outputs/runs/one-video-agent-.../tool-folder
+```
+
+Save audio files in the generated `voiceovers/` folder as `scene-01.mp3`, `scene-02.mp3`, etc. Then render again:
+
+```bash
+npm run render:local -- --tool-dir outputs/runs/one-video-agent-.../tool-folder --voiceover-dir outputs/runs/one-video-agent-.../tool-folder/voiceovers --filename final-tool-reel-human-voice.mp4
+```
+
+The renderer uses these scene audio files first. Missing scene audio falls back to built-in macOS/Windows TTS.
+
+### Better AI Scripts, Voice, And Avatar Clips
+
+The agent can prepare or generate higher-quality media when API keys are configured.
+
+Use OpenAI or Gemini for script enhancement:
+
+```bash
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --local-only --ai --ai-provider openai --ai-model gpt-5-mini
+```
+
+Generate natural scene voiceovers:
+
+```bash
+npm run voiceover:generate -- --tool-dir outputs/runs/one-video-agent-.../tool-folder --provider openai --voice verse
+npm run voiceover:generate -- --tool-dir outputs/runs/one-video-agent-.../tool-folder --provider elevenlabs --voice YOUR_ELEVENLABS_VOICE_ID
+```
+
+Useful `.env` keys:
+
+```text
+OPENAI_API_KEY=...
+GEMINI_API_KEY=...
+ELEVENLABS_API_KEY=...
+ELEVENLABS_VOICE_ID=...
+HEYGEN_API_KEY=...
+HEYGEN_VOICE_ID=...
+```
+
+Use your own image references for avatar clips:
+
+```bash
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --local-only --creator-images "/path/me-front.jpg,/path/me-side.jpg,/path/me-close.jpg"
+```
+
+This creates `avatar-references/` and `avatar-generation/` prompt packs. If HeyGen API keys and a voice ID are configured, automated avatar clip generation can be run with:
+
+```bash
+npm run avatar:generate -- --tool-dir outputs/runs/one-video-agent-.../tool-folder --provider heygen --scenes 1,2,6 --voice-id YOUR_HEYGEN_VOICE_ID
+```
+
+Downloaded/generated avatar MP4s are cached in `vids-clips/`, and Local MP4 uses them before fallback screenshots.
+
 ## Google Vids
 
 Google Vids video generation does not currently have a clear public API for fully creating videos from prompts. This project prepares the prompts and keeps a persistent browser profile so you can log in once with your second email.

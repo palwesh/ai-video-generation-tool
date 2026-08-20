@@ -102,7 +102,7 @@ function providerPrompt(provider, scene, manifest = {}) {
     toolUrl ? `Actual tool URL to reference: ${toolUrl}` : "",
     "Use realistic SaaS/UGC style, clean captions, fast cuts, cursor highlights, and fictional/demo data only.",
     "Do not invent a fake UI. If the provider supports image/video references, upload the real captured screenshots or demo recording from this tool folder.",
-    `Export or download the finished clip as MP4, then save it in this scene folder and also copy it to ../../vids-clips/scene-${sceneNumber}.mp4 for final local merge.`
+    `Export or download the finished clip as MP4, then save it in this scene folder and also copy it to ../../../vids-clips/scene-${sceneNumber}.mp4 for final local merge.`
   ].filter(Boolean).join(" ");
 
   const providerTips = {
@@ -188,7 +188,7 @@ export async function writeFreeVideoProviderPack(runDir, scenePlan, manifest = {
       const sceneNumber = sceneToken(scene.scene_number);
       const sceneDir = path.join(providerDir, `scene-${sceneNumber}`);
       const prompt = providerPrompt(provider, scene, manifest);
-      const saveAs = `../../vids-clips/scene-${sceneNumber}.mp4`;
+      const saveAs = `../../../vids-clips/scene-${sceneNumber}.mp4`;
       await ensureDir(sceneDir);
       await writeText(path.join(sceneDir, "prompt.txt"), `${prompt}\n`);
       await writeText(path.join(sceneDir, "voiceover.txt"), `${scene.voiceover || ""}\n`);

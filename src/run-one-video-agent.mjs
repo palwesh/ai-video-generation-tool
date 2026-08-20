@@ -16,6 +16,7 @@ import {
   mirrorGeneratedDirectory,
   mirrorGeneratedFile
 } from "./lib/generated-archive.mjs";
+import { writeAvatarReferencePack } from "./lib/avatar-reference-pack.mjs";
 
 dotenv.config({ quiet: true });
 
@@ -35,10 +36,18 @@ const generateInVids = Boolean(args.generate) && !localOnly && !prepOnly;
 const useVidsSceneClips = generateInVids && !args["vids-timeline-export"];
 const allowLocalFallback = generateInVids && !args["no-local-fallback"];
 const shouldCapture = !args["no-capture"];
-const useAi = Boolean(args.ai && process.env.OPENAI_API_KEY);
+const aiProvider = args["ai-provider"] || process.env.TRF_AI_PROVIDER || config.ai?.provider || "openai";
+const aiModel = args["ai-model"] || process.env.OPENAI_MODEL || process.env.GEMINI_MODEL || config.ai?.openaiModel || config.aiModel || "";
+const useAi = Boolean(args.ai);
 const avatarMode = args["no-avatar"] ? "" : (args.avatar || args["select-avatar"] || (generateInVids ? "auto" : ""));
 const defaultAvatarScenes = config.googleVids?.defaultAvatarScenes || `1,2,${reelConfig.sceneCount}`;
 const freeVideoProviders = args["free-video-providers"] || config.freeVideoProviders?.defaultProviders || "all";
+const creatorImages = args["creator-images"] || args["avatar-images"] || args["reference-images"] || config.avatarGeneration?.referenceImages || "";
+const avatarProviderPackProviders = args["avatar-pack-providers"] || config.avatarGeneration?.providers || "heygen,did,runway,veo,pika";
+const avatarClipProvider = String(args["avatar-provider"] || config.avatarGeneration?.provider || "manual").toLowerCase();
+const generateAvatarClips = Boolean(args["generate-avatar-clips"] || args["generate-avatar"] || (avatarClipProvider === "heygen" && args["avatar-provider"]));
+const ttsProvider = String(args["tts-provider"] || args["voice-provider"] || config.voiceover?.provider || "local").toLowerCase();
+const shouldGenerateVoiceovers = !["", "none", "off", "local", "macos", "windows"].includes(ttsProvider);
 const driveSyncDir = resolveDriveSyncDir(config, args);
 const batchStamp = new Date().toISOString().replace(/[:.]/g, "-");
 const batchDir = path.resolve(args.out || path.join("outputs", "runs", `one-video-agent-${batchStamp}`));
@@ -96,7 +105,14 @@ const extraHeaders = [
   "TRF Reel Script JSON",
   "TRF Vids Generated Scenes Folder",
   "TRF Free Video Provider Pack",
-  "TRF Free Video Provider Prompts"
+  "TRF Free Video Provider Prompts",
+  "TRF Voiceover Pack Folder",
+  "TRF Voiceover Recording Script",
+  "TRF Natural Voiceover Folder",
+  "TRF Natural Voiceover Report",
+  "TRF Avatar Reference Pack",
+  "TRF Avatar Reference Folder",
+  "TRF Avatar Generation Report"
 ];
 
 function firstFile(files, name) {
@@ -226,7 +242,28 @@ function enrichmentFor(normalized, result, final = {}) {
     result.files.reelScriptJsonPath || "",
     result.files.vidsGeneratedScenesPath || "",
     result.files.freeVideoProviderPackPath || "",
-    result.files.freeVideoProviderPromptsPath || ""
+    result.files.freeVideoProviderPromptsPath || "",
+    final.voiceoverPackFolder
+      ? folderHyperlink(final.voiceoverPackFolder, "Open voiceover pack")
+      : folderHyperlink(path.join(result.runDir, "voiceovers"), "Open voiceover pack"),
+    final.voiceoverRecordingScript
+      ? fileHyperlink(final.voiceoverRecordingScript, "Open recording script")
+      : fileHyperlink(path.join(result.runDir, "voiceovers", "recording-script.md"), "Open recording script"),
+    final.naturalVoiceoverFolder
+      ? folderHyperlink(final.naturalVoiceoverFolder, "Open natural voiceovers")
+      : "",
+    final.naturalVoiceoverReportPath
+      ? fileHyperlink(final.naturalVoiceoverReportPath, "Open voiceover report")
+      : "",
+    final.avatarReferencePackFolder
+      ? folderHyperlink(final.avatarReferencePackFolder, "Open avatar pack")
+      : "",
+    final.avatarReferenceFolder
+      ? folderHyperlink(final.avatarReferenceFolder, "Open avatar refs")
+      : "",
+    final.avatarGenerationReportPath
+      ? fileHyperlink(final.avatarGenerationReportPath, "Open avatar report")
+      : ""
   ];
 }
 
@@ -442,6 +479,202 @@ async function renderLocalReel(result, steps, generatedFiles, reason, status = "
     status,
     qaStatus: "Local MP4 rendered; final human review needed before posting"
   };
+}
+
+async function createVoiceoverPack(result, steps, generatedFiles) {
+  const voiceoverPackFolder = path.join(result.runDir, "voiceovers");
+  const voiceoverRecordingScript = path.join(voiceoverPackFolder, "recording-script.md");
+  const voiceoverMap = path.join(voiceoverPackFolder, "voiceover-map.json");
+
+  try {
+    await runNodeScript("voiceover-pack", "src/export-voiceover-pack.mjs", [
+      "--tool-dir", result.runDir
+    ]);
+    steps.push({
+      name: "voiceover_pack",
+      ok: true,
+      folder: voiceoverPackFolder,
+      recordingScript: voiceoverRecordingScript,
+      note: "Human/neural voiceover replacement pack prepared. Drop scene-01.mp3, scene-02.mp3, etc. into this folder before final render."
+    });
+    pushGenerated(generatedFiles, voiceoverPackFolder, voiceoverRecordingScript, voiceoverMap);
+    return {
+      ok: true,
+      voiceoverPackFolder,
+      voiceoverRecordingScript,
+      voiceoverMap
+    };
+  } catch (error) {
+    steps.push({
+      name: "voiceover_pack",
+      ok: false,
+      error: error.message
+    });
+    return {
+      ok: false,
+      voiceoverPackFolder,
+      voiceoverRecordingScript,
+      voiceoverMap,
+      error: error.message
+    };
+  }
+}
+
+async function generateNaturalVoiceovers(result, steps, generatedFiles) {
+  const voiceoverFolder = path.join(result.runDir, "voiceovers");
+  const reportPath = path.join(voiceoverFolder, "voiceover-generation-report.json");
+  if (!shouldGenerateVoiceovers) {
+    return {
+      ok: false,
+      skipped: true,
+      provider: ttsProvider,
+      reportPath
+    };
+  }
+
+  const voiceArgs = [
+    "src/generate-voiceovers.mjs",
+    "--tool-dir", result.runDir,
+    "--provider", ttsProvider
+  ];
+  if (args["tts-voice"] || args["voice-id"]) {
+    voiceArgs.push("--voice", String(args["tts-voice"] || args["voice-id"]));
+  }
+  if (args["tts-model"]) {
+    voiceArgs.push("--model", String(args["tts-model"]));
+  }
+  if (args["tts-overwrite"]) {
+    voiceArgs.push("--overwrite");
+  }
+
+  try {
+    await runNodeScript(`voiceover-generate:${ttsProvider}`, voiceArgs[0], voiceArgs.slice(1));
+    const report = await readJsonIfExists(reportPath);
+    steps.push({
+      name: "natural_voiceover_generation",
+      ok: Boolean(report?.ok),
+      provider: ttsProvider,
+      report: reportPath,
+      generatedCount: report?.generatedCount || 0,
+      existingCount: report?.existingCount || 0,
+      note: "Generated scene MP3 files are used by the local renderer before built-in TTS."
+    });
+    pushGenerated(generatedFiles, voiceoverFolder, reportPath);
+    return {
+      ok: Boolean(report?.ok),
+      provider: ttsProvider,
+      reportPath,
+      folder: voiceoverFolder,
+      generatedCount: report?.generatedCount || 0,
+      existingCount: report?.existingCount || 0,
+      error: report?.error || ""
+    };
+  } catch (error) {
+    steps.push({
+      name: "natural_voiceover_generation",
+      ok: false,
+      provider: ttsProvider,
+      report: reportPath,
+      error: error.message
+    });
+    return {
+      ok: false,
+      provider: ttsProvider,
+      reportPath,
+      folder: voiceoverFolder,
+      error: error.message
+    };
+  }
+}
+
+async function createAvatarPackAndMaybeClips(result, steps, generatedFiles) {
+  const hasImages = String(creatorImages || "").trim() !== "";
+  if (!hasImages) {
+    return {
+      ok: false,
+      skipped: true,
+      provider: avatarClipProvider
+    };
+  }
+
+  const avatarPack = await writeAvatarReferencePack(result.runDir, result.scenePlan, {
+    images: creatorImages,
+    providers: avatarProviderPackProviders,
+    scenes: args["avatar-scenes"] || defaultAvatarScenes
+  });
+  steps.push({
+    name: "avatar_reference_pack",
+    ok: true,
+    folder: avatarPack.folder,
+    referenceDir: avatarPack.referenceDir,
+    referenceImages: avatarPack.referenceImages.length,
+    providers: avatarPack.providers,
+    scenes: avatarPack.scenes,
+    note: "Avatar image reference pack prepared. Generated clips should be saved in vids-clips/scene-XX.mp4."
+  });
+  pushGenerated(generatedFiles, avatarPack.folder, avatarPack.referenceDir, avatarPack.manifestPath);
+
+  const resultPayload = {
+    ok: true,
+    provider: avatarClipProvider,
+    folder: avatarPack.folder,
+    referenceDir: avatarPack.referenceDir,
+    manifestPath: avatarPack.manifestPath,
+    referenceImages: avatarPack.referenceImages,
+    generationReportPath: ""
+  };
+
+  if (!generateAvatarClips) {
+    return {
+      ...resultPayload,
+      generated: false
+    };
+  }
+
+  const avatarArgs = [
+    "src/generate-avatar-clips.mjs",
+    "--tool-dir", result.runDir,
+    "--provider", avatarClipProvider,
+    "--scenes", args["avatar-scenes"] || defaultAvatarScenes
+  ];
+  if (args["heygen-voice-id"] || args["voice-id"]) {
+    avatarArgs.push("--voice-id", String(args["heygen-voice-id"] || args["voice-id"]));
+  }
+  const reportPath = path.join(result.runDir, "avatar-generation", `${avatarClipProvider}-generation-report.json`);
+  try {
+    await runNodeScript(`avatar-generate:${avatarClipProvider}`, avatarArgs[0], avatarArgs.slice(1));
+    const report = await readJsonIfExists(reportPath);
+    steps.push({
+      name: "avatar_clip_generation",
+      ok: Boolean(report?.ok),
+      provider: avatarClipProvider,
+      report: reportPath,
+      generatedCount: report?.generated?.length || 0,
+      note: "Generated avatar clips are cached in vids-clips and used by the local renderer."
+    });
+    pushGenerated(generatedFiles, reportPath, ...(report?.generated || []).flatMap((item) => [item.outputPath, item.cachedPath]).filter(Boolean));
+    return {
+      ...resultPayload,
+      generated: Boolean(report?.ok),
+      generationReportPath: reportPath,
+      generatedCount: report?.generated?.length || 0,
+      error: report?.error || ""
+    };
+  } catch (error) {
+    steps.push({
+      name: "avatar_clip_generation",
+      ok: false,
+      provider: avatarClipProvider,
+      report: reportPath,
+      error: error.message
+    });
+    return {
+      ...resultPayload,
+      generated: false,
+      generationReportPath: reportPath,
+      error: error.message
+    };
+  }
 }
 
 async function cacheExportForLocalRender(result, steps, sourcePath, options = {}) {
@@ -809,6 +1042,8 @@ async function main() {
   const result = await processToolRow(selectedRow, batchDir, config, {
     capture: shouldCapture,
     useAi,
+    aiProvider,
+    aiModel,
     sceneCount: reelConfig.sceneCount,
     freeVideoProviders
   });
@@ -816,6 +1051,9 @@ async function main() {
   const generatedFolder = await ensureGeneratedArchive(result.runDir);
   const cachedVidsClips = [];
   const generatedFiles = [];
+  const voiceoverPack = await createVoiceoverPack(result, steps, generatedFiles);
+  const avatarPack = await createAvatarPackAndMaybeClips(result, steps, generatedFiles);
+  const naturalVoiceover = await generateNaturalVoiceovers(result, steps, generatedFiles);
 
   steps.push({
     name: "data_prep",
@@ -828,6 +1066,13 @@ async function main() {
     vidsClipCacheFolder,
     freeVideoProviderPackFolder: result.files.freeVideoProviderPackPath || "",
     freeVideoProviderPrompts: result.files.freeVideoProviderPromptsPath || "",
+    voiceoverPackFolder: voiceoverPack.voiceoverPackFolder,
+    voiceoverRecordingScript: voiceoverPack.voiceoverRecordingScript,
+    avatarReferencePackFolder: avatarPack.folder || "",
+    avatarReferenceFolder: avatarPack.referenceDir || "",
+    avatarGenerationReportPath: avatarPack.generationReportPath || "",
+    naturalVoiceoverFolder: naturalVoiceover.folder || "",
+    naturalVoiceoverReportPath: naturalVoiceover.reportPath || "",
     cachedVidsClips,
     generatedFolder,
     generatedFiles,
@@ -864,6 +1109,13 @@ async function main() {
     driveVideoPath: driveSync?.driveVideoPath || "",
     driveFolderPath: driveSync?.driveFolderPath || "",
     driveManifestPath: driveSync?.driveManifestPath || "",
+    voiceoverPackFolder: voiceoverPack.voiceoverPackFolder,
+    voiceoverRecordingScript: voiceoverPack.voiceoverRecordingScript,
+    avatarReferencePackFolder: avatarPack.folder || "",
+    avatarReferenceFolder: avatarPack.referenceDir || "",
+    avatarGenerationReportPath: avatarPack.generationReportPath || "",
+    naturalVoiceoverFolder: naturalVoiceover.folder || "",
+    naturalVoiceoverReportPath: naturalVoiceover.reportPath || "",
     sourceWorkbookUpdate
   });
 
@@ -1211,6 +1463,21 @@ async function main() {
     vidsClipCacheFolder,
     freeVideoProviderPackFolder: result.files.freeVideoProviderPackPath || "",
     freeVideoProviderPrompts: result.files.freeVideoProviderPromptsPath || "",
+    voiceoverPackFolder: voiceoverPack.voiceoverPackFolder,
+    voiceoverRecordingScript: voiceoverPack.voiceoverRecordingScript,
+    voiceoverPackOk: voiceoverPack.ok,
+    voiceoverPackError: voiceoverPack.error || "",
+    naturalVoiceoverProvider: naturalVoiceover.provider || ttsProvider,
+    naturalVoiceoverFolder: naturalVoiceover.folder || "",
+    naturalVoiceoverReportPath: naturalVoiceover.reportPath || "",
+    naturalVoiceoverOk: naturalVoiceover.ok || false,
+    naturalVoiceoverError: naturalVoiceover.error || "",
+    avatarReferencePackFolder: avatarPack.folder || "",
+    avatarReferenceFolder: avatarPack.referenceDir || "",
+    avatarReferenceImages: avatarPack.referenceImages || [],
+    avatarGenerationReportPath: avatarPack.generationReportPath || "",
+    avatarGenerationProvider: avatarPack.provider || avatarClipProvider,
+    avatarGenerationError: avatarPack.error || "",
     cachedVidsClips,
     generatedFolder,
     generatedFiles,

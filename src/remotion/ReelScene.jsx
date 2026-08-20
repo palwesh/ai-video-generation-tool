@@ -221,6 +221,96 @@ function CreatorBadge({ sceneIndex, accent, frame }) {
   );
 }
 
+function CreatorHost({ assets, sceneIndex, totalScenes, accent, frame }) {
+  const show = [0, 1, totalScenes - 1].includes(sceneIndex);
+  if (!show) {
+    return null;
+  }
+  if (!assets.avatarHost) {
+    return <CreatorBadge sceneIndex={sceneIndex} accent={accent} frame={frame} />;
+  }
+
+  const entrance = interpolate(frame, [0, 18], [32, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.16, 1, 0.3, 1)
+  });
+  const breathe = interpolate(frame % 90, [0, 45, 90], [1, 1.025, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp"
+  });
+  const top = sceneIndex === totalScenes - 1 ? 1045 : 955;
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        right: 70,
+        top,
+        width: 320,
+        height: 430,
+        borderRadius: 26,
+        overflow: "hidden",
+        border: `4px solid ${accent}`,
+        backgroundColor: "#ffffff",
+        boxShadow: "0 28px 70px rgba(15, 23, 42, 0.25)",
+        translate: `0px ${entrance}px`,
+        scale: breathe
+      }}
+    >
+      <Img
+        src={staticFile(assets.avatarHost)}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          objectPosition: "56% 42%"
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "linear-gradient(180deg, rgba(15,23,42,0) 56%, rgba(15,23,42,0.78) 100%)"
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          left: 18,
+          right: 18,
+          bottom: 18,
+          color: "#ffffff",
+          display: "flex",
+          alignItems: "end",
+          justifyContent: "space-between",
+          gap: 12
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 29, lineHeight: 1, fontWeight: 900 }}>Creator Host</div>
+          <div style={{ marginTop: 5, fontSize: 17, lineHeight: 1, fontWeight: 760, opacity: 0.9 }}>
+            voice + demo
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "end", gap: 4, height: 28 }}>
+          {[15, 26, 18, 30, 20].map((height, index) => (
+            <div
+              key={index}
+              style={{
+                width: 6,
+                height: height + ((frame + index * 5) % 9),
+                borderRadius: 8,
+                backgroundColor: index % 2 ? "#ffffff" : accent
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MediaContent({ media, sceneIndex, assets, fps }) {
   const cachedClip = typeof media === "object" && media?.kind?.startsWith("cached");
   if (!cachedClip && sceneIndex === 5 && (assets.demoBefore || assets.demoAfter)) {
@@ -368,6 +458,357 @@ function SpokenCaption({ text, accent, frame, fps }) {
   );
 }
 
+function HookHeroScene({
+  scene,
+  sceneIndex,
+  totalScenes,
+  sceneDurationSeconds,
+  sceneDurationFrames,
+  frame,
+  fps,
+  toolName,
+  toolUrl,
+  assets,
+  media,
+  accent,
+  progress,
+  fade
+}) {
+  const entrance = interpolate(frame, [0, 18], [44, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.16, 1, 0.3, 1)
+  });
+  const hostEntrance = interpolate(frame, [4, 28], [120, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.16, 1, 0.3, 1)
+  });
+  const toolEntrance = interpolate(frame, [15, 42], [84, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.16, 1, 0.3, 1)
+  });
+  const stopPulse = interpolate(frame % 56, [0, 28, 56], [1, 1.045, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp"
+  });
+  const ringPulse = interpolate(frame % 50, [0, 25, 50], [0.95, 0.2, 0.95], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp"
+  });
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: "#f3f7fb", opacity: fade, overflow: "hidden" }}>
+      {assets.avatarHost ? (
+        <Img
+          src={staticFile(assets.avatarHost)}
+          style={{
+            ...fullBleed,
+            scale: 1.1,
+            objectPosition: "62% 46%",
+            filter: "blur(18px) saturate(0.86)",
+            opacity: 0.2
+          }}
+        />
+      ) : null}
+      <div style={{ ...fullBleed, background: "linear-gradient(180deg, rgba(248,250,252,0.95), rgba(226,238,244,0.98))" }} />
+
+      <div
+        style={{
+          ...safe,
+          top: 78,
+          height: 58,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          color: Palette.muted,
+          fontSize: 28,
+          fontWeight: 760
+        }}
+      >
+        <div>ALT F TOOL</div>
+        <div>{String(scene.scene_number || sceneIndex + 1).padStart(2, "0")} / {String(totalScenes).padStart(2, "0")}</div>
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          left: 70,
+          right: 70,
+          top: 155,
+          translate: `0px ${entrance}px`
+        }}
+      >
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "13px 18px",
+            borderRadius: 999,
+            backgroundColor: "#fee2e2",
+            color: Palette.red,
+            fontSize: 27,
+            fontWeight: 900,
+            letterSpacing: 0
+          }}
+        >
+          PRIVACY CHECK
+        </div>
+        <div
+          style={{
+            marginTop: 28,
+            color: Palette.ink,
+            fontSize: 82,
+            lineHeight: 0.98,
+            fontWeight: 920,
+            textWrap: "balance"
+          }}
+        >
+          PII paste karne se pehle
+        </div>
+        <div
+          style={{
+            marginTop: 16,
+            display: "inline-flex",
+            padding: "14px 26px 18px",
+            borderRadius: 22,
+            backgroundColor: Palette.red,
+            color: "#ffffff",
+            fontSize: 98,
+            lineHeight: 0.9,
+            fontWeight: 960,
+            boxShadow: "0 24px 60px rgba(220, 38, 38, 0.28)",
+            scale: stopPulse
+          }}
+        >
+          STOP
+        </div>
+        <div
+          style={{
+            marginTop: 26,
+            width: 640,
+            color: Palette.muted,
+            fontSize: 34,
+            lineHeight: 1.16,
+            fontWeight: 760
+          }}
+        >
+          Naam, email ya phone leak hua to trust risk me aa jata hai.
+        </div>
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          right: 64,
+          top: 570,
+          width: 420,
+          height: 680,
+          borderRadius: 30,
+          overflow: "hidden",
+          border: `5px solid ${accent}`,
+          backgroundColor: "#ffffff",
+          boxShadow: "0 34px 90px rgba(15, 23, 42, 0.26)",
+          translate: `${hostEntrance}px 0px`
+        }}
+      >
+        <Img
+          src={staticFile(assets.avatarHost)}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            objectPosition: "55% 43%"
+          }}
+        />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(15,23,42,0) 58%, rgba(15,23,42,0.72) 100%)" }} />
+        <div
+          style={{
+            position: "absolute",
+            left: 24,
+            right: 24,
+            bottom: 24,
+            display: "flex",
+            alignItems: "end",
+            justifyContent: "space-between",
+            color: "#ffffff"
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 32, lineHeight: 1, fontWeight: 930 }}>Creator Host</div>
+            <div style={{ marginTop: 7, fontSize: 20, lineHeight: 1, fontWeight: 780, opacity: 0.94 }}>
+              hook + demo
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "end", gap: 5, height: 34 }}>
+            {[17, 31, 21, 36, 24].map((height, index) => (
+              <div
+                key={index}
+                style={{
+                  width: 8,
+                  height: height + ((frame + index * 7) % 10),
+                  borderRadius: 10,
+                  backgroundColor: index % 2 ? "#ffffff" : accent
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          left: 70,
+          top: 810,
+          width: 520,
+          height: 445,
+          borderRadius: 26,
+          overflow: "hidden",
+          backgroundColor: "#ffffff",
+          border: `3px solid ${Palette.line}`,
+          boxShadow: "0 28px 80px rgba(20, 36, 55, 0.2)",
+          translate: `0px ${toolEntrance}px`
+        }}
+      >
+        <MediaContent media={media} sceneIndex={sceneIndex} assets={assets} fps={fps} />
+        <div
+          style={{
+            position: "absolute",
+            left: 22,
+            top: 22,
+            padding: "12px 17px",
+            borderRadius: 999,
+            backgroundColor: accent,
+            color: "#ffffff",
+            fontSize: 23,
+            fontWeight: 920
+          }}
+        >
+          REAL TOOL PAGE
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            right: 36,
+            bottom: 50,
+            width: 78,
+            height: 78,
+            borderRadius: 999,
+            border: `7px solid ${Palette.red}`,
+            opacity: ringPulse
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            right: 57,
+            bottom: 65,
+            width: 0,
+            height: 0,
+            borderTop: "22px solid transparent",
+            borderBottom: "22px solid transparent",
+            borderLeft: "34px solid #111827",
+            rotate: "-34deg"
+          }}
+        />
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          left: 70,
+          right: 70,
+          top: 1305,
+          display: "flex",
+          gap: 14
+        }}
+      >
+        {["Runs locally", "No upload", "Human review"].map((label, index) => (
+          <div
+            key={label}
+            style={{
+              flex: 1,
+              padding: "20px 18px",
+              borderRadius: 18,
+              backgroundColor: index === 2 ? "#fff7ed" : "#ecfdf5",
+              color: index === 2 ? "#9a3412" : Palette.green,
+              fontSize: 26,
+              lineHeight: 1,
+              fontWeight: 900,
+              textAlign: "center"
+            }}
+          >
+            {label}
+          </div>
+        ))}
+      </div>
+
+      <SpokenCaption text={scene.voiceover} accent={accent} frame={frame} fps={fps} />
+
+      <div
+        style={{
+          position: "absolute",
+          left: 80,
+          right: 80,
+          bottom: 122,
+          display: "flex",
+          alignItems: "center",
+          gap: 18
+        }}
+      >
+        <div style={{ flex: 1, height: 12, backgroundColor: "#d8e0ea", borderRadius: 20, overflow: "hidden" }}>
+          <div
+            style={{
+              width: `${Math.max(4, progress * 100)}%`,
+              height: "100%",
+              backgroundColor: accent,
+              borderRadius: 20
+            }}
+          />
+        </div>
+        <div style={{ color: Palette.muted, fontSize: 28, fontWeight: 760 }}>{sceneDurationSeconds}s</div>
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          left: 80,
+          right: 80,
+          bottom: 50,
+          color: Palette.muted,
+          fontSize: 25,
+          lineHeight: 1.2,
+          fontWeight: 650
+        }}
+      >
+        {clampText(toolUrl || toolName, 76)}
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          translate: `${interpolate(frame, [sceneDurationFrames - 12, sceneDurationFrames], [0, 1080], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+            easing: Easing.bezier(0.7, 0, 0.84, 0)
+          })}px 0px`,
+          opacity: interpolate(frame, [0, 10, sceneDurationFrames - 12, sceneDurationFrames], [0, 0, 0, 0.65], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp"
+          })
+        }}
+      >
+        <div style={{ width: "100%", height: "100%", backgroundColor: accent }} />
+      </div>
+    </AbsoluteFill>
+  );
+}
+
 export const ReelScene = ({ scene, sceneIndex, totalScenes = 6, sceneDurationSeconds = 10, toolName, toolUrl, assets }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -418,6 +859,27 @@ export const ReelScene = ({ scene, sceneIndex, totalScenes = 6, sceneDurationSec
     extrapolateRight: "clamp",
     easing: Easing.bezier(0.7, 0, 0.84, 0)
   });
+
+  if (sceneIndex === 0 && assets.avatarHost) {
+    return (
+      <HookHeroScene
+        scene={scene}
+        sceneIndex={sceneIndex}
+        totalScenes={totalScenes}
+        sceneDurationSeconds={sceneDurationSeconds}
+        sceneDurationFrames={sceneDurationFrames}
+        frame={frame}
+        fps={fps}
+        toolName={toolName}
+        toolUrl={toolUrl}
+        assets={assets}
+        media={media}
+        accent={accent}
+        progress={progress}
+        fade={fade}
+      />
+    );
+  }
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#eef2f5", opacity: fade, overflow: "hidden" }}>
@@ -576,7 +1038,7 @@ export const ReelScene = ({ scene, sceneIndex, totalScenes = 6, sceneDurationSec
         </div>
       ) : null}
 
-      <CreatorBadge sceneIndex={sceneIndex} accent={accent} frame={frame} />
+      <CreatorHost assets={assets} sceneIndex={sceneIndex} totalScenes={totalScenes} accent={accent} frame={frame} />
       <SpokenCaption text={scene.voiceover} accent={accent} frame={frame} fps={fps} />
 
       <div

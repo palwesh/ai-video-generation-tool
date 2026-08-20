@@ -93,3 +93,23 @@ vids-clips/scene-02.mp4
 ```
 
 The local editor will automatically use those clips in the final Reel.
+
+## Avatar Reference Images
+
+For presenter/avatar scenes, put 1-3 own or consented images in the dashboard `Avatar images` field, separated by commas.
+
+The agent creates:
+
+```text
+avatar-references/
+avatar-generation/
+```
+
+Use `avatar-generation/heygen`, `avatar-generation/did`, `avatar-generation/runway`, `avatar-generation/veo`, or `avatar-generation/pika` prompts to make scene clips. Save the downloaded MP4 into:
+
+```text
+vids-clips/avatar-scene-01.mp4
+vids-clips/avatar-scene-02.mp4
+```
+
+Local MP4 mode automatically uses those cached clips.
