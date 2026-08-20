@@ -4,6 +4,7 @@ import { parseArgs } from "./lib/args.mjs";
 import { readJson, writeJson, ensureDir } from "./lib/fsx.mjs";
 import { readToolRows } from "./lib/input.mjs";
 import { processToolRow } from "./lib/tool-processor.mjs";
+import { resolveReelConfig } from "./lib/reel-planner.mjs";
 
 dotenv.config({ quiet: true });
 
@@ -21,6 +22,9 @@ const rows = await readToolRows(inputPath, { toolBaseUrl });
 const limit = args.limit ? Number(args.limit) : rows.length;
 const useAi = !args["no-ai"] && Boolean(process.env.OPENAI_API_KEY);
 const shouldCapture = Boolean(args.capture) || (config.capture?.enabled && !args["no-capture"]);
+const reelConfig = resolveReelConfig(config, {
+  sceneCount: args["scene-count"] || args["target-scenes"] || args["max-scenes"]
+});
 const batchStamp = new Date().toISOString().replace(/[:.]/g, "-");
 const batchDir = path.resolve(args.out || config.output?.rootDir || "outputs/runs", batchStamp);
 await ensureDir(batchDir);
@@ -32,12 +36,14 @@ console.log(`AI generation: ${useAi ? "enabled" : "fallback/local"}`);
 console.log(`Website capture: ${shouldCapture ? "enabled" : "disabled"}`);
 console.log(`Tool base URL: ${toolBaseUrl || "not configured"}`);
 console.log(`Output: ${batchDir}`);
+console.log(`Reel structure: ${reelConfig.sceneCount} scenes, ${reelConfig.totalDurationSeconds}s total`);
 
 for (const row of rows.slice(0, limit)) {
   console.log(`\nProcessing: ${row.tool_name}`);
   const result = await processToolRow(row, batchDir, config, {
     capture: shouldCapture,
-    useAi
+    useAi,
+    sceneCount: reelConfig.sceneCount
   });
 
   console.log(`Captured ${result.capture.files.length} reference file(s).`);

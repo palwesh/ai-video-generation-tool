@@ -9,6 +9,7 @@ import { processToolRow } from "./lib/tool-processor.mjs";
 import { writeSimpleXlsx } from "./lib/simple-xlsx-writer.mjs";
 import { fileHyperlink, folderHyperlink, hyperlinkFormula } from "./lib/link-cells.mjs";
 import { cacheVidsExport, ensureVidsClipCache } from "./lib/vids-clip-cache.mjs";
+import { resolveReelConfig } from "./lib/reel-planner.mjs";
 import {
   ensureGeneratedArchive,
   mirrorGeneratedDirectory,
@@ -23,7 +24,10 @@ const inputPath = path.resolve(args.input || defaultInput);
 const config = await readJson("config/default.json");
 const toolBaseUrl = args["base-url"] || config.toolBaseUrl || "";
 const requestedLimit = Number(args.limit || 1);
-const maxScenes = Number(args["max-scenes"] || 7);
+const reelConfig = resolveReelConfig(config, {
+  sceneCount: args["scene-count"] || args["target-scenes"] || args["max-scenes"]
+});
+const maxScenes = Number(args["max-scenes"] || reelConfig.sceneCount);
 const prepOnly = Boolean(args["prep-only"]);
 const localOnly = Boolean(args["local-only"]);
 const generateInVids = Boolean(args.generate) && !localOnly && !prepOnly;
@@ -31,7 +35,7 @@ const allowLocalFallback = generateInVids && !args["no-local-fallback"];
 const shouldCapture = !args["no-capture"];
 const useAi = Boolean(args.ai && process.env.OPENAI_API_KEY);
 const avatarMode = args["no-avatar"] ? "" : (args.avatar || args["select-avatar"] || (generateInVids ? "auto" : ""));
-const defaultAvatarScenes = config.googleVids?.defaultAvatarScenes || "1,2,7";
+const defaultAvatarScenes = config.googleVids?.defaultAvatarScenes || `1,2,${reelConfig.sceneCount}`;
 const batchStamp = new Date().toISOString().replace(/[:.]/g, "-");
 const batchDir = path.resolve(args.out || path.join("outputs", "runs", `one-video-agent-${batchStamp}`));
 const preparedWorkbookPath = path.join(batchDir, "prepared-tool-reel-workbook.xlsx");
@@ -78,7 +82,11 @@ const extraHeaders = [
   "TRF Final Video Folder Link",
   "TRF Run Folder Link",
   "TRF Generated Folder",
-  "TRF Generated Files"
+  "TRF Generated Files",
+  "TRF Asset Brief",
+  "TRF Reel Script MD",
+  "TRF Reel Script JSON",
+  "TRF Vids Generated Scenes Folder"
 ];
 
 function firstFile(files, name) {
@@ -126,8 +134,8 @@ function enrichmentFor(normalized, result, final = {}) {
   const scenes = result.scenePlan.scenes;
   const captureFiles = result.capture.files || [];
   const finalVoiceover = scenes.map((scene) => scene.voiceover).join(" ");
-  const sceneVoiceovers = scenes.map((scene) => scene.voiceover);
-  const scenePrompts = scenes.map((scene) => scene.video_prompt);
+  const sceneVoiceovers = Array.from({ length: 7 }, (_, index) => scenes[index]?.voiceover || "");
+  const scenePrompts = Array.from({ length: 7 }, (_, index) => scenes[index]?.video_prompt || "");
   const finalVideoLink = final.mp4Path
     ? fileHyperlink(final.mp4Path, "Open video")
     : final.vidsUrl
@@ -166,7 +174,11 @@ function enrichmentFor(normalized, result, final = {}) {
     finalVideoFolderLink,
     folderHyperlink(result.runDir, "Open run folder"),
     final.generatedFolder || result.files.generatedArchivePath || path.join(result.runDir, "generated"),
-    Array.isArray(final.generatedFiles) ? final.generatedFiles.join("\n") : ""
+    Array.isArray(final.generatedFiles) ? final.generatedFiles.join("\n") : "",
+    result.files.assetBriefPath || "",
+    result.files.reelScriptMdPath || "",
+    result.files.reelScriptJsonPath || "",
+    result.files.vidsGeneratedScenesPath || ""
   ];
 }
 
@@ -482,10 +494,12 @@ async function main() {
   console.log(`Output: ${batchDir}`);
   console.log("Video limit: 1 selected Excel row");
   console.log(`Mode: ${prepOnly ? "script/assets prep only" : localOnly ? "local-only render" : generateInVids ? "Google Vids generate/export" : "dry-run prep + prompt fill"}`);
+  console.log(`Reel structure: ${reelConfig.sceneCount} scenes, ${reelConfig.totalDurationSeconds}s total`);
 
   const result = await processToolRow(selectedRow, batchDir, config, {
     capture: shouldCapture,
-    useAi
+    useAi,
+    sceneCount: reelConfig.sceneCount
   });
   const vidsClipCacheFolder = await ensureVidsClipCache(result.runDir);
   const generatedFolder = await ensureGeneratedArchive(result.runDir);
@@ -545,7 +559,7 @@ async function main() {
       const vidsReportPath = path.join(vidsOutputDir, "vids-operator-report.json");
       const exportOutputDir = path.join(batchDir, "export", profileLabel);
       const canTryNextProfile = generateInVids && profileIndex < profilesToTry.length - 1;
-      const defaultIngredientScenes = config.googleVids?.defaultIngredientScenes || "3,4,5,6";
+      const defaultIngredientScenes = config.googleVids?.defaultIngredientScenes || "3,4,5";
       activeVidsProfile = profileDir;
       vidsProfilesTried.push(profileDir);
       googleVidsError = "";

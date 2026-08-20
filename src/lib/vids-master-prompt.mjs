@@ -21,17 +21,8 @@ function assetLines(captureFiles, limit = 4) {
     : "- Use the provided tool URL as the visual reference.";
 }
 
-function sceneIntent(sceneNumber) {
-  const intents = {
-    1: "strong problem hook",
-    2: "natural tool intro",
-    3: "actual tool demo with real UI",
-    4: "main workflow/use case",
-    5: "useful output or next steps",
-    6: "before-and-after benefit",
-    7: "human review and safety reminder"
-  };
-  return intents[Number(sceneNumber)] || "tool promo scene";
+function sceneIntent(sceneNumber, sceneCount) {
+  return roleForScene(sceneNumber, sceneCount).intent || "tool promo scene";
 }
 
 export function buildGoogleVidsMasterPrompt(scenePlan, manifest = {}) {
@@ -41,6 +32,8 @@ export function buildGoogleVidsMasterPrompt(scenePlan, manifest = {}) {
   const description = tool.description || "";
   const category = tool.category || "";
   const captureFiles = manifest.capture?.files || [];
+  const sceneCount = scenePlan.scenes.length || 6;
+  const totalDuration = scenePlan.scenes.reduce((sum, scene) => sum + Number(scene.duration || 10), 0) || sceneCount * 10;
 
   const sceneLines = scenePlan.scenes.map((scene) => (
     `Scene ${scene.scene_number} (${scene.duration}s):\n` +
@@ -50,7 +43,7 @@ export function buildGoogleVidsMasterPrompt(scenePlan, manifest = {}) {
   ));
 
   return trimBlock([
-    `Create a 70-second Instagram Reel in 9:16 portrait format for ${toolName}.`,
+    `Create a ${totalDuration}-second Instagram Reel in 9:16 portrait format for ${toolName}.`,
     `Language: Hinglish.`,
     `Style: realistic modern SaaS/UGC, fast cuts, laptop and phone shots, cursor highlights, clean mobile-readable captions.`,
     `Talent/audio direction: keep one consistent professional UGC creator/avatar across scenes; include clear Hinglish spoken voiceover and subtle upbeat background music if Google Vids supports audio in the chosen generation flow.`,
@@ -66,7 +59,7 @@ export function buildGoogleVidsMasterPrompt(scenePlan, manifest = {}) {
     "- Scene 3 must show the actual tool URL and realistic interaction with the real visible page.",
     "- If reference screenshots are attached as ingredients, keep the real screenshot readable on the device screen instead of replacing it with unrelated synthetic footage.",
     "- Do not make a silent screen-only clip unless audio generation is unavailable.",
-    "- End with a human review and safety reminder before publishing/sharing.",
+    "- End with human review, a safety reminder, and a natural save/share/follow CTA.",
     "",
     "Use these reference assets if the UI allows uploads:",
     assetLines(captureFiles),
@@ -93,7 +86,7 @@ export function buildGoogleVidsClipPrompt(scenePlan, sceneNumber, manifest = {},
 
   return trimBlock([
     `Create a 10-second 9:16 vertical video for ${toolName}.`,
-    `Scene ${scene.scene_number}/7 intent: ${sceneIntent(scene.scene_number)}.`,
+    `Scene ${scene.scene_number}/${scenePlan.scenes.length || 6} intent: ${sceneIntent(scene.scene_number, scenePlan.scenes.length || 6)}.`,
     `Visual: ${compact(scene.visual || scene.video_prompt, 520)}`,
     referenceLine,
     `Voiceover: ${compact(scene.voiceover, 260)}`,
@@ -104,3 +97,4 @@ export function buildGoogleVidsClipPrompt(scenePlan, sceneNumber, manifest = {},
     "Rules: fictional/demo data only; no real personal information; no fake UI; no unrelated stock-looking filler; no silent screen-only clip unless audio is unavailable."
   ]);
 }
+import { roleForScene } from "./reel-planner.mjs";

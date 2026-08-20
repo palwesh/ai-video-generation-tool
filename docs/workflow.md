@@ -7,11 +7,11 @@
 3. Resolve AltF Tool relative routes with `https://www.altftool.com/` when needed.
 4. Optionally open the tool URL with Playwright.
 5. Capture desktop screenshot, full-page screenshot, fictional demo assets, real tool demo before/after screenshots, a desktop demo WebM recording, mobile screenshot, and a short mobile scroll WebM recording.
-6. Generate or improve a Hinglish reel script.
-7. Convert the script into exactly 7 scenes of 10 seconds each.
-8. Save Google Vids-ready scene prompts.
+6. Generate or improve a compact Hinglish Hook-Body-CTA reel script.
+7. Convert the script into 3-6 scenes of 10 seconds each; default is 6 scenes / 60 seconds.
+8. Save Google Vids-ready scene prompts and `vids-generated-scenes/scene-XX/` folders.
 9. Save post caption and hashtags.
-10. Create an enriched workbook copy with output columns for asset paths, Vids status, Drive status, final MP4 path, and QA.
+10. Create an enriched workbook copy with output columns for asset paths, reel script files, Vids status, Drive status, final MP4 path, and QA.
 
 ## Google Vids Reality
 
@@ -35,7 +35,7 @@ Tested browser automation status:
 - Compact prompts are used in Google Vids, so each 10-second clip stays focused and easier to generate.
 - Google sign-in/account-chooser pages fail fast with a clear login/profile error instead of silently filling the wrong page.
 - MP4 export/download works with `npm run vids:export`.
-- Free local 70-second MP4 rendering works with real screenshots/recording, captions, voiceover, and music.
+- Free local 30-60 second MP4 rendering works with real screenshots/recording, captions, voiceover, and music.
 
 ## Future V2
 

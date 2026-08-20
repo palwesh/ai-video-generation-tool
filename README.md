@@ -8,11 +8,14 @@ Input:
 
 Output per tool:
 
-- `scene-plan.json` with exactly 7 scenes of 10 seconds each
+- `asset-brief.md` with captured screenshot/recording notes
+- `reel-script.md` and `reel-script.json` with compact Hook-Body-CTA script
+- `scene-plan.json` with 3-6 scenes of 10 seconds each; default is 6 scenes / 60 seconds
 - `google-vids-prompts.csv` for Google Vids
 - `post-copy.md` with caption and hashtags
 - `generated/` archive folder with final MP4s, reports, props, export logs, and render assets
 - `vids-clips/` cache folder for reusable Google Vids/avatar clips and timeline exports
+- `vids-generated-scenes/` scene folders for Google Vids prompts and generated clip organization
 - screenshots, fictional demo input files, a desktop demo recording, and a short mobile scroll recording when capture is enabled
 
 ## Setup
@@ -104,11 +107,11 @@ This creates a new workbook with extra Tool Reel Factory columns. It does not ov
 npm run prep:free:capture -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --limit 1
 ```
 
-The prepared workbook includes columns for local asset files, Google Vids status, Drive upload status, Google Vids link, final MP4 path, final video link, final video folder link, run folder link, and QA status.
+The prepared workbook includes columns for local asset files, asset brief, reel script files, Google Vids status, Drive upload status, Google Vids link, final MP4 path, final video link, final video folder link, run folder link, generated scene folders, and QA status.
 
 ## One-Video Agent
 
-Use this for one complete tool reel from your Excel file. It selects one row, captures the actual tool page, creates the 7-scene Reel plan, writes the prepared workbook, and opens/fills Google Vids.
+Use this for one complete tool reel from your Excel file. It selects one row, captures the actual tool page first, creates a short 30-60 second Hook-Body-CTA Reel plan, writes the prepared workbook, and opens/fills Google Vids when requested.
 
 ## Frontend Dashboard
 
@@ -131,7 +134,7 @@ Dashboard production controls:
 - `Script + Assets`: prepares script, scene JSON, Vids prompts, screenshots, recordings, and workbook links without rendering or using Google Vids quota.
 - `Local MP4`: fully free local Reel render with captions, voiceover, music, real tool screenshots, and demo recordings.
 - `Vids clip cache`: every tool folder has `vids-clips/`; local MP4 uses cached Google Vids/avatar clips first when they exist.
-- `Vids Hybrid`: Google Vids generation with avatar on scenes `1,2,7` and best-effort real tool screenshot ingredients on scenes `3,4,5,6`.
+- `Vids Hybrid`: Google Vids generation with avatar on scenes `1,2,6` and best-effort real tool screenshot ingredients on scenes `3,4,5`.
 - `Full Vids`: Google Vids generation for all scenes; use only when quota is available.
 - `Run Queue`: runs multiple Excel rows one by one. Use `Video limit` or `Specific rows` like `2,3,5-7`.
 - `Quota planner`: manual tracker for AI video/avatar monthly limits and used counts. It estimates requests before a queue starts, marks profiles as `LIMIT USED` when Vids reports a quota/limit error, and lets you manually mark or clear that state.
@@ -146,7 +149,9 @@ Dashboard production controls:
 
 Multiple Google profiles are supported. Each profile is a separate local Chrome/Playwright browser profile under `work/`. Use only accounts you control and follow Google Vids quotas/terms. After logging into a new account, click `Refresh` in Google Vids config so the detected email/name appears in the profile dropdown. If a profile shows `LIMIT USED`, select another profile or run `Local MP4` mode until that account has quota again.
 
-In Google Vids mode, keep `Use tool screenshots` on for professional tool promo videos. The default `Screenshot scenes` value is `3,4,5,6`, so the actual tool UI is attempted as reference for demo, workflow, output, and before/after scenes instead of unrelated synthetic footage. If the current Google Vids UI opens only Drive/Photos and does not expose a local file chooser, the operator falls back to a safer URL-based prompt and logs the reason in `ingredientUploads`.
+In Google Vids mode, keep `Use tool screenshots` on for professional tool promo videos. The default `Screenshot scenes` value is `3,4,5`, so the actual tool UI is attempted as reference for demo, workflow, output, and before/after proof instead of unrelated synthetic footage. If the current Google Vids UI opens only Drive/Photos and does not expose a local file chooser, the operator falls back to a safer URL-based prompt and logs the reason in `ingredientUploads`.
+
+Choose the reel length with `--scene-count 3`, `--scene-count 4`, `--scene-count 5`, or `--scene-count 6`. Each scene is 10 seconds, so the final script stays between 30 and 60 seconds. The dashboard `Scenes` control sends this value automatically.
 
 Fully free local video output, no Google Vids quota used:
 
@@ -171,13 +176,13 @@ npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Bo
 Full Google Vids attempt when your Vids quota is available:
 
 ```bash
-npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --max-scenes 7
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --scene-count 6 --max-scenes 6
 ```
 
-Google Vids mode selects an AI/avatar presenter by default on intro/outro scenes. The default avatar scenes are `1,2,7`, while tool proof scenes `3,4,5,6` stay in AI Video mode with real screenshots. Add `--no-avatar` to skip this, or set avatar selection to specific scenes:
+Google Vids mode selects an AI/avatar presenter by default on intro/outro scenes. The default avatar scenes are `1,2,6`, while tool proof scenes `3,4,5` stay in AI Video mode with real screenshots. Add `--no-avatar` to skip this, or set avatar selection to specific scenes:
 
 ```bash
-npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --max-scenes 7 --avatar-scenes 1,2,6,7
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --scene-count 6 --max-scenes 6 --avatar-scenes 1,2,6
 ```
 
 The dashboard avatar dropdown is loaded from `config/default.json` under `googleVids.avatarOptions`. The default is `auto`, which picks a realistic Google Vids avatar that is available in the current account. Choose `Personal Avatar - Me` only when that account has your personal avatar set up.
@@ -185,7 +190,7 @@ The dashboard avatar dropdown is loaded from `config/default.json` under `google
 If Google Vids hits its free generation limit or export fails, the agent now falls back to a free local Remotion render and saves the MP4 path in the prepared workbook. The local fallback includes visual captions, captured tool screenshots, a creator/avatar badge, generated scene voiceover, and a subtle music bed. Disable local fallback only when you specifically want Vids-only behavior:
 
 ```bash
-npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --generate --max-scenes 7 --no-local-fallback
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --generate --scene-count 6 --max-scenes 6 --no-local-fallback
 ```
 
 Note: if the dashboard says `Local fallback video ready`, that MP4 is not Google Vids generated footage. It is the free local screenshot/voiceover render created because Google Vids failed before final export.
@@ -197,6 +202,14 @@ Every prepared tool folder now includes:
 ```text
 vids-clips/
 ```
+
+It also includes:
+
+```text
+vids-generated-scenes/
+```
+
+`vids-generated-scenes/scene-01/`, `scene-02/`, etc. keep each scene prompt and notes together. Save scene-level Google Vids exports there for audit, and copy reusable MP4s to `vids-clips/scene-01.mp4` when you want the local final editor to use them.
 
 Put reusable Google Vids/avatar footage here, or let the agent cache exported files when Google Vids export succeeds. Supported names:
 
@@ -246,24 +259,24 @@ The prepared workbook includes `TRF Generated Folder` and `TRF Generated Files`,
 Use multiple logged-in Google Vids profiles. The agent tries the first profile, then the next one if generation/export fails. This is for legitimate accounts you control; respect Google Vids quotas and terms.
 
 ```bash
-npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --max-scenes 7 --vids-profiles work/google-vids-profile,work/google-vids-profile-2
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --scene-count 6 --max-scenes 6 --vids-profiles work/google-vids-profile,work/google-vids-profile-2
 ```
 
 Open the second email first by putting profile 2 first:
 
 ```bash
-npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --max-scenes 7 --vids-profiles work/google-vids-profile-2,work/google-vids-profile
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --scene-count 6 --max-scenes 6 --vids-profiles work/google-vids-profile-2,work/google-vids-profile
 ```
 
 Use only the second email:
 
 ```bash
-npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --max-scenes 7 --vids-profiles work/google-vids-profile-2
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --scene-count 6 --max-scenes 6 --vids-profiles work/google-vids-profile-2
 ```
 
 By default, fallback profiles start a new Vids file. If you have shared the same Vids file with the second account and want fallback profiles to reuse the same URL, add `--reuse-url-on-fallback`.
 
-Render a full local 70-second vertical Reel from an already prepared tool folder:
+Render a full local 30-60 second vertical Reel from an already prepared tool folder:
 
 ```bash
 npm run render:local -- --tool-dir outputs/runs/one-video-agent-.../tool-folder --filename final-tool-reel.mp4
@@ -340,7 +353,7 @@ npm run vids:operate -- --tool-dir outputs/runs/prepared-.../tool-folder --scene
 Attach screenshots to all proof-heavy scenes:
 
 ```bash
-npm run vids:operate -- --tool-dir outputs/runs/prepared-.../tool-folder --all-scenes --max-scenes 7 --ingredients auto --ingredients-scenes 3,4,5,6 --avatar auto
+npm run vids:operate -- --tool-dir outputs/runs/prepared-.../tool-folder --all-scenes --max-scenes 6 --ingredients auto --ingredients-scenes 3,4,5 --avatar auto
 ```
 
 Google Vids features visible in the current editor include AI video, Avatar, Voiceover, Music, Image, Record, Uploads, Stock, Captions, Text, Templates, and Shapes. The automation currently uses AI video, Avatar, and screenshot Ingredients when Google Vids exposes a selectable upload route. For fully free, repeatable posting output, prefer Local MP4 mode because it adds real tool captures, voiceover, captions, and music without spending Vids generation quota.
@@ -357,10 +370,10 @@ Current tested state:
 - Google sign-in/account-chooser pages are detected early with a clear login/profile message.
 - MP4 export/download works through the Google Vids browser menu.
 - Generated outputs are mirrored into each tool's `generated/` folder.
-- Exported Google Vids/avatar footage can be cached in `vids-clips/` and reused by local rendering; one-scene exports are marked as partial cache, not a full 7-scene source.
+- Exported Google Vids/avatar footage can be cached in `vids-clips/` and reused by local rendering; one-scene exports are marked as partial cache, not a full reel source.
 - Rejected/hallucinated Vids cache entries are saved for audit but skipped by the local final editor.
-- Full 7-scene generation can stop when the free Google Vids account reaches its video-generation limit.
-- Local Remotion fallback works for a complete 70-second vertical MP4 using the generated script/captions and captured tool screenshots.
+- Full 6-scene generation can stop when the free Google Vids account reaches its video-generation limit.
+- Local Remotion fallback works for a complete 30-60 second vertical MP4 using the generated script/captions and captured tool screenshots.
 
 Export/download MP4 from an existing Vids file:
 

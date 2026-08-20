@@ -21,8 +21,8 @@ const configPath = path.join(projectRoot, "config/default.json");
 const appConfig = JSON.parse(fsSync.readFileSync(configPath, "utf8"));
 const googleVidsConfig = appConfig.googleVids || {};
 const defaultAvatar = googleVidsConfig.defaultAvatar || "auto";
-const defaultAvatarScenes = googleVidsConfig.defaultAvatarScenes || "1,2,7";
-const defaultIngredientScenes = googleVidsConfig.defaultIngredientScenes || "3,4,5,6";
+const defaultAvatarScenes = googleVidsConfig.defaultAvatarScenes || "1,2,6";
+const defaultIngredientScenes = googleVidsConfig.defaultIngredientScenes || "3,4,5";
 const avatarOptions = Array.isArray(googleVidsConfig.avatarOptions) && googleVidsConfig.avatarOptions.length
   ? googleVidsConfig.avatarOptions
   : [{ label: "Auto Realistic", value: "auto" }];
@@ -151,7 +151,7 @@ function clamp(number, min, max) {
   return Math.max(min, Math.min(max, number));
 }
 
-function parseSceneList(value, maxScenes = 7) {
+function parseSceneList(value, maxScenes = 6) {
   return String(value || "")
     .split(",")
     .flatMap((part) => {
@@ -180,7 +180,7 @@ function allSceneList(maxScenes) {
 
 function normalizeRunBody(body = {}) {
   const mode = String(body.mode || "local").trim() || "local";
-  const maxScenes = clamp(asFiniteNumber(body.maxScenes, 7), 1, 7);
+  const maxScenes = clamp(asFiniteNumber(body.maxScenes, 6), 3, 6);
   const normalized = {
     ...body,
     mode,
@@ -784,6 +784,7 @@ function runArgsFromBody(body, outputDir) {
     "--input", input,
     "--row", String(Number.isFinite(row) ? row : 2),
     "--limit", "1",
+    "--scene-count", String(Number.isFinite(maxScenes) ? maxScenes : 6),
     "--out", outputDir
   ];
 
@@ -792,7 +793,7 @@ function runArgsFromBody(body, outputDir) {
   } else if (mode === "local") {
     runArgs.push("--local-only");
   } else {
-    runArgs.push("--max-scenes", String(Number.isFinite(maxScenes) ? maxScenes : 7));
+    runArgs.push("--max-scenes", String(Number.isFinite(maxScenes) ? maxScenes : 6));
     if (mode === "google" || mode === "google-full") {
       runArgs.push("--generate");
     }

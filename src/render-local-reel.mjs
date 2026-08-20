@@ -54,8 +54,8 @@ async function copyAsset(source, destinationDir, name) {
   return path.relative(path.resolve("public"), destination).split(path.sep).join("/");
 }
 
-async function copyCachedVidsAssets(toolDir, assetDir) {
-  const cached = await findCachedVidsAssets(toolDir);
+async function copyCachedVidsAssets(toolDir, assetDir, sceneCount = 6) {
+  const cached = await findCachedVidsAssets(toolDir, { sceneCount });
   const sceneClips = [];
   const copiedFiles = [];
 
@@ -72,6 +72,7 @@ async function copyCachedVidsAssets(toolDir, assetDir) {
   }
 
   const timelineExports = [];
+  const defaultCoveredScenes = Array.from({ length: sceneCount }, (_, index) => index + 1);
   for (const [index, item] of cached.timelineExports.entries()) {
     const relativePath = await copyAsset(item.absolutePath, assetDir, `vids-timeline-${index + 1}-${item.kind || "export"}`);
     if (!relativePath) {
@@ -80,7 +81,7 @@ async function copyCachedVidsAssets(toolDir, assetDir) {
     timelineExports.push({
       kind: item.kind || "export",
       publicPath: relativePath,
-      coveredScenes: item.coveredScenes || [1, 2, 3, 4, 5, 6, 7],
+      coveredScenes: item.coveredScenes || defaultCoveredScenes,
       sourcePath: item.absolutePath,
       note: item.note || ""
     });
@@ -195,7 +196,7 @@ async function createVoiceoverWav(text, outputPath, tempPath) {
   return path.relative(path.resolve("public"), outputPath).split(path.sep).join("/");
 }
 
-async function createAudioAssets(scenes, assetDir, outputDir) {
+async function createAudioAssets(scenes, assetDir, outputDir, durationSeconds = 60) {
   if (!audioEnabled) {
     return { enabled: false, voiceovers: [], music: "" };
   }
@@ -231,7 +232,7 @@ async function createAudioAssets(scenes, assetDir, outputDir) {
   const musicPath = path.join(assetDir, "music-bed.wav");
   let music = "";
   try {
-    await writeMusicBedWav(musicPath, 70);
+    await writeMusicBedWav(musicPath, durationSeconds);
     music = path.relative(path.resolve("public"), musicPath).split(path.sep).join("/");
   } catch (error) {
     warnings.push(`Music bed failed: ${error.message}`);
@@ -296,6 +297,8 @@ const captureFiles = manifest.capture?.files || [];
 const slug = path.basename(toolDir);
 const assetDir = path.join(publicAssetRoot, `${slug}-${Date.now()}`);
 await ensureDir(assetDir);
+const sceneDurationSeconds = Number(scenePlan.metadata?.scene_duration_seconds || scenePlan.scenes?.[0]?.duration || 10) || 10;
+const totalDurationSeconds = Number(scenePlan.metadata?.total_duration_seconds || (scenePlan.scenes?.length || 0) * sceneDurationSeconds) || 60;
 
 const desktopTop = captureFiles.find((file) => file.endsWith("desktop-top.png"));
 const desktopFull = captureFiles.find((file) => file.endsWith("desktop-full-page.png"));
@@ -314,7 +317,7 @@ const assets = {
   demoVideo: await copyAsset(desktopDemoVideo, assetDir, "desktop-demo"),
   mobileScroll: await copyAsset(mobileScrollVideo, assetDir, "mobile-scroll")
 };
-const vidsCacheAssets = await copyCachedVidsAssets(toolDir, assetDir);
+const vidsCacheAssets = await copyCachedVidsAssets(toolDir, assetDir, scenePlan.scenes.length);
 assets.vidsClips = vidsCacheAssets.sceneClips;
 assets.vidsTimelines = vidsCacheAssets.timelineExports;
 assets.vidsClipCache = {
@@ -323,7 +326,7 @@ assets.vidsClipCache = {
   copiedFiles: vidsCacheAssets.copiedFiles,
   sourceFiles: vidsCacheAssets.sourceFiles
 };
-const audioAssets = await createAudioAssets(scenePlan.scenes, assetDir, outputRoot);
+const audioAssets = await createAudioAssets(scenePlan.scenes, assetDir, outputRoot, totalDurationSeconds);
 assets.voiceovers = audioAssets.voiceovers;
 assets.music = audioAssets.music;
 
@@ -331,6 +334,7 @@ const props = {
   toolName: manifest.tool?.tool_name || scenePlan.topic || slug,
   toolUrl: manifest.tool?.tool_url || "",
   scenes: scenePlan.scenes,
+  sceneDurationSeconds,
   assets
 };
 const propsPath = path.join(outputRoot, "remotion-props.json");
@@ -347,6 +351,8 @@ const report = {
   outputPath,
   assets,
   audio: audioAssets,
+  sceneDurationSeconds,
+  totalDurationSeconds,
   renderedAt: new Date().toISOString()
 };
 

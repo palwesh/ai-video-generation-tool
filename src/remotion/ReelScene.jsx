@@ -295,16 +295,19 @@ function MediaContent({ media, sceneIndex, assets, fps }) {
   );
 }
 
-function MediaBadge({ sceneIndex, accent, media }) {
-  const label = media?.badge || (sceneIndex === 2
+function MediaBadge({ scene, sceneIndex, accent, media }) {
+  const text = `${scene?.onscreen_text || ""} ${scene?.visual || ""}`;
+  const label = media?.badge || (/demo|real tool/i.test(text)
     ? "REAL TOOL DEMO"
-    : sceneIndex === 3
+    : /input|run|workflow/i.test(text)
       ? "WORKFLOW"
-      : sceneIndex === 4
+      : /output|summary|warning|next/i.test(text)
         ? "OUTPUT"
-        : sceneIndex === 5
+        : /before|after|messy|clear/i.test(text)
           ? "BEFORE / AFTER"
-          : "TOOL CONTEXT");
+          : /review|save|share|cta|publish/i.test(text)
+            ? "REVIEW + CTA"
+            : sceneIndex === 0 ? "HOOK" : "TOOL CONTEXT");
   return (
     <div
       style={{
@@ -365,24 +368,25 @@ function SpokenCaption({ text, accent, frame, fps }) {
   );
 }
 
-export const ReelScene = ({ scene, sceneIndex, toolName, toolUrl, assets }) => {
+export const ReelScene = ({ scene, sceneIndex, totalScenes = 6, sceneDurationSeconds = 10, toolName, toolUrl, assets }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const sceneDurationFrames = Math.max(1, Number(sceneDurationSeconds || 10)) * fps;
   const media = pickMedia(assets, sceneIndex);
   const mediaPath = mediaSource(media);
   const backgroundAsset = assets.desktop || assets.demoAfter || assets.desktopFull || assets.mobile || mediaPath;
-  const progress = frame / (10 * fps);
+  const progress = frame / sceneDurationFrames;
   const enter = spring({
     frame,
     fps,
     config: { damping: 180, stiffness: 130, mass: 0.8 }
   });
-  const fade = interpolate(frame, [0, 10 * fps - 18, 10 * fps], [1, 1, 0.94], {
+  const fade = interpolate(frame, [0, sceneDurationFrames - 18, sceneDurationFrames], [1, 1, 0.94], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: Easing.bezier(0.16, 1, 0.3, 1)
   });
-  const slowZoom = interpolate(frame, [0, 10 * fps], [1.04, 1.14], {
+  const slowZoom = interpolate(frame, [0, sceneDurationFrames], [1.04, 1.14], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp"
   });
@@ -399,11 +403,21 @@ export const ReelScene = ({ scene, sceneIndex, toolName, toolUrl, assets }) => {
   const accent = [Palette.blue, Palette.green, Palette.cyan, Palette.amber, Palette.blue, Palette.red, Palette.green][sceneIndex] || Palette.blue;
   const title = titleFor(scene, sceneIndex, toolName);
   const subtitle = subtitleFor(scene, sceneIndex);
-  const isDemo = sceneIndex === 2 || sceneIndex === 3;
-  const isBeforeAfter = sceneIndex === 5;
-  const isSafety = sceneIndex === 6;
+  const isDemo = /demo|workflow|input|run|review/i.test(`${scene.onscreen_text} ${scene.visual}`);
+  const isBeforeAfter = /before|after|messy|clear/i.test(`${scene.onscreen_text} ${scene.visual}`);
+  const isSafety = sceneIndex === totalScenes - 1;
   const mediaTop = isBeforeAfter ? 710 : isSafety ? 620 : 600;
   const mediaHeight = isBeforeAfter ? 720 : isSafety ? 680 : 720;
+  const transitionIn = interpolate(frame, [0, 14], [-1080, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.16, 1, 0.3, 1)
+  });
+  const transitionOut = interpolate(frame, [sceneDurationFrames - 12, sceneDurationFrames], [0, 1080], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.7, 0, 0.84, 0)
+  });
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#eef2f5", opacity: fade, overflow: "hidden" }}>
@@ -435,7 +449,7 @@ export const ReelScene = ({ scene, sceneIndex, toolName, toolUrl, assets }) => {
         }}
       >
         <div>ALT F TOOL</div>
-        <div>{String(scene.scene_number || sceneIndex + 1).padStart(2, "0")} / 07</div>
+        <div>{String(scene.scene_number || sceneIndex + 1).padStart(2, "0")} / {String(totalScenes).padStart(2, "0")}</div>
       </div>
 
       <div
@@ -487,7 +501,7 @@ export const ReelScene = ({ scene, sceneIndex, toolName, toolUrl, assets }) => {
         }}
       >
         <MediaContent media={media} sceneIndex={sceneIndex} assets={assets} fps={fps} />
-        <MediaBadge sceneIndex={sceneIndex} accent={accent} media={media} />
+        <MediaBadge scene={scene} sceneIndex={sceneIndex} accent={accent} media={media} />
 
         {isDemo ? (
           <>
@@ -558,7 +572,7 @@ export const ReelScene = ({ scene, sceneIndex, toolName, toolUrl, assets }) => {
             lineHeight: 1.15
           }}
         >
-          Human review mandatory. Sensitive data share karne se pehle final check karo.
+          Human review mandatory. Sensitive data share karne se pehle final check karo. Save/share only after review.
         </div>
       ) : null}
 
@@ -586,7 +600,7 @@ export const ReelScene = ({ scene, sceneIndex, toolName, toolUrl, assets }) => {
             }}
           />
         </div>
-        <div style={{ color: Palette.muted, fontSize: 28, fontWeight: 760 }}>10s</div>
+        <div style={{ color: Palette.muted, fontSize: 28, fontWeight: 760 }}>{sceneDurationSeconds}s</div>
       </div>
 
       <div
@@ -602,6 +616,21 @@ export const ReelScene = ({ scene, sceneIndex, toolName, toolUrl, assets }) => {
         }}
       >
         {clampText(toolUrl, 76)}
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          translate: `${transitionIn + transitionOut}px 0px`,
+          opacity: interpolate(frame, [0, 10, sceneDurationFrames - 12, sceneDurationFrames], [0.7, 0, 0, 0.65], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp"
+          })
+        }}
+      >
+        <div style={{ width: "100%", height: "100%", backgroundColor: accent }} />
       </div>
     </AbsoluteFill>
   );

@@ -1,6 +1,31 @@
 # Tool Reel Factory - Master Automation Doc
 
-Last updated: 2026-08-19
+Last updated: 2026-08-20
+
+## Latest Pipeline Update - 30 to 60 Second Reels
+
+The current default production flow is now:
+
+1. Open the actual tool URL and build assets first.
+2. Save screenshots, recordings, demo files, and `asset-brief.md` in the tool folder.
+3. Improve the script into a compact Hook-Body-CTA arc.
+4. Keep final Reel length between 30 and 60 seconds.
+5. Use 3-6 scenes of exactly 10 seconds each; default is 6 scenes / 60 seconds.
+6. Save `reel-script.md`, `reel-script.json`, `scene-plan.json`, `google-vids-prompts.csv`, and `post-copy.md`.
+7. Save scene-level Google Vids prompt folders in `vids-generated-scenes/scene-XX/`.
+8. Use real tool screenshots/recordings for demo, workflow, output, and before/after proof.
+9. Generate/cache Google Vids/avatar clips when quota is available.
+10. Merge the final Reel locally with captions, voiceover, music, transitions, progress bar, CTA, and safety reminder.
+11. Save final MP4, reports, props, render assets, exports, and generated files under the same tool folder.
+
+Default Google Vids settings:
+
+```text
+Avatar scenes: 1,2,6
+Screenshot/proof scenes: 3,4,5
+```
+
+Use `--scene-count 3`, `--scene-count 4`, `--scene-count 5`, or `--scene-count 6` to choose the script/video length.
 
 This doc explains the complete setup we built for turning your Excel tool list into promotional Instagram Reel assets and videos.
 

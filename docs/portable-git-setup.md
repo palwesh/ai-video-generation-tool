@@ -123,7 +123,7 @@ npm run agent:one-video -- --input "/path/to/Book1.xlsx" --row 2 --limit 1 --pre
 Google Vids hybrid attempt:
 
 ```bash
-npm run agent:one-video -- --input "/path/to/Book1.xlsx" --row 2 --limit 1 --generate --max-scenes 7 --vids-profiles work/google-vids-profile
+npm run agent:one-video -- --input "/path/to/Book1.xlsx" --row 2 --limit 1 --generate --scene-count 6 --max-scenes 6 --vids-profiles work/google-vids-profile
 ```
 
 If Google Vids quota is finished, run Local MP4 mode from the dashboard.

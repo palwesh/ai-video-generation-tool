@@ -143,10 +143,10 @@ function setMode(mode) {
     button.classList.toggle("active", button.dataset.mode === mode);
   });
   if (mode === "google-full" && els.useAvatar.checked) {
-    els.avatarScenes.value = "1,2,3,4,5,6,7";
+    els.avatarScenes.value = "1,2,3,4,5,6";
   }
-  if (mode === "google" && els.useAvatar.checked && els.avatarScenes.value.trim() === "1,2,3,4,5,6,7") {
-    els.avatarScenes.value = "1,2,7";
+  if (mode === "google" && els.useAvatar.checked && els.avatarScenes.value.trim() === "1,2,3,4,5,6") {
+    els.avatarScenes.value = "1,2,6";
   }
   const vidsDisabled = mode === "local" || mode === "prep";
   els.googleVidsConfig.classList.toggle("is-hidden", vidsDisabled);
@@ -569,7 +569,7 @@ function buildRunBody(rowOverride = null) {
     input: els.inputPath.value,
     row: Number(rowOverride || els.rowNumber.value || 2),
     mode: state.mode,
-    maxScenes: Number(els.maxScenes.value || 7),
+    maxScenes: Number(els.maxScenes.value || 6),
     profiles: selectedProfiles(),
     useAvatar: els.useAvatar.checked,
     avatar: els.avatarChoice.value,
@@ -623,12 +623,12 @@ function countScenes(value, maxScenes) {
 }
 
 function estimateQuota(rowCount = 1) {
-  const maxScenes = Math.max(1, Math.min(7, Number(els.maxScenes.value || 7)));
+  const maxScenes = Math.max(3, Math.min(6, Number(els.maxScenes.value || 6)));
   const generating = state.mode === "google" || state.mode === "google-full";
   if (!generating) {
     return { aiVideo: 0, avatar: 0, total: 0, rowCount };
   }
-  const avatarCount = els.useAvatar.checked ? countScenes(els.avatarScenes.value || "1,2,7", maxScenes) : 0;
+  const avatarCount = els.useAvatar.checked ? countScenes(els.avatarScenes.value || "1,2,6", maxScenes) : 0;
   return {
     aiVideo: Math.max(0, maxScenes - avatarCount) * rowCount,
     avatar: avatarCount * rowCount,
@@ -699,7 +699,7 @@ function selectedToolRecord() {
 function updateInfoCards() {
   if (!els.selectedToolInfo) return;
   const row = Number(els.rowNumber.value || els.toolSelect.value || 2);
-  const scenes = Math.max(1, Math.min(7, Number(els.maxScenes.value || 7)));
+  const scenes = Math.max(3, Math.min(6, Number(els.maxScenes.value || 6)));
   const tool = selectedToolRecord();
   const selectedOption = els.toolSelect.selectedOptions?.[0]?.textContent || "";
   const toolTitle = tool?.name || selectedOption.replace(/^Row\s+\d+\s+-\s+/, "").replace(/\s+\[[^\]]+\]$/, "") || "No tool loaded";
@@ -779,8 +779,8 @@ async function loadDefaults() {
   syncProfileSelects(data.profiles || []);
   els.avatarChoice.innerHTML = avatarOptions(data.googleVids?.avatarOptions || [{ label: "Auto Realistic", value: "auto" }]);
   els.avatarChoice.value = data.googleVids?.defaultAvatar || "auto";
-  els.avatarScenes.value = data.googleVids?.defaultAvatarScenes || "1,2,7";
-  els.ingredientScenes.value = data.googleVids?.defaultIngredientScenes || "3,4,5,6";
+  els.avatarScenes.value = data.googleVids?.defaultAvatarScenes || "1,2,6";
+  els.ingredientScenes.value = data.googleVids?.defaultIngredientScenes || "3,4,5";
 
   applyQuotaToFields(els.primaryProfile.value);
   await loadTools();

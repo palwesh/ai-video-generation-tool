@@ -1706,7 +1706,7 @@ try {
   await writeJson(path.join(outputDir, "vids-operator-report.json"), {
     ok: true,
     mode: args["insert-only"] ? "insert_only" : args.submit ? "submitted" : "filled_prompt_only",
-    promptMode: args.master ? "master_70_second_prompt" : "single_scene_clip_prompt",
+    promptMode: args.master ? "master_reel_prompt" : "single_scene_clip_prompt",
     sceneNumber: args.master ? null : sceneNumber,
     sceneNumbers: args.master ? [] : sceneNumbers,
     scenesPath,
@@ -1735,7 +1735,7 @@ try {
   await writeJson(path.join(outputDir, "vids-operator-report.json"), {
     ok: false,
     mode: args["insert-only"] ? "insert_only" : args.submit ? "submitted" : "filled_prompt_only",
-    promptMode: args.master ? "master_70_second_prompt" : "single_scene_clip_prompt",
+    promptMode: args.master ? "master_reel_prompt" : "single_scene_clip_prompt",
     sceneNumber: args.master ? null : sceneNumber,
     sceneNumbers: args.master ? [] : sceneNumbers,
     scenesPath,

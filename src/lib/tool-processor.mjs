@@ -6,11 +6,22 @@ import { generateScenePlanWithAi } from "./ai.mjs";
 import { generateFallbackScenePlan } from "./fallback.mjs";
 import { optimizeScenePlan } from "./scene-optimizer.mjs";
 import { validateScenePlan } from "./scenes-schema.mjs";
-import { writeGoogleVidsPrompts, writePostCopy, writeRunManifest } from "./output-writers.mjs";
+import {
+  writeAssetBrief,
+  writeGoogleVidsPrompts,
+  writePostCopy,
+  writeReelScriptPackage,
+  writeRunManifest,
+  writeVidsGeneratedSceneFolders
+} from "./output-writers.mjs";
 import { ensureVidsClipCache } from "./vids-clip-cache.mjs";
 import { ensureGeneratedArchive } from "./generated-archive.mjs";
 
 export async function processToolRow(row, batchDir, config, options = {}) {
+  const sceneConfig = {
+    ...config,
+    sceneCount: options.sceneCount || config.sceneCount
+  };
   const slug = slugify(row.tool_name || row.topic || row.tool_url);
   const runDir = path.join(batchDir, slug);
   await ensureDir(runDir);
@@ -38,7 +49,7 @@ export async function processToolRow(row, batchDir, config, options = {}) {
 
   if (options.useAi) {
     try {
-      scenePlan = await generateScenePlanWithAi(row, capture.summary, config);
+      scenePlan = await generateScenePlanWithAi(row, capture.summary, sceneConfig);
       generator = "ai";
     } catch (error) {
       scenePlan = null;
@@ -47,17 +58,20 @@ export async function processToolRow(row, batchDir, config, options = {}) {
   }
 
   if (!scenePlan) {
-    scenePlan = generateFallbackScenePlan(row, capture.summary, config);
+    scenePlan = generateFallbackScenePlan(row, capture.summary, sceneConfig);
   }
 
-  scenePlan = optimizeScenePlan(scenePlan, row, capture);
-  validateScenePlan(scenePlan);
+  scenePlan = optimizeScenePlan(scenePlan, row, capture, sceneConfig);
+  validateScenePlan(scenePlan, { sceneCount: sceneConfig.sceneCount });
 
   const scenePlanPath = path.join(runDir, "scene-plan.json");
   await writeJson(scenePlanPath, scenePlan);
+  const assetBriefPath = await writeAssetBrief(runDir, row, capture);
+  const reelScriptPaths = await writeReelScriptPackage(runDir, scenePlan.metadata?.script_package || {});
   const vidsPromptsPath = await writeGoogleVidsPrompts(runDir, scenePlan);
   const postCopyPath = await writePostCopy(runDir, row, scenePlan);
   const vidsClipCachePath = await ensureVidsClipCache(runDir);
+  const vidsGeneratedScenesPath = await writeVidsGeneratedSceneFolders(runDir, scenePlan);
   const generatedArchivePath = await ensureGeneratedArchive(runDir);
 
   const manifest = {
@@ -69,15 +83,23 @@ export async function processToolRow(row, batchDir, config, options = {}) {
       folder: vidsClipCachePath,
       note: "Place reusable Google Vids/avatar clips here. Local MP4 render uses this cache before normal screenshots."
     },
+    vids_generated_scenes: {
+      folder: vidsGeneratedScenesPath,
+      note: "Scene-level Google Vids prompts and manually saved generated scene clips belong here."
+    },
     generated_archive: {
       folder: generatedArchivePath,
       note: "Final videos, render reports, export logs, and generated support files are mirrored here."
     },
     files: {
       scene_plan: scenePlanPath,
+      asset_brief: assetBriefPath,
+      reel_script_md: reelScriptPaths.mdPath,
+      reel_script_json: reelScriptPaths.jsonPath,
       google_vids_prompts: vidsPromptsPath,
       post_copy: postCopyPath,
       vids_clip_cache: vidsClipCachePath,
+      vids_generated_scenes: vidsGeneratedScenesPath,
       generated_archive: generatedArchivePath
     }
   };
@@ -92,9 +114,13 @@ export async function processToolRow(row, batchDir, config, options = {}) {
     manifestPath,
     files: {
       scenePlanPath,
+      assetBriefPath,
+      reelScriptMdPath: reelScriptPaths.mdPath,
+      reelScriptJsonPath: reelScriptPaths.jsonPath,
       vidsPromptsPath,
       postCopyPath,
       vidsClipCachePath,
+      vidsGeneratedScenesPath,
       generatedArchivePath
     }
   };

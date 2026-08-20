@@ -87,7 +87,7 @@ async function writeCacheManifest(cacheDir, manifest) {
   return next;
 }
 
-function normalizeScenes(scenes, fallbackCount = 7) {
+function normalizeScenes(scenes, fallbackCount = 6) {
   const parsed = Array.isArray(scenes)
     ? scenes.map((scene) => Number(scene)).filter(Number.isFinite)
     : [];
@@ -117,7 +117,7 @@ export async function cacheVidsExport({
   }
 
   const cacheDir = await ensureVidsClipCache(toolDir);
-  const coveredScenes = normalizeScenes(scenes, kind === "partial_export" ? scenes.length : 7);
+  const coveredScenes = normalizeScenes(scenes, kind === "partial_export" ? scenes.length : 6);
   const ext = path.extname(sourcePath) || ".mp4";
   const sceneRange = coveredScenes.length
     ? `scenes-${sceneToken(coveredScenes[0])}-${sceneToken(coveredScenes.at(-1))}`
@@ -183,12 +183,13 @@ function scoreSceneClip(fileName, sceneNumber) {
   return index === -1 ? -1 : patterns.length - index;
 }
 
-export async function findCachedVidsAssets(toolDir) {
+export async function findCachedVidsAssets(toolDir, options = {}) {
+  const sceneCount = Math.max(1, Math.min(7, Number(options.sceneCount || 6) || 6));
   const cacheDir = vidsClipCacheDir(toolDir);
   const result = {
     cacheDir,
     manifestPath: path.join(cacheDir, VIDS_CLIP_CACHE_MANIFEST),
-    sceneClips: Array.from({ length: 7 }, () => null),
+    sceneClips: Array.from({ length: sceneCount }, () => null),
     timelineExports: [],
     files: []
   };
@@ -208,7 +209,7 @@ export async function findCachedVidsAssets(toolDir) {
 
   result.files = files.map((file) => path.join(cacheDir, file));
 
-  for (let sceneNumber = 1; sceneNumber <= 7; sceneNumber += 1) {
+  for (let sceneNumber = 1; sceneNumber <= sceneCount; sceneNumber += 1) {
     const chosen = files
       .map((file) => ({ file, score: scoreSceneClip(file, sceneNumber) }))
       .filter((item) => item.score > 0)
@@ -241,7 +242,7 @@ export async function findCachedVidsAssets(toolDir) {
     result.timelineExports.push({
       ...item,
       absolutePath: filePath,
-      coveredScenes: normalizeScenes(item.coveredScenes)
+      coveredScenes: normalizeScenes(item.coveredScenes, sceneCount)
     });
   }
 
@@ -252,7 +253,7 @@ export async function findCachedVidsAssets(toolDir) {
         kind: "full_export",
         file: fullExport,
         absolutePath: path.join(cacheDir, fullExport),
-        coveredScenes: [1, 2, 3, 4, 5, 6, 7],
+        coveredScenes: normalizeScenes([], sceneCount),
         note: "Discovered from default file name."
       });
     }

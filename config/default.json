@@ -1,7 +1,7 @@
 {
   "language": "Hinglish",
-  "durationSeconds": 70,
-  "sceneCount": 7,
+  "durationSeconds": 60,
+  "sceneCount": 6,
   "sceneDurationSeconds": 10,
   "style": "realistic, modern, professional SaaS/UGC",
   "aiModel": "gpt-5-mini",
@@ -22,8 +22,8 @@
   },
   "googleVids": {
     "defaultAvatar": "auto",
-    "defaultAvatarScenes": "1,2,7",
-    "defaultIngredientScenes": "3,4,5,6",
+    "defaultAvatarScenes": "1,2,6",
+    "defaultIngredientScenes": "3,4,5",
     "avatarOptions": [
       { "label": "Personal Avatar - Me", "value": "Me" },
       { "label": "Auto Realistic", "value": "auto" },

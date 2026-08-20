@@ -6,6 +6,7 @@ import { readWorkbookTable, normalizeWorkbookObjects, normalizeToolRow } from ".
 import { processToolRow } from "./lib/tool-processor.mjs";
 import { writeSimpleXlsx } from "./lib/simple-xlsx-writer.mjs";
 import { folderHyperlink } from "./lib/link-cells.mjs";
+import { resolveReelConfig } from "./lib/reel-planner.mjs";
 
 dotenv.config({ quiet: true });
 
@@ -21,6 +22,9 @@ const inputPath = path.resolve(args.input);
 const toolBaseUrl = args["base-url"] || config.toolBaseUrl || "";
 const useAi = !args["no-ai"] && Boolean(process.env.OPENAI_API_KEY);
 const shouldCapture = Boolean(args.capture) || (config.capture?.enabled && !args["no-capture"]);
+const reelConfig = resolveReelConfig(config, {
+  sceneCount: args["scene-count"] || args["target-scenes"] || args["max-scenes"]
+});
 const batchStamp = new Date().toISOString().replace(/[:.]/g, "-");
 const batchDir = path.resolve(args.out || config.output?.rootDir || "outputs/runs", `prepared-${batchStamp}`);
 await ensureDir(batchDir);
@@ -38,12 +42,14 @@ console.log(`AI generation: ${useAi ? "enabled" : "fallback/local"}`);
 console.log(`Website capture: ${shouldCapture ? "enabled" : "disabled"}`);
 console.log(`Tool base URL: ${toolBaseUrl || "not configured"}`);
 console.log(`Output: ${batchDir}`);
+console.log(`Reel structure: ${reelConfig.sceneCount} scenes, ${reelConfig.totalDurationSeconds}s total`);
 
 for (const row of selectedRows) {
   console.log(`\nPreparing: ${row.tool_name}`);
   const result = await processToolRow(row, batchDir, config, {
     capture: shouldCapture,
-    useAi
+    useAi,
+    sceneCount: reelConfig.sceneCount
   });
   resultsBySourceRow.set(row.source_row_number, result);
   console.log(`Captured ${result.capture.files.length} reference file(s).`);
@@ -91,7 +97,11 @@ const extraHeaders = [
   "TRF Final Video Folder Link",
   "TRF Run Folder Link",
   "TRF Generated Folder",
-  "TRF Generated Files"
+  "TRF Generated Files",
+  "TRF Asset Brief",
+  "TRF Reel Script MD",
+  "TRF Reel Script JSON",
+  "TRF Vids Generated Scenes Folder"
 ];
 
 function firstFile(files, name) {
@@ -149,6 +159,10 @@ function enrichmentFor(sourceRowNumber) {
     "TRF Vids Cached Clips": "",
     "TRF Generated Folder": result.files.generatedArchivePath || path.join(result.runDir, "generated"),
     "TRF Generated Files": "",
+    "TRF Asset Brief": result.files.assetBriefPath || "",
+    "TRF Reel Script MD": result.files.reelScriptMdPath || "",
+    "TRF Reel Script JSON": result.files.reelScriptJsonPath || "",
+    "TRF Vids Generated Scenes Folder": result.files.vidsGeneratedScenesPath || "",
     "TRF Final MP4 Path": "",
     "TRF QA Status": "Needs human review",
     "TRF Last Automation Run": new Date().toISOString(),

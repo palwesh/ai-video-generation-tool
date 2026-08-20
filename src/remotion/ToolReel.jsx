@@ -2,10 +2,10 @@ import React from "react";
 import { AbsoluteFill, Audio, Sequence, staticFile, useVideoConfig } from "remotion";
 import { ReelScene } from "./ReelScene.jsx";
 
-export const ToolReel = ({ toolName, toolUrl, scenes, assets }) => {
+export const ToolReel = ({ toolName, toolUrl, scenes, assets, sceneDurationSeconds = 10 }) => {
   const { fps } = useVideoConfig();
-  const sceneDuration = 10 * fps;
-  const safeScenes = Array.isArray(scenes) && scenes.length ? scenes.slice(0, 7) : [];
+  const sceneDuration = Math.max(1, Number(sceneDurationSeconds || 10)) * fps;
+  const safeScenes = Array.isArray(scenes) && scenes.length ? scenes : [];
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#eef2f5", fontFamily: "Inter, Arial, sans-serif" }}>
@@ -25,6 +25,8 @@ export const ToolReel = ({ toolName, toolUrl, scenes, assets }) => {
           <ReelScene
             scene={scene}
             sceneIndex={index}
+            totalScenes={safeScenes.length}
+            sceneDurationSeconds={Number(sceneDurationSeconds || 10)}
             toolName={toolName}
             toolUrl={toolUrl}
             assets={assets || {}}

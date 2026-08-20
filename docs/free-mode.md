@@ -8,7 +8,8 @@ Use free mode when you want the system to run without OpenAI API credits.
 - Visit public tool links.
 - Capture screenshots.
 - Capture short WebM scroll recording.
-- Generate a basic Hinglish 7-scene reel plan.
+- Generate a basic Hinglish 3-6 scene reel plan; default is 6 scenes / 60 seconds.
+- Save `asset-brief.md`, `reel-script.md`, `reel-script.json`, and `vids-generated-scenes/`.
 - Generate Google Vids prompts.
 - Generate post caption and hashtags.
 
@@ -44,5 +45,5 @@ Google Vids access and AI generation limits depend on the Google account and pla
 2. Run `npm run free:capture -- --input inputs/your-tools.xlsx`.
 3. Open each tool output folder.
 4. Use `google-vids-prompts.csv` in Google Vids.
-5. Generate 7 clips of 10 seconds each.
+5. Generate 3-6 clips of 10 seconds each.
 6. Merge/export/download from Google Vids.
