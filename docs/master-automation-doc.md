@@ -1097,6 +1097,22 @@ Config:
 config/default.json
 ```
 
+## Google Drive Sync
+
+Use Google Drive Desktop for a free Drive upload workflow. Add the synced Drive folder in the dashboard `Drive sync folder` field or pass:
+
+```bash
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --local-only --drive-sync-dir "/Users/palsahu/Library/CloudStorage/GoogleDrive-YOUR_ACCOUNT/My Drive/Tool-Reel-Factory"
+```
+
+When the final MP4 exists, the agent copies the full tool folder and `final-video.mp4` into:
+
+```text
+<Drive sync folder>/<tool-slug>/
+```
+
+The workbook row is updated with Drive sync status, Drive video path/link, Drive folder path/link, and final video link. These are local synced Drive links. Google Drive Desktop uploads the files in the background. Public web share links need Drive sharing/API setup.
+
 ## Suggested Next Improvements
 
 Best next upgrades:
@@ -1105,7 +1121,7 @@ Best next upgrades:
 1. Add a review screen in dashboard to preview scene script before video generation.
 2. Add pause/resume persistence for queues after dashboard restart.
 3. Add better AI voice provider option for more natural voiceover.
-4. Add final MP4 upload to Google Drive and write Drive link into Excel.
+4. Add Google Drive API sharing to produce public web share links automatically.
 5. Add automatic Instagram caption export per row.
 6. Add manual approval step before spending Google Vids quota.
 7. Add retry controls for only failed scenes.

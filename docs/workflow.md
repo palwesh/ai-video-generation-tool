@@ -11,7 +11,7 @@
 7. Convert the script into 3-6 scenes of 10 seconds each; default is 6 scenes / 60 seconds.
 8. Save Google Vids-ready scene prompts and `vids-generated-scenes/scene-XX/` folders.
 9. Save post caption and hashtags.
-10. Create an enriched workbook copy with output columns for asset paths, reel script files, Vids status, Drive status, final MP4 path, and QA.
+10. Create an enriched workbook copy with output columns for asset paths, reel script files, Vids status, Drive sync status, Drive video/folder links, final MP4 path, and QA.
 
 ## Google Vids Reality
 
@@ -23,6 +23,7 @@ Google Vids supports prompt-based AI clips and MP4 download, but a stable public
 - Attach captured tool screenshots as Ingredients on proof-heavy scenes when Google Vids exposes a selectable upload route.
 - Submit and insert generated clips after a human-approved dry-run.
 - Download the final MP4 from Vids or Drive.
+- If `--drive-sync-dir` is provided, copy the final MP4 and tool folder into the Google Drive Desktop synced folder and write the Drive video/folder links into the workbook.
 
 Tested browser automation status:
 

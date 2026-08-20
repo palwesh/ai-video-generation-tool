@@ -1,6 +1,7 @@
 import http from "node:http";
 import fs from "node:fs/promises";
 import fsSync from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -62,6 +63,10 @@ const queueProgressHeaders = [
   "TRF Queue Tool Name",
   "TRF Queue Final Video",
   "TRF Queue Final MP4 Path",
+  "TRF Queue Drive Video",
+  "TRF Queue Drive Video Path",
+  "TRF Queue Drive Folder",
+  "TRF Queue Drive Folder Path",
   "TRF Queue Generated Folder",
   "TRF Queue Generated Folder Path",
   "TRF Queue Vids Cache",
@@ -342,6 +347,11 @@ function historyEntryForRun(run) {
     toolDir: report.toolDir || "",
     preparedWorkbook: report.preparedWorkbook || "",
     mp4Path: report.mp4Path || "",
+    driveSyncStatus: report.driveSyncStatus || "",
+    driveSyncError: report.driveSyncError || "",
+    driveFolderPath: report.driveFolderPath || "",
+    driveVideoPath: report.driveVideoPath || "",
+    driveManifestPath: report.driveManifestPath || "",
     vidsUrl: report.vidsUrl || "",
     vidsClipCacheFolder: report.vidsClipCacheFolder || "",
     cachedVidsClips: report.cachedVidsClips || [],
@@ -424,7 +434,14 @@ function latestHistoryByInputAndRow(history, inputPath) {
 
 function allowedOutputPath(targetPath) {
   const resolved = path.resolve(targetPath);
-  return resolved === projectRoot || resolved.startsWith(`${projectRoot}${path.sep}`);
+  const allowedRoots = [
+    projectRoot,
+    process.env.TRF_DRIVE_SYNC_DIR || "",
+    appConfig.driveSync?.rootDir || "",
+    path.join(os.homedir(), "Library", "CloudStorage"),
+    path.join(os.homedir(), "Google Drive")
+  ].filter(Boolean).map((item) => path.resolve(item));
+  return allowedRoots.some((root) => resolved === root || resolved.startsWith(`${root}${path.sep}`));
 }
 
 async function readJsonSafe(filePath) {
@@ -807,6 +824,9 @@ function runArgsFromBody(body, outputDir) {
     "--scene-count", String(Number.isFinite(maxScenes) ? maxScenes : 6),
     "--out", outputDir
   ];
+  if (body.driveSyncDir) {
+    runArgs.push("--drive-sync-dir", String(body.driveSyncDir));
+  }
 
   if (mode === "prep") {
     runArgs.push("--prep-only");
@@ -1019,6 +1039,11 @@ function runSummary(run) {
     mode: run.body?.mode || report.mode || "",
     outputDir: run.outputDir,
     mp4Path: report.mp4Path || "",
+    driveSyncStatus: report.driveSyncStatus || "",
+    driveSyncError: report.driveSyncError || "",
+    driveFolderPath: report.driveFolderPath || "",
+    driveVideoPath: report.driveVideoPath || "",
+    driveManifestPath: report.driveManifestPath || "",
     vidsUrl: report.vidsUrl || "",
     vidsClipCacheFolder: report.vidsClipCacheFolder || "",
     cachedVidsClips: report.cachedVidsClips || [],
@@ -1065,6 +1090,10 @@ function queueProgressValues(item) {
     report.toolName || "",
     report.mp4Path ? fileHyperlink(report.mp4Path, "Open video") : "",
     report.mp4Path || "",
+    report.driveVideoPath ? fileHyperlink(report.driveVideoPath, "Open Drive video") : "",
+    report.driveVideoPath || "",
+    report.driveFolderPath ? folderHyperlink(report.driveFolderPath, "Open Drive folder") : "",
+    report.driveFolderPath || "",
     report.generatedFolder ? folderHyperlink(report.generatedFolder, "Open generated") : "",
     report.generatedFolder || "",
     report.vidsClipCacheFolder ? folderHyperlink(report.vidsClipCacheFolder, "Open cache") : "",
@@ -1073,7 +1102,7 @@ function queueProgressValues(item) {
     report.vidsUrl || "",
     report.preparedWorkbook ? fileHyperlink(report.preparedWorkbook, "Open workbook") : "",
     report.outputDir ? folderHyperlink(report.outputDir, "Open run") : "",
-    report.error || "",
+    report.error || report.driveSyncError || "",
     item.endedAt || item.startedAt || ""
   ];
 }
@@ -1399,6 +1428,9 @@ async function handleApi(req, res, pathname, searchParams) {
           defaultAvatarScenes,
           defaultIngredientScenes,
           avatarOptions
+        },
+        driveSync: {
+          rootDir: process.env.TRF_DRIVE_SYNC_DIR || appConfig.driveSync?.rootDir || ""
         }
       });
       return;

@@ -37,6 +37,10 @@
       { "label": "Eleanor - Realistic", "value": "Eleanor" }
     ]
   },
+  "driveSync": {
+    "enabled": false,
+    "rootDir": ""
+  },
   "output": {
     "rootDir": "outputs/runs"
   }

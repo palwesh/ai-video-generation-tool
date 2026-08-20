@@ -20,6 +20,12 @@ const outputPath = path.resolve(args.out || workbookPath.replace(/\.xlsx$/i, "-u
 const statusHeaders = [
   "TRF Google Vids Status",
   "TRF Google Vids Link",
+  "TRF Drive Upload Status",
+  "TRF Drive Folder Link",
+  "TRF Drive Video Path",
+  "TRF Drive Video Link",
+  "TRF Drive Folder Path",
+  "TRF Drive Manifest",
   "TRF Vids Clip Cache Folder",
   "TRF Vids Cached Clips",
   "TRF Final MP4 Path",
@@ -95,9 +101,40 @@ if (targetRowIndex < 0) {
   process.exit(1);
 }
 
+const driveVideoLink = args["drive-video-link"]
+  ? hyperlinkFormula(args["drive-video-link"], "Open Drive video")
+  : args["drive-video"]
+    ? fileHyperlink(args["drive-video"], "Open Drive video")
+    : "";
+const driveFolderLink = args["drive-folder-link"]
+  ? hyperlinkFormula(args["drive-folder-link"], "Open Drive folder")
+  : args["drive-folder"]
+    ? folderHyperlink(args["drive-folder"], "Open Drive folder")
+    : "";
+const finalVideoLink = driveVideoLink || (args["video-link"]
+  ? hyperlinkFormula(args["video-link"], "Open video")
+  : args.mp4
+    ? fileHyperlink(args.mp4, "Open video")
+    : args["vids-url"]
+      ? hyperlinkFormula(args["vids-url"], "Open Google Vids")
+      : "");
+const finalVideoFolderLink = driveFolderLink || (args["video-folder-link"]
+  ? hyperlinkFormula(args["video-folder-link"], "Open video folder")
+  : args.mp4
+    ? folderHyperlink(path.dirname(path.resolve(args.mp4)), "Open video folder")
+    : args["folder-link"]
+      ? hyperlinkFormula(args["folder-link"], "Open video folder")
+      : "");
+
 const updates = {
   "TRF Google Vids Status": args.status || "Generated/exported",
   "TRF Google Vids Link": args["vids-url"] || "",
+  "TRF Drive Upload Status": args["drive-status"] || (args["drive-video"] || args["drive-folder"] ? "Synced to Drive folder" : ""),
+  "TRF Drive Folder Link": driveFolderLink,
+  "TRF Drive Video Path": args["drive-video"] || "",
+  "TRF Drive Video Link": driveVideoLink,
+  "TRF Drive Folder Path": args["drive-folder"] || "",
+  "TRF Drive Manifest": args["drive-manifest"] || "",
   "TRF Vids Clip Cache Folder": args["vids-cache"] || (toolDir ? path.join(toolDir, "vids-clips") : ""),
   "TRF Vids Cached Clips": args["cached-vids-clips"] || args["cached-clips"] || "",
   "TRF Generated Folder": args.generated || (toolDir ? path.join(toolDir, "generated") : ""),
@@ -105,20 +142,8 @@ const updates = {
   "TRF Final MP4 Path": args.mp4 ? path.resolve(args.mp4) : "",
   "TRF QA Status": args.qa || "Needs human review",
   "TRF Last Automation Run": new Date().toISOString(),
-  "TRF Final Video Link": args["video-link"]
-    ? hyperlinkFormula(args["video-link"], "Open video")
-    : args.mp4
-      ? fileHyperlink(args.mp4, "Open video")
-      : args["vids-url"]
-        ? hyperlinkFormula(args["vids-url"], "Open Google Vids")
-        : "",
-  "TRF Final Video Folder Link": args["video-folder-link"]
-    ? hyperlinkFormula(args["video-folder-link"], "Open video folder")
-    : args.mp4
-      ? folderHyperlink(path.dirname(path.resolve(args.mp4)), "Open video folder")
-      : args["folder-link"]
-        ? hyperlinkFormula(args["folder-link"], "Open video folder")
-        : "",
+  "TRF Final Video Link": finalVideoLink,
+  "TRF Final Video Folder Link": finalVideoFolderLink,
   "TRF Run Folder Link": args["run-folder-link"]
     ? hyperlinkFormula(args["run-folder-link"], "Open run folder")
     : toolDir

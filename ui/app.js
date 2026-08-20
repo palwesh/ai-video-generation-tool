@@ -1,6 +1,7 @@
 const els = {
   serverStatus: document.getElementById("serverStatus"),
   inputPath: document.getElementById("inputPath"),
+  driveSyncDir: document.getElementById("driveSyncDir"),
   toolSelect: document.getElementById("toolSelect"),
   loadToolsBtn: document.getElementById("loadToolsBtn"),
   rowNumber: document.getElementById("rowNumber"),
@@ -567,6 +568,7 @@ function parseNumberList(value) {
 function buildRunBody(rowOverride = null) {
   return {
     input: els.inputPath.value,
+    driveSyncDir: els.driveSyncDir.value.trim(),
     row: Number(rowOverride || els.rowNumber.value || 2),
     mode: state.mode,
     maxScenes: Number(els.maxScenes.value || 6),
@@ -775,6 +777,7 @@ function setOutputButtons(report, run) {
 async function loadDefaults() {
   const data = await api("/api/defaults");
   els.inputPath.value = data.input;
+  els.driveSyncDir.value = data.driveSync?.rootDir || "";
   renderProfiles(data.profiles || []);
   syncProfileSelects(data.profiles || []);
   els.avatarChoice.innerHTML = avatarOptions(data.googleVids?.avatarOptions || [{ label: "Auto Realistic", value: "auto" }]);
@@ -988,6 +991,8 @@ function showResult(run) {
     els.resultTitle.textContent = isLocalFallback ? "Local fallback video ready" : "Video ready";
     const parts = [
       `MP4: ${report.mp4Path}`,
+      report.driveVideoPath ? `Drive video: ${report.driveVideoPath}` : "",
+      report.driveFolderPath ? `Drive folder: ${report.driveFolderPath}` : "",
       report.vidsUrl ? `Google Vids: ${report.vidsUrl}` : "",
       report.generatedFolder ? `Generated: ${report.generatedFolder}` : "",
       report.generatedFiles?.length ? `Generated saved: ${report.generatedFiles.length}` : "",
@@ -1085,6 +1090,8 @@ function renderQueue(queue) {
     const meta = [
       `Row ${item.row}`,
       report.mp4Path ? `Video: ${shortPath(report.mp4Path)}` : "",
+      report.driveVideoPath ? `Drive video: ${shortPath(report.driveVideoPath)}` : "",
+      report.driveFolderPath ? `Drive: ${shortPath(report.driveFolderPath)}` : "",
       report.generatedFolder ? `Generated: ${shortPath(report.generatedFolder)}` : "",
       report.vidsClipCacheFolder ? `Cache: ${shortPath(report.vidsClipCacheFolder)}` : "",
       report.error ? `Error: ${report.error}` : "",
@@ -1094,6 +1101,8 @@ function renderQueue(queue) {
       item.runId ? `<button class="secondary-button" data-action="attach-run" data-run-id="${escapeHtml(item.runId)}" type="button">Logs</button>` : "",
       report.mp4Path ? `<button class="secondary-button" data-action="preview-path" data-path="${escapeHtml(report.mp4Path)}" type="button">Preview</button>` : "",
       report.mp4Path ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(directoryOf(report.mp4Path))}" type="button">Folder</button>` : "",
+      report.driveVideoPath ? `<button class="secondary-button" data-action="preview-path" data-path="${escapeHtml(report.driveVideoPath)}" type="button">Drive Preview</button>` : "",
+      report.driveFolderPath ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(report.driveFolderPath)}" type="button">Drive</button>` : "",
       report.generatedFolder ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(report.generatedFolder)}" type="button">Generated</button>` : "",
       report.vidsClipCacheFolder ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(report.vidsClipCacheFolder)}" type="button">Cache</button>` : "",
       item.status === "failed" || item.status === "paused" ? `<button class="secondary-button" data-action="retry-row" data-row="${item.row}" type="button">Retry</button>` : ""
@@ -1123,6 +1132,8 @@ function renderHistory(history) {
     const meta = [
       `${modeLabel(entry.mode)} - Row ${entry.row}`,
       entry.mp4Path ? `Video: ${shortPath(entry.mp4Path)}` : "",
+      entry.driveVideoPath ? `Drive video: ${shortPath(entry.driveVideoPath)}` : "",
+      entry.driveFolderPath ? `Drive: ${shortPath(entry.driveFolderPath)}` : "",
       entry.generatedFolder ? `Generated: ${shortPath(entry.generatedFolder)}` : "",
       entry.vidsClipCacheFolder ? `Cache: ${shortPath(entry.vidsClipCacheFolder)}` : "",
       entry.vidsUrl ? "Google Vids link saved" : "",
@@ -1133,6 +1144,8 @@ function renderHistory(history) {
       `<button class="secondary-button" data-action="retry-row" data-row="${entry.row}" type="button">Retry</button>`,
       entry.mp4Path ? `<button class="secondary-button" data-action="preview-path" data-path="${escapeHtml(entry.mp4Path)}" type="button">Preview</button>` : "",
       entry.mp4Path ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(directoryOf(entry.mp4Path))}" type="button">Folder</button>` : "",
+      entry.driveVideoPath ? `<button class="secondary-button" data-action="preview-path" data-path="${escapeHtml(entry.driveVideoPath)}" type="button">Drive Preview</button>` : "",
+      entry.driveFolderPath ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(entry.driveFolderPath)}" type="button">Drive</button>` : "",
       entry.generatedFolder ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(entry.generatedFolder)}" type="button">Generated</button>` : "",
       entry.vidsClipCacheFolder ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(entry.vidsClipCacheFolder)}" type="button">Cache</button>` : "",
       entry.outputDir ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(entry.outputDir)}" type="button">Run</button>` : ""
@@ -1401,6 +1414,7 @@ els.refreshDocsBtn.addEventListener("click", () => {
   els.maxScenes,
   els.queueLimit,
   els.queueRows,
+  els.driveSyncDir,
   els.avatarScenes,
   els.ingredientScenes,
   els.quotaAiLimit,

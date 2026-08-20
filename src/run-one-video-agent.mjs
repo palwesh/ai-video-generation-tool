@@ -10,6 +10,7 @@ import { writeSimpleXlsx } from "./lib/simple-xlsx-writer.mjs";
 import { fileHyperlink, folderHyperlink, hyperlinkFormula } from "./lib/link-cells.mjs";
 import { cacheVidsExport, ensureVidsClipCache } from "./lib/vids-clip-cache.mjs";
 import { resolveReelConfig } from "./lib/reel-planner.mjs";
+import { resolveDriveSyncDir, syncToolOutputToDrive } from "./lib/drive-sync.mjs";
 import {
   ensureGeneratedArchive,
   mirrorGeneratedDirectory,
@@ -36,6 +37,7 @@ const shouldCapture = !args["no-capture"];
 const useAi = Boolean(args.ai && process.env.OPENAI_API_KEY);
 const avatarMode = args["no-avatar"] ? "" : (args.avatar || args["select-avatar"] || (generateInVids ? "auto" : ""));
 const defaultAvatarScenes = config.googleVids?.defaultAvatarScenes || `1,2,${reelConfig.sceneCount}`;
+const driveSyncDir = resolveDriveSyncDir(config, args);
 const batchStamp = new Date().toISOString().replace(/[:.]/g, "-");
 const batchDir = path.resolve(args.out || path.join("outputs", "runs", `one-video-agent-${batchStamp}`));
 const preparedWorkbookPath = path.join(batchDir, "prepared-tool-reel-workbook.xlsx");
@@ -54,6 +56,10 @@ const extraHeaders = [
   "TRF Scroll Recording",
   "TRF Drive Upload Status",
   "TRF Drive Folder Link",
+  "TRF Drive Video Path",
+  "TRF Drive Video Link",
+  "TRF Drive Folder Path",
+  "TRF Drive Manifest",
   "TRF Final Reel Voiceover",
   "TRF Scene 1 Voiceover",
   "TRF Scene 2 Voiceover",
@@ -93,6 +99,13 @@ function firstFile(files, name) {
   return files.find((filePath) => filePath.endsWith(name)) || "";
 }
 
+function setExtraValue(values, header, value) {
+  const index = extraHeaders.indexOf(header);
+  if (index >= 0) {
+    values[index] = value;
+  }
+}
+
 function selectedRowFrom(normalizedRows) {
   if (args.row) {
     const wanted = Number(args.row);
@@ -122,12 +135,12 @@ function selectedRowFrom(normalizedRows) {
 function enrichmentFor(normalized, result, final = {}) {
   if (!result) {
     const empty = extraHeaders.map(() => "");
-    empty[0] = normalized.tool_url;
-    empty[1] = normalized.tool_route;
-    empty[10] = "Not uploaded";
-    empty[27] = "Pending";
-    empty[28] = "Not processed in this run.";
-    empty[29] = "Not started";
+    setExtraValue(empty, "TRF Full Tool URL", normalized.tool_url);
+    setExtraValue(empty, "TRF Tool Route", normalized.tool_route);
+    setExtraValue(empty, "TRF Drive Upload Status", "Not uploaded");
+    setExtraValue(empty, "TRF Data Prep Status", "Pending");
+    setExtraValue(empty, "TRF Data Prep Note", "Not processed in this run.");
+    setExtraValue(empty, "TRF Google Vids Status", "Not started");
     return empty;
   }
 
@@ -136,14 +149,24 @@ function enrichmentFor(normalized, result, final = {}) {
   const finalVoiceover = scenes.map((scene) => scene.voiceover).join(" ");
   const sceneVoiceovers = Array.from({ length: 7 }, (_, index) => scenes[index]?.voiceover || "");
   const scenePrompts = Array.from({ length: 7 }, (_, index) => scenes[index]?.video_prompt || "");
-  const finalVideoLink = final.mp4Path
+  const driveVideoLink = final.driveVideoUrl
+    ? hyperlinkFormula(final.driveVideoUrl, "Open Drive video")
+    : final.driveVideoPath
+      ? fileHyperlink(final.driveVideoPath, "Open Drive video")
+      : "";
+  const driveFolderLink = final.driveFolderUrl
+    ? hyperlinkFormula(final.driveFolderUrl, "Open Drive folder")
+    : final.driveFolderPath
+      ? folderHyperlink(final.driveFolderPath, "Open Drive folder")
+      : "";
+  const finalVideoLink = driveVideoLink || (final.mp4Path
     ? fileHyperlink(final.mp4Path, "Open video")
     : final.vidsUrl
       ? hyperlinkFormula(final.vidsUrl, "Open Google Vids")
-      : "";
-  const finalVideoFolderLink = final.mp4Path
+      : "");
+  const finalVideoFolderLink = driveFolderLink || (final.mp4Path
     ? folderHyperlink(path.dirname(final.mp4Path), "Open video folder")
-    : "";
+    : "");
 
   return [
     normalized.tool_url,
@@ -156,8 +179,12 @@ function enrichmentFor(normalized, result, final = {}) {
     firstFile(captureFiles, "mobile-top.png"),
     firstFile(captureFiles, "desktop-full-page.png"),
     firstFile(captureFiles, "mobile-scroll.webm"),
-    "Not uploaded",
-    "",
+    final.driveSyncStatus || (final.driveFolderPath ? "Synced to Drive folder" : "Not uploaded"),
+    driveFolderLink,
+    final.driveVideoPath || "",
+    driveVideoLink,
+    final.driveFolderPath || "",
+    final.driveManifestPath || "",
     finalVoiceover,
     ...sceneVoiceovers,
     ...scenePrompts,
@@ -533,6 +560,22 @@ async function main() {
   const vidsProfilesTried = [];
   let googleVidsStatus = prepOnly ? "Script/assets prepared; video skipped" : localOnly ? "Local MP4 rendered" : generateInVids ? "Generated; export pending" : "Dry-run prompt fill complete";
   let qaStatus = prepOnly ? "Prep only; render or generate before posting" : generateInVids || localOnly ? "Needs final human review before posting" : "Dry-run only";
+  let driveSync = null;
+  let driveSyncError = "";
+  const finalWorkbookPayload = () => ({
+    vidsStatus: googleVidsStatus,
+    vidsUrl,
+    vidsClipCacheFolder,
+    cachedVidsClips,
+    generatedFolder,
+    generatedFiles,
+    mp4Path,
+    qaStatus,
+    driveSyncStatus: driveSync?.status || (driveSyncError ? `Drive sync failed: ${driveSyncError}` : driveSyncDir ? (mp4Path ? "Drive sync pending" : "Skipped; no final MP4") : "Not uploaded"),
+    driveVideoPath: driveSync?.driveVideoPath || "",
+    driveFolderPath: driveSync?.driveFolderPath || "",
+    driveManifestPath: driveSync?.driveManifestPath || ""
+  });
 
   if (prepOnly) {
     steps.push({
@@ -776,16 +819,7 @@ async function main() {
     }
   }
 
-  await writePreparedWorkbook(table, normalizedRows, selectedRow, result, {
-    vidsStatus: googleVidsStatus,
-    vidsUrl,
-    vidsClipCacheFolder,
-    cachedVidsClips,
-    generatedFolder,
-    generatedFiles,
-    mp4Path,
-    qaStatus
-  });
+  await writePreparedWorkbook(table, normalizedRows, selectedRow, result, finalWorkbookPayload());
 
   const preparedWorkbookCopy = await archiveGeneratedFile(result, steps, generatedFiles, {
     sourcePath: preparedWorkbookPath,
@@ -828,6 +862,42 @@ async function main() {
   };
 
   await writeJson(reportPath, report);
+  if (driveSyncDir && mp4Path) {
+    try {
+      driveSync = await syncToolOutputToDrive({
+        rootDir: driveSyncDir,
+        result,
+        mp4Path,
+        preparedWorkbookPath,
+        reportPath,
+        generatedFiles
+      });
+      steps.push({
+        name: "drive_sync",
+        ok: true,
+        driveFolderPath: driveSync.driveFolderPath,
+        driveVideoPath: driveSync.driveVideoPath,
+        report: driveSync.driveManifestPath
+      });
+    } catch (error) {
+      driveSyncError = error.message;
+      steps.push({
+        name: "drive_sync_failed",
+        ok: false,
+        rootDir: driveSyncDir,
+        error: error.message
+      });
+    }
+  }
+  Object.assign(report, {
+    driveSyncDir,
+    driveSyncStatus: driveSync?.status || (driveSyncError ? "failed" : driveSyncDir ? "skipped" : "disabled"),
+    driveSyncError,
+    driveFolderPath: driveSync?.driveFolderPath || "",
+    driveVideoPath: driveSync?.driveVideoPath || "",
+    driveManifestPath: driveSync?.driveManifestPath || ""
+  });
+  await writeJson(reportPath, report);
   const agentReportCopy = await archiveGeneratedFile(result, steps, generatedFiles, {
     sourcePath: reportPath,
     category: "agent",
@@ -847,16 +917,7 @@ async function main() {
     label: "One-video agent report",
     note: "Final one-video run report copy saved inside the selected tool folder."
   });
-  await writePreparedWorkbook(table, normalizedRows, selectedRow, result, {
-    vidsStatus: googleVidsStatus,
-    vidsUrl,
-    vidsClipCacheFolder,
-    cachedVidsClips,
-    generatedFolder,
-    generatedFiles,
-    mp4Path,
-    qaStatus
-  });
+  await writePreparedWorkbook(table, normalizedRows, selectedRow, result, finalWorkbookPayload());
   await mirrorGeneratedFile({
     toolDir: result.runDir,
     sourcePath: preparedWorkbookPath,
@@ -865,11 +926,31 @@ async function main() {
     label: "Prepared workbook",
     note: "Final prepared workbook copy saved inside the selected tool folder."
   });
+  if (driveSyncDir && mp4Path && !driveSyncError) {
+    driveSync = await syncToolOutputToDrive({
+      rootDir: driveSyncDir,
+      result,
+      mp4Path,
+      preparedWorkbookPath,
+      reportPath,
+      generatedFiles
+    });
+    Object.assign(report, {
+      driveSyncStatus: driveSync.status,
+      driveFolderPath: driveSync.driveFolderPath,
+      driveVideoPath: driveSync.driveVideoPath,
+      driveManifestPath: driveSync.driveManifestPath
+    });
+    await writeJson(reportPath, report);
+  }
   console.log(`One-video agent report: ${reportPath}`);
   console.log(`Prepared workbook: ${preparedWorkbookPath}`);
   console.log(`Tool generated folder: ${generatedFolder}`);
   if (mp4Path) {
     console.log(`Final MP4: ${mp4Path}`);
+  }
+  if (driveSync?.driveVideoPath) {
+    console.log(`Drive synced video: ${driveSync.driveVideoPath}`);
   }
 }
 

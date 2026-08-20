@@ -109,6 +109,27 @@ npm run prep:free:capture -- --input "/Users/palsahu/workplace/projects/n learn/
 
 The prepared workbook includes columns for local asset files, asset brief, reel script files, Google Vids status, Drive upload status, Google Vids link, final MP4 path, final video link, final video folder link, run folder link, generated scene folders, and QA status.
 
+## Google Drive Sync
+
+Use Google Drive Desktop for the free Drive workflow. Paste your synced Drive folder in the dashboard `Drive sync folder` field, or pass it from the command line:
+
+```bash
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --local-only --drive-sync-dir "/Users/palsahu/Library/CloudStorage/GoogleDrive-YOUR_ACCOUNT/My Drive/Tool-Reel-Factory"
+```
+
+When a final MP4 is created, the agent copies the tool folder and `final-video.mp4` into that Drive sync folder. The prepared workbook row is updated with:
+
+```text
+TRF Drive Upload Status
+TRF Drive Video Path
+TRF Drive Video Link
+TRF Drive Folder Path
+TRF Drive Folder Link
+TRF Final Video Link
+```
+
+These are local synced Drive links. Google Drive Desktop uploads them to Drive in the background. Public web share links still need Google Drive sharing/API setup.
+
 ## One-Video Agent
 
 Use this for one complete tool reel from your Excel file. It selects one row, captures the actual tool page first, creates a short 30-60 second Hook-Body-CTA Reel plan, writes the prepared workbook, and opens/fills Google Vids when requested.
@@ -392,6 +413,8 @@ This also writes clickable Excel formula links in the last columns:
 ```text
 TRF Final Video Link
 TRF Final Video Folder Link
+TRF Drive Video Link
+TRF Drive Folder Link
 TRF Run Folder Link
 TRF Generated Folder
 TRF Generated Files
