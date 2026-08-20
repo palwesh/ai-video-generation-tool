@@ -236,7 +236,7 @@ full-google-vids-export.mp4
 partial-google-vids-export-scenes-01-03.mp4
 ```
 
-When Google Vids export succeeds, the agent copies the full MP4 into this folder. If Google Vids inserts some scenes but fails before the final export, the agent tries one partial export and caches it too.
+Default Google Vids mode creates one Vids file per scene, exports each scene MP4, stores it in `vids-generated-scenes/scene-XX/`, and caches it as `vids-clips/scene-XX.mp4`. Local rendering then merges the final Reel. The old full-timeline export path is available with `--vids-timeline-export`.
 
 When local MP4 render runs, priority is:
 
@@ -249,7 +249,7 @@ real screenshots
 
 If visual QA shows a cached Vids export has hallucinated or fake UI, set that manifest entry to `renderEligible: false` or a rejected `qualityStatus`. The file stays saved in `vids-clips/`, but local rendering skips it and uses real captured screenshots/recordings instead.
 
-Google Vids does not provide a dependable public API for downloading every individual generated scene clip. So automatic caching is strongest for full/partial exported MP4s. If you manually download or record a Vids/avatar scene, save it as `scene-01.mp4`, `scene-02.mp4`, etc. inside `vids-clips/`.
+If scene export is blocked by the current Google Vids UI, manually download or record a Vids/avatar scene and save it as `scene-01.mp4`, `scene-02.mp4`, etc. inside `vids-clips/`.
 
 ### 6. Local Free Video Renderer
 
@@ -351,8 +351,8 @@ Dashboard modes:
 ```text
 Script + Assets -> prepares script, scene plan, screenshots, recordings, prompts, and workbook links only.
 Local MP4 -> creates a free local video with captions, voiceover, music, and real tool proof.
-Vids Hybrid -> uses Google Vids with avatar scenes 1,2,6 and screenshot proof scenes 3,4,5.
-Full Vids -> asks Google Vids to generate all scenes; use only when quota is available.
+Vids Clips -> asks Google Vids to generate/export separate scene clips, then local merge.
+All Vids Clips -> same scene-by-scene download flow for every scene; use only when quota is available.
 ```
 
 Queue:
@@ -924,7 +924,7 @@ Google Vids does not provide a stable public API for full automated video creati
 Automation uses browser control, so Google UI changes can break it.
 Free Google Vids accounts can hit generation limits.
 If quota is over, use another logged-in profile or local MP4 fallback.
-Individual scene clip download is not reliable through a public API; full/partial exports and manual scene clips are cached locally.
+Scene clip download uses browser automation, not a public API. The agent saves each exported scene locally, caches it as `vids-clips/scene-XX.mp4`, and then performs the final merge locally.
 ```
 
 Local MP4:

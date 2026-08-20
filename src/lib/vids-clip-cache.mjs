@@ -158,6 +158,61 @@ export async function cacheVidsExport({
   };
 }
 
+export async function cacheVidsSceneClip({
+  toolDir,
+  sourcePath,
+  sceneNumber,
+  profile = "",
+  note = "",
+  renderEligible = true,
+  qualityStatus = "unreviewed"
+}) {
+  if (!toolDir || !sourcePath || !Number.isFinite(Number(sceneNumber))) {
+    return null;
+  }
+  try {
+    await fs.access(sourcePath);
+  } catch {
+    return null;
+  }
+
+  const cacheDir = await ensureVidsClipCache(toolDir);
+  const ext = path.extname(sourcePath) || ".mp4";
+  const destinationName = safeCacheFileName(`scene-${sceneToken(Number(sceneNumber))}${ext}`);
+  const destinationPath = path.join(cacheDir, destinationName);
+  await fs.copyFile(sourcePath, destinationPath);
+
+  const manifest = await readCacheManifest(cacheDir);
+  const entry = {
+    kind: "scene_clip",
+    sceneNumber: Number(sceneNumber),
+    file: destinationName,
+    absolutePath: destinationPath,
+    sourcePath,
+    profile,
+    coveredScenes: [Number(sceneNumber)],
+    note,
+    renderEligible,
+    qualityStatus,
+    savedAt: new Date().toISOString()
+  };
+  manifest.sceneClips = [
+    entry,
+    ...(manifest.sceneClips || []).filter((item) => Number(item.sceneNumber) !== Number(sceneNumber))
+  ];
+  if (note) {
+    manifest.notes = [note, ...(manifest.notes || [])].slice(0, 20);
+  }
+  await writeCacheManifest(cacheDir, manifest);
+
+  return {
+    cacheDir,
+    manifestPath: path.join(cacheDir, VIDS_CLIP_CACHE_MANIFEST),
+    cachedPath: destinationPath,
+    entry
+  };
+}
+
 function isRejectedCacheEntry(item) {
   const note = String(item?.note || "");
   const qualityStatus = String(item?.qualityStatus || "");

@@ -8,7 +8,7 @@ import { readWorkbookTable, normalizeWorkbookObjects } from "./lib/input.mjs";
 import { processToolRow } from "./lib/tool-processor.mjs";
 import { writeSimpleXlsx } from "./lib/simple-xlsx-writer.mjs";
 import { fileHyperlink, folderHyperlink, hyperlinkFormula } from "./lib/link-cells.mjs";
-import { cacheVidsExport, ensureVidsClipCache } from "./lib/vids-clip-cache.mjs";
+import { cacheVidsExport, cacheVidsSceneClip, ensureVidsClipCache } from "./lib/vids-clip-cache.mjs";
 import { resolveReelConfig } from "./lib/reel-planner.mjs";
 import { resolveDriveSyncDir, syncToolOutputToDrive } from "./lib/drive-sync.mjs";
 import {
@@ -32,6 +32,7 @@ const maxScenes = Number(args["max-scenes"] || reelConfig.sceneCount);
 const prepOnly = Boolean(args["prep-only"]);
 const localOnly = Boolean(args["local-only"]);
 const generateInVids = Boolean(args.generate) && !localOnly && !prepOnly;
+const useVidsSceneClips = generateInVids && !args["vids-timeline-export"];
 const allowLocalFallback = generateInVids && !args["no-local-fallback"];
 const shouldCapture = !args["no-capture"];
 const useAi = Boolean(args.ai && process.env.OPENAI_API_KEY);
@@ -344,10 +345,57 @@ function safeProfileLabel(profileDir, index) {
   return `${String(index + 1).padStart(2, "0")}-${cleanBase || "profile"}`;
 }
 
+function sceneToken(sceneNumber) {
+  return String(Number(sceneNumber)).padStart(2, "0");
+}
+
 function validSceneNumbers(scenes) {
   return (scenes || [])
     .map((scene) => Number(scene?.scene_number ?? scene))
     .filter(Number.isFinite);
+}
+
+function parseSceneSelection(value) {
+  return String(value || "")
+    .split(",")
+    .flatMap((part) => {
+      const trimmed = part.trim();
+      if (!trimmed) {
+        return [];
+      }
+      const range = trimmed.match(/^(\d+)\s*-\s*(\d+)$/);
+      if (!range) {
+        const single = Number(trimmed);
+        return Number.isFinite(single) ? [single] : [];
+      }
+      const start = Number(range[1]);
+      const end = Number(range[2]);
+      const low = Math.min(start, end);
+      const high = Math.max(start, end);
+      return Array.from({ length: high - low + 1 }, (_, index) => low + index);
+    })
+    .filter((scene, index, scenes) => Number.isFinite(scene) && scenes.indexOf(scene) === index);
+}
+
+function selectedVidsSceneNumbers(scenePlan) {
+  let sceneNumbers = args["vids-scenes"]
+    ? parseSceneSelection(args["vids-scenes"])
+    : validSceneNumbers(scenePlan.scenes);
+  if (args["from-scene"]) {
+    sceneNumbers = sceneNumbers.filter((sceneNumber) => sceneNumber >= Number(args["from-scene"]));
+  }
+  if (args["to-scene"]) {
+    sceneNumbers = sceneNumbers.filter((sceneNumber) => sceneNumber <= Number(args["to-scene"]));
+  }
+  return sceneNumbers.slice(0, Math.min(maxScenes, sceneNumbers.length));
+}
+
+function sceneNumbersFromClipPaths(paths) {
+  return (paths || [])
+    .map((filePath) => String(filePath || "").match(/scene[-_ ]?(\d+)/i)?.[1])
+    .map((sceneNumber) => Number(sceneNumber))
+    .filter((sceneNumber, index, sceneNumbers) => Number.isFinite(sceneNumber) && sceneNumbers.indexOf(sceneNumber) === index)
+    .sort((a, b) => a - b);
 }
 
 async function renderLocalReel(result, steps, generatedFiles, reason, status = "Google Vids failed; local MP4 rendered") {
@@ -469,6 +517,167 @@ async function tryPartialExportForCache({ result, steps, vidsUrl, profileDir, pr
     });
     return null;
   }
+}
+
+async function generateVidsSceneClipsForProfile({
+  result,
+  steps,
+  generatedFiles,
+  cachedVidsClips,
+  profileDir,
+  profileLabel,
+  profileIndex
+}) {
+  const sceneNumbers = selectedVidsSceneNumbers(result.scenePlan);
+  const defaultIngredientScenes = config.googleVids?.defaultIngredientScenes || "3,4,5";
+  const sceneResults = [];
+  if (!sceneNumbers.length) {
+    throw new Error("No Google Vids scene numbers selected for scene clip generation.");
+  }
+
+  for (const sceneNumber of sceneNumbers) {
+    const token = sceneToken(sceneNumber);
+    const sceneFolder = path.join(result.files.vidsGeneratedScenesPath || path.join(result.runDir, "vids-generated-scenes"), `scene-${token}`);
+    const vidsOutputDir = path.join(sceneFolder, `google-vids-run-${profileLabel}`);
+    const exportOutputDir = path.join(sceneFolder, `google-vids-export-${profileLabel}`);
+    const vidsReportPath = path.join(vidsOutputDir, "vids-operator-report.json");
+    const exportReportPath = path.join(exportOutputDir, "google-vids-export-report.json");
+    const sceneClipPath = path.join(sceneFolder, `google-vids-scene-${token}.mp4`);
+    const vidsArgs = [
+      "src/google-vids-operate.mjs",
+      "--tool-dir", result.runDir,
+      "--scene", String(sceneNumber),
+      "--max-scenes", "1",
+      "--output", vidsOutputDir,
+      "--profile", profileDir
+    ];
+
+    if (!args["no-ingredients"]) {
+      vidsArgs.push(
+        "--ingredients", args.ingredients || "auto",
+        "--ingredients-scenes", args["ingredients-scenes"] || defaultIngredientScenes
+      );
+    }
+    if (avatarMode) {
+      vidsArgs.push("--avatar", avatarMode);
+    }
+    if (avatarMode && (args["avatar-scenes"] || defaultAvatarScenes)) {
+      vidsArgs.push("--avatar-scenes", String(args["avatar-scenes"] || defaultAvatarScenes));
+    }
+    if (args["skip-portrait"]) {
+      vidsArgs.push("--skip-portrait");
+    }
+    vidsArgs.push("--submit", "--insert", "--after-submit-wait", String(args["after-submit-wait"] || 120000));
+
+    await ensureDir(sceneFolder);
+    console.log(`Generating Google Vids scene clip ${sceneNumber}/${sceneNumbers.at(-1)} with profile ${profileDir}`);
+    await runNodeScript(`vids-scene-${token}:${profileLabel}`, vidsArgs[0], vidsArgs.slice(1));
+    const vidsReport = await readJson(vidsReportPath);
+    const sceneVidsUrl = vidsReport.currentUrl || "";
+    if (!vidsReport.ok) {
+      throw new Error(vidsReport.error || `Google Vids did not complete Scene ${sceneNumber}.`);
+    }
+
+    await archiveGeneratedDirectory(result, steps, generatedFiles, {
+      sourceDir: vidsOutputDir,
+      category: "google-vids-scenes",
+      folderName: `${profileLabel}-scene-${token}`,
+      label: `Google Vids Scene ${sceneNumber} browser run`,
+      note: "Scene-level Google Vids run saved for audit.",
+      stepName: "archive_google_vids_scene_run"
+    });
+
+    if (args["no-export"]) {
+      sceneResults.push({
+        sceneNumber,
+        ok: true,
+        vidsUrl: sceneVidsUrl,
+        report: vidsReportPath,
+        exportSkipped: true
+      });
+      steps.push({
+        name: "google_vids_scene_clip",
+        profile: profileDir,
+        attempt: profileIndex + 1,
+        sceneNumber,
+        ok: true,
+        url: sceneVidsUrl,
+        report: vidsReportPath,
+        exportSkipped: true
+      });
+      continue;
+    }
+
+    const exportArgs = [
+      "src/google-vids-export.mjs",
+      "--url", sceneVidsUrl,
+      "--output", exportOutputDir,
+      "--timeout", String(args["export-timeout"] || 600000),
+      "--filename", `google-vids-scene-${token}.mp4`,
+      "--profile", profileDir
+    ];
+    await runNodeScript(`export-scene-${token}:${profileLabel}`, exportArgs[0], exportArgs.slice(1));
+    const exportReport = await readJson(exportReportPath);
+    const exportedPath = exportReport.savedPath || "";
+    if (!exportReport.ok || !exportedPath) {
+      throw new Error(exportReport.error || `Google Vids Scene ${sceneNumber} export did not save an MP4.`);
+    }
+
+    await fs.copyFile(exportedPath, sceneClipPath);
+    const cached = await cacheVidsSceneClip({
+      toolDir: result.runDir,
+      sourcePath: sceneClipPath,
+      sceneNumber,
+      profile: profileDir,
+      note: `Scene ${sceneNumber} generated in Google Vids and cached for local merge.`
+    });
+    if (cached?.cachedPath) {
+      cachedVidsClips.push(cached.cachedPath);
+      pushGenerated(generatedFiles, cached.cachedPath);
+    }
+    pushGenerated(generatedFiles, sceneClipPath);
+
+    await archiveGeneratedDirectory(result, steps, generatedFiles, {
+      sourceDir: exportOutputDir,
+      category: "google-vids-scene-exports",
+      folderName: `${profileLabel}-scene-${token}`,
+      label: `Google Vids Scene ${sceneNumber} export`,
+      note: "Scene-level Google Vids MP4 export saved for audit.",
+      stepName: "archive_google_vids_scene_export"
+    });
+
+    sceneResults.push({
+      sceneNumber,
+      ok: true,
+      vidsUrl: sceneVidsUrl,
+      report: vidsReportPath,
+      exportReport: exportReportPath,
+      exportedPath,
+      sceneClipPath,
+      cachedPath: cached?.cachedPath || ""
+    });
+    steps.push({
+      name: "google_vids_scene_clip",
+      profile: profileDir,
+      attempt: profileIndex + 1,
+      sceneNumber,
+      ok: true,
+      url: sceneVidsUrl,
+      report: vidsReportPath,
+      exportReport: exportReportPath,
+      savedPath: sceneClipPath,
+      cachedPath: cached?.cachedPath || ""
+    });
+  }
+
+  return {
+    ok: true,
+    sceneNumbers,
+    scenes: sceneResults,
+    vidsUrls: sceneResults.map((item) => item.vidsUrl).filter(Boolean),
+    cachedPaths: sceneResults.map((item) => item.cachedPath).filter(Boolean),
+    downloadedPaths: sceneResults.map((item) => item.sceneClipPath).filter(Boolean)
+  };
 }
 
 async function archiveGeneratedDirectory(result, steps, generatedFiles, options = {}) {
@@ -624,6 +833,8 @@ async function main() {
   let googleVidsError = "";
   let activeVidsProfile = "";
   let partialGeneratedScenes = [];
+  let vidsSceneClips = [];
+  let vidsSceneUrls = [];
   const vidsProfiles = vidsProfilesFromArgs();
   const vidsProfilesTried = [];
   let googleVidsStatus = prepOnly ? "Script/assets prepared; video skipped" : localOnly ? "Local MP4 rendered" : generateInVids ? "Generated; export pending" : "Dry-run prompt fill complete";
@@ -678,6 +889,55 @@ async function main() {
       googleVidsError = "";
       mp4Path = "";
       console.log(`Trying Google Vids profile ${profileIndex + 1}/${profilesToTry.length}: ${profileDir}`);
+
+      if (useVidsSceneClips) {
+        try {
+          const sceneClipRun = await generateVidsSceneClipsForProfile({
+            result,
+            steps,
+            generatedFiles,
+            cachedVidsClips,
+            profileDir,
+            profileLabel,
+            profileIndex
+          });
+          vidsSceneClips = sceneClipRun.scenes;
+          vidsSceneUrls = sceneClipRun.vidsUrls;
+          vidsUrl = vidsSceneUrls[0] || "";
+          partialGeneratedScenes = [];
+          steps.push({
+            name: "google_vids_scene_clips_complete",
+            profile: profileDir,
+            attempt: profileIndex + 1,
+            ok: true,
+            sceneNumbers: sceneClipRun.sceneNumbers,
+            cachedPaths: sceneClipRun.cachedPaths,
+            downloadedPaths: sceneClipRun.downloadedPaths
+          });
+          break;
+        } catch (error) {
+          googleVidsError = error.message;
+          partialGeneratedScenes = sceneNumbersFromClipPaths(cachedVidsClips);
+          steps.push({
+            name: "google_vids_scene_clips_failed",
+            profile: profileDir,
+            attempt: profileIndex + 1,
+            ok: false,
+            insertedScenes: partialGeneratedScenes,
+            willTryNextProfile: canTryNextProfile,
+            error: error.message
+          });
+          if (canTryNextProfile) {
+            console.warn(`Google Vids scene clip generation failed on profile ${profileDir}. Trying next configured profile.`);
+            continue;
+          }
+          if (!allowLocalFallback) {
+            throw error;
+          }
+        }
+
+        break;
+      }
 
       const vidsArgs = [
         "src/google-vids-operate.mjs",
@@ -870,7 +1130,20 @@ async function main() {
       break;
     }
 
-    if (generateInVids && googleVidsError && allowLocalFallback) {
+    if (generateInVids && useVidsSceneClips && !googleVidsError && !args["no-export"]) {
+      const localMerge = await renderLocalReel(
+        result,
+        steps,
+        generatedFiles,
+        "Google Vids scene clips downloaded",
+        "Google Vids scene clips downloaded; local MP4 merged"
+      );
+      mp4Path = localMerge.mp4Path;
+      fallback = "local_scene_clip_merge";
+      fallbackReportPath = localMerge.reportPath;
+      googleVidsStatus = "Scene clips downloaded; local MP4 merged";
+      qaStatus = "Local MP4 merged from Vids scene clips; final human review needed before posting";
+    } else if (generateInVids && googleVidsError && allowLocalFallback) {
       const fallbackStatus = partialGeneratedScenes.length
         ? `Google Vids inserted scenes ${partialGeneratedScenes.join(", ")} but failed before final export; local MP4 rendered`
         : "Google Vids failed; local MP4 rendered";
@@ -880,6 +1153,9 @@ async function main() {
       fallbackReportPath = localFallback.reportPath;
       googleVidsStatus = localFallback.status;
       qaStatus = localFallback.qaStatus;
+    } else if (generateInVids && useVidsSceneClips && args["no-export"]) {
+      googleVidsStatus = "Scene prompts generated; export skipped";
+      qaStatus = "Needs scene MP4 export and final local merge";
     } else if (generateInVids && mp4Path) {
       googleVidsStatus = "Generated and exported";
       qaStatus = "Needs final human review before posting";
@@ -915,6 +1191,9 @@ async function main() {
     },
     toolDir: result.runDir,
     vidsUrl,
+    vidsSceneClipMode: useVidsSceneClips,
+    vidsSceneUrls,
+    vidsSceneClips,
     vidsProfile: activeVidsProfile,
     vidsProfilesTried,
     mp4Path,

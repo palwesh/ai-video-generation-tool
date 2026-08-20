@@ -654,8 +654,8 @@ function updateQuotaEstimate() {
   const modeText = {
     prep: "Script/assets only",
     local: "Local MP4",
-    google: "Vids hybrid",
-    "google-full": "Full Vids"
+    google: "Vids Clips",
+    "google-full": "All Vids Clips"
   }[state.mode] || state.mode;
   const warning = limitUsed && (state.mode === "google" || state.mode === "google-full")
     ? "Selected profile marked LIMIT USED. Try another profile or use Local MP4."
@@ -996,6 +996,7 @@ function showResult(run) {
       report.driveVideoPath ? `Drive video: ${report.driveVideoPath}` : "",
       report.driveFolderPath ? `Drive folder: ${report.driveFolderPath}` : "",
       report.vidsUrl ? `Google Vids: ${report.vidsUrl}` : "",
+      report.vidsSceneClips?.length ? `Vids scene clips: ${report.vidsSceneClips.length}` : "",
       report.generatedFolder ? `Generated: ${report.generatedFolder}` : "",
       report.generatedFiles?.length ? `Generated saved: ${report.generatedFiles.length}` : "",
       report.vidsClipCacheFolder ? `Vids cache: ${report.vidsClipCacheFolder}` : "",
@@ -1034,10 +1035,10 @@ function modeLabel(mode) {
   return {
     prep: "Script + Assets",
     local: "Local MP4",
-    google: "Vids Hybrid",
-    "google-full": "Full Vids",
+    google: "Vids Clips",
+    "google-full": "All Vids Clips",
     local_only: "Local MP4",
-    generate_export: "Google Vids",
+    generate_export: "Vids Clips",
     prep_only: "Script + Assets",
     dry_run: "Prompt Fill"
   }[mode] || mode || "Run";
@@ -1094,6 +1095,7 @@ function renderQueue(queue) {
       report.mp4Path ? `Video: ${shortPath(report.mp4Path)}` : "",
       report.driveVideoPath ? `Drive video: ${shortPath(report.driveVideoPath)}` : "",
       report.driveFolderPath ? `Drive: ${shortPath(report.driveFolderPath)}` : "",
+      report.vidsSceneClips?.length ? `Scene clips: ${report.vidsSceneClips.length}` : "",
       report.generatedFolder ? `Generated: ${shortPath(report.generatedFolder)}` : "",
       report.vidsClipCacheFolder ? `Cache: ${shortPath(report.vidsClipCacheFolder)}` : "",
       report.error ? `Error: ${report.error}` : "",
@@ -1136,6 +1138,7 @@ function renderHistory(history) {
       entry.mp4Path ? `Video: ${shortPath(entry.mp4Path)}` : "",
       entry.driveVideoPath ? `Drive video: ${shortPath(entry.driveVideoPath)}` : "",
       entry.driveFolderPath ? `Drive: ${shortPath(entry.driveFolderPath)}` : "",
+      entry.vidsSceneClips?.length ? `Scene clips: ${entry.vidsSceneClips.length}` : "",
       entry.generatedFolder ? `Generated: ${shortPath(entry.generatedFolder)}` : "",
       entry.vidsClipCacheFolder ? `Cache: ${shortPath(entry.vidsClipCacheFolder)}` : "",
       entry.vidsUrl ? "Google Vids link saved" : "",

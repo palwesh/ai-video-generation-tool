@@ -14,7 +14,7 @@ Output per tool:
 - `google-vids-prompts.csv` for Google Vids
 - `post-copy.md` with caption and hashtags
 - `generated/` archive folder with final MP4s, reports, props, export logs, and render assets
-- `vids-clips/` cache folder for reusable Google Vids/avatar clips and timeline exports
+- `vids-clips/` cache folder for reusable Google Vids/avatar scene clips and optional timeline exports
 - `vids-generated-scenes/` scene folders for Google Vids prompts and generated clip organization
 - screenshots, fictional demo input files, a desktop demo recording, and a short mobile scroll recording when capture is enabled
 
@@ -142,6 +142,14 @@ The agent creates a backup first under `outputs/runs/.../source-workbook-backups
 
 Use this for one complete tool reel from your Excel file. It selects one row, captures the actual tool page first, creates a short 30-60 second Hook-Body-CTA Reel plan, writes the prepared workbook, and opens/fills Google Vids when requested.
 
+Google Vids scene clips, then local merge:
+
+```bash
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --scene-count 6 --max-scenes 6
+```
+
+This does not use Google Vids as the final merger. It creates and exports `scene-01`, `scene-02`, etc. separately, saves them under `vids-generated-scenes/scene-XX/`, caches them under `vids-clips/scene-XX.mp4`, then renders the final MP4 locally.
+
 ## Frontend Dashboard
 
 Start the local dashboard:
@@ -163,8 +171,8 @@ Dashboard production controls:
 - `Script + Assets`: prepares script, scene JSON, Vids prompts, screenshots, recordings, and workbook links without rendering or using Google Vids quota.
 - `Local MP4`: fully free local Reel render with captions, voiceover, music, real tool screenshots, and demo recordings.
 - `Vids clip cache`: every tool folder has `vids-clips/`; local MP4 uses cached Google Vids/avatar clips first when they exist.
-- `Vids Hybrid`: Google Vids generation with avatar on scenes `1,2,6` and best-effort real tool screenshot ingredients on scenes `3,4,5`.
-- `Full Vids`: Google Vids generation for all scenes; use only when quota is available.
+- `Vids Clips`: Google Vids generates each selected scene as a separate clip, downloads it into `vids-generated-scenes/scene-XX/`, caches it as `vids-clips/scene-XX.mp4`, then local rendering merges the final Reel.
+- `All Vids Clips`: same scene-by-scene download flow for every scene; use only when quota is available.
 - `Run Queue`: runs multiple Excel rows one by one. Use `Video limit` or `Specific rows` like `2,3,5-7`. The dashboard creates a live `queue-progress.xlsx` file and updates it after each row with status, run folder, generated folder, cache folder, Google Vids URL, final MP4 path, and errors.
 - `Quota planner`: manual tracker for AI video/avatar monthly limits and used counts. It estimates requests before a queue starts, marks profiles as `LIMIT USED` when Vids reports a quota/limit error, and lets you manually mark or clear that state.
 - `History`: keeps recent runs in `work/ui-state.json` so you can preview, open folders, view logs, and retry rows after refresh.
@@ -259,7 +267,7 @@ full/partial cached Google Vids export
 normal tool recording/screenshot assets
 ```
 
-This means if a profile quota finishes later, previously generated avatar/Vids footage can still be reused in the free local render. Google Vids does not expose a reliable public API for downloading every individual generated scene clip, so automatic caching is strongest for full/partial exported MP4 files; scene-level clips can also be added manually to `vids-clips/`. If visual QA finds hallucinated or fake UI in a Vids export, mark that cache entry with `renderEligible: false` or `qualityStatus: rejected_fake_ui`; local rendering will keep the file saved but skip it.
+This means if a profile quota finishes later, previously generated avatar/Vids footage can still be reused in the free local render. By default, Google Vids mode now creates one Vids file per scene and downloads each scene MP4 into its own folder before local merge. The old full-timeline export path is still available with `--vids-timeline-export`. If visual QA finds hallucinated or fake UI in a Vids export, mark that cache entry with `renderEligible: false` or `qualityStatus: rejected_fake_ui`; local rendering will keep the file saved but skip it.
 
 ### Generated Output Archive
 
@@ -399,7 +407,7 @@ Current tested state:
 - Google sign-in/account-chooser pages are detected early with a clear login/profile message.
 - MP4 export/download works through the Google Vids browser menu.
 - Generated outputs are mirrored into each tool's `generated/` folder.
-- Exported Google Vids/avatar footage can be cached in `vids-clips/` and reused by local rendering; one-scene exports are marked as partial cache, not a full reel source.
+- Exported Google Vids/avatar footage can be cached in `vids-clips/` and reused by local rendering; one-scene exports are saved as `scene-XX.mp4` clips for the local final merge.
 - Rejected/hallucinated Vids cache entries are saved for audit but skipped by the local final editor.
 - Full 6-scene generation can stop when the free Google Vids account reaches its video-generation limit.
 - Local Remotion fallback works for a complete 30-60 second vertical MP4 using the generated script/captions and captured tool screenshots.

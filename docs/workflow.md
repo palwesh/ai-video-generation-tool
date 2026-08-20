@@ -21,8 +21,9 @@ Google Vids supports prompt-based AI clips and MP4 download, but a stable public
 - Use a persistent browser profile logged in with the second email.
 - Use Playwright browser automation to fill scene prompts in Google Vids.
 - Attach captured tool screenshots as Ingredients on proof-heavy scenes when Google Vids exposes a selectable upload route.
-- Submit and insert generated clips after a human-approved dry-run.
-- Download the final MP4 from Vids or Drive.
+- Submit, insert, and export one generated Google Vids scene at a time.
+- Save each scene export under `vids-generated-scenes/scene-XX/` and cache it as `vids-clips/scene-XX.mp4`.
+- Merge final MP4 locally from cached Vids scene clips plus real tool screenshots/recordings.
 - If `--drive-sync-dir` is provided, copy the final MP4 and tool folder into the Google Drive Desktop synced folder and write the Drive video/folder links into the workbook.
 
 Tested browser automation status:
