@@ -38,6 +38,7 @@ const shouldCapture = !args["no-capture"];
 const useAi = Boolean(args.ai && process.env.OPENAI_API_KEY);
 const avatarMode = args["no-avatar"] ? "" : (args.avatar || args["select-avatar"] || (generateInVids ? "auto" : ""));
 const defaultAvatarScenes = config.googleVids?.defaultAvatarScenes || `1,2,${reelConfig.sceneCount}`;
+const freeVideoProviders = args["free-video-providers"] || config.freeVideoProviders?.defaultProviders || "all";
 const driveSyncDir = resolveDriveSyncDir(config, args);
 const batchStamp = new Date().toISOString().replace(/[:.]/g, "-");
 const batchDir = path.resolve(args.out || path.join("outputs", "runs", `one-video-agent-${batchStamp}`));
@@ -93,7 +94,9 @@ const extraHeaders = [
   "TRF Asset Brief",
   "TRF Reel Script MD",
   "TRF Reel Script JSON",
-  "TRF Vids Generated Scenes Folder"
+  "TRF Vids Generated Scenes Folder",
+  "TRF Free Video Provider Pack",
+  "TRF Free Video Provider Prompts"
 ];
 
 function firstFile(files, name) {
@@ -221,7 +224,9 @@ function enrichmentFor(normalized, result, final = {}) {
     result.files.assetBriefPath || "",
     result.files.reelScriptMdPath || "",
     result.files.reelScriptJsonPath || "",
-    result.files.vidsGeneratedScenesPath || ""
+    result.files.vidsGeneratedScenesPath || "",
+    result.files.freeVideoProviderPackPath || "",
+    result.files.freeVideoProviderPromptsPath || ""
   ];
 }
 
@@ -799,11 +804,13 @@ async function main() {
   console.log("Video limit: 1 selected Excel row");
   console.log(`Mode: ${prepOnly ? "script/assets prep only" : localOnly ? "local-only render" : generateInVids ? "Google Vids generate/export" : "dry-run prep + prompt fill"}`);
   console.log(`Reel structure: ${reelConfig.sceneCount} scenes, ${reelConfig.totalDurationSeconds}s total`);
+  console.log(`Free provider pack: ${freeVideoProviders}`);
 
   const result = await processToolRow(selectedRow, batchDir, config, {
     capture: shouldCapture,
     useAi,
-    sceneCount: reelConfig.sceneCount
+    sceneCount: reelConfig.sceneCount,
+    freeVideoProviders
   });
   const vidsClipCacheFolder = await ensureVidsClipCache(result.runDir);
   const generatedFolder = await ensureGeneratedArchive(result.runDir);
@@ -819,6 +826,8 @@ async function main() {
   await writePreparedWorkbook(table, normalizedRows, selectedRow, result, {
     vidsStatus: prepOnly ? "Prepared; video skipped" : localOnly ? "Prepared; local render pending" : generateInVids ? "Prepared; Google Vids pending" : "Prompt dry-run pending",
     vidsClipCacheFolder,
+    freeVideoProviderPackFolder: result.files.freeVideoProviderPackPath || "",
+    freeVideoProviderPrompts: result.files.freeVideoProviderPromptsPath || "",
     cachedVidsClips,
     generatedFolder,
     generatedFiles,
@@ -862,7 +871,7 @@ async function main() {
     steps.push({
       name: "prep_only",
       ok: true,
-      note: "Script, prompts, captions, screenshots, and recordings prepared without rendering or Google Vids generation."
+      note: "Script, prompts, captions, screenshots, recordings, and free provider packs prepared without rendering or Google Vids generation."
     });
   } else if (localOnly) {
     const localRender = await renderLocalReel(result, steps, generatedFiles, "local-only mode", "Local MP4 rendered");
@@ -1200,6 +1209,8 @@ async function main() {
     fallback,
     fallbackReportPath,
     vidsClipCacheFolder,
+    freeVideoProviderPackFolder: result.files.freeVideoProviderPackPath || "",
+    freeVideoProviderPrompts: result.files.freeVideoProviderPromptsPath || "",
     cachedVidsClips,
     generatedFolder,
     generatedFiles,

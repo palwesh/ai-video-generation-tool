@@ -37,6 +37,10 @@
       { "label": "Eleanor - Realistic", "value": "Eleanor" }
     ]
   },
+  "freeVideoProviders": {
+    "defaultProviders": "capcut,pika,runway,canva,did,shotstack",
+    "note": "Creates prompt folders for free/free-trial video tools. Downloaded clips can be copied into vids-clips/scene-XX.mp4 for local merge."
+  },
   "driveSync": {
     "enabled": false,
     "rootDir": ""

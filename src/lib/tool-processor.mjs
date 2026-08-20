@@ -16,6 +16,7 @@ import {
 } from "./output-writers.mjs";
 import { ensureVidsClipCache } from "./vids-clip-cache.mjs";
 import { ensureGeneratedArchive } from "./generated-archive.mjs";
+import { writeFreeVideoProviderPack } from "./free-video-providers.mjs";
 
 export async function processToolRow(row, batchDir, config, options = {}) {
   const sceneConfig = {
@@ -72,6 +73,9 @@ export async function processToolRow(row, batchDir, config, options = {}) {
   const postCopyPath = await writePostCopy(runDir, row, scenePlan);
   const vidsClipCachePath = await ensureVidsClipCache(runDir);
   const vidsGeneratedScenesPath = await writeVidsGeneratedSceneFolders(runDir, scenePlan);
+  const freeVideoProviderPack = await writeFreeVideoProviderPack(runDir, scenePlan, { tool: row, capture }, {
+    providers: options.freeVideoProviders || config.freeVideoProviders?.defaultProviders || "all"
+  });
   const generatedArchivePath = await ensureGeneratedArchive(runDir);
 
   const manifest = {
@@ -87,6 +91,12 @@ export async function processToolRow(row, batchDir, config, options = {}) {
       folder: vidsGeneratedScenesPath,
       note: "Scene-level Google Vids prompts and manually saved generated scene clips belong here."
     },
+    free_video_providers: {
+      folder: freeVideoProviderPack.folder,
+      prompt_csv: freeVideoProviderPack.promptCsv,
+      providers: freeVideoProviderPack.providers,
+      note: "Free/free-trial provider prompts for CapCut, Pika, Runway, Canva, D-ID, and Shotstack. Downloaded clips can be copied into vids-clips for local merge."
+    },
     generated_archive: {
       folder: generatedArchivePath,
       note: "Final videos, render reports, export logs, and generated support files are mirrored here."
@@ -100,6 +110,8 @@ export async function processToolRow(row, batchDir, config, options = {}) {
       post_copy: postCopyPath,
       vids_clip_cache: vidsClipCachePath,
       vids_generated_scenes: vidsGeneratedScenesPath,
+      free_video_provider_pack: freeVideoProviderPack.folder,
+      free_video_provider_prompts: freeVideoProviderPack.promptCsv,
       generated_archive: generatedArchivePath
     }
   };
@@ -121,6 +133,8 @@ export async function processToolRow(row, batchDir, config, options = {}) {
       postCopyPath,
       vidsClipCachePath,
       vidsGeneratedScenesPath,
+      freeVideoProviderPackPath: freeVideoProviderPack.folder,
+      freeVideoProviderPromptsPath: freeVideoProviderPack.promptCsv,
       generatedArchivePath
     }
   };

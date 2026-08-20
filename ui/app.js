@@ -12,6 +12,8 @@ const els = {
   queueRows: document.getElementById("queueRows"),
   queueBtn: document.getElementById("queueBtn"),
   stopQueueBtn: document.getElementById("stopQueueBtn"),
+  freeVideoProviders: document.getElementById("freeVideoProviders"),
+  providerHelp: document.getElementById("providerHelp"),
   googleVidsConfig: document.getElementById("googleVidsConfig"),
   profileCount: document.getElementById("profileCount"),
   profileList: document.getElementById("profileList"),
@@ -66,6 +68,7 @@ const els = {
   openVideoBtn: document.getElementById("openVideoBtn"),
   openVideoFolderBtn: document.getElementById("openVideoFolderBtn"),
   openGeneratedFolderBtn: document.getElementById("openGeneratedFolderBtn"),
+  openProviderFolderBtn: document.getElementById("openProviderFolderBtn"),
   openCacheFolderBtn: document.getElementById("openCacheFolderBtn"),
   openRunFolderBtn: document.getElementById("openRunFolderBtn"),
   queueTitle: document.getElementById("queueTitle"),
@@ -101,6 +104,7 @@ const state = {
     video: "",
     videoFolder: "",
     generatedFolder: "",
+    providerFolder: "",
     cacheFolder: "",
     runFolder: ""
   }
@@ -150,7 +154,7 @@ function setMode(mode) {
   if (mode === "google" && els.useAvatar.checked && els.avatarScenes.value.trim() === "1,2,3,4,5,6") {
     els.avatarScenes.value = "1,2,6";
   }
-  const vidsDisabled = mode === "local" || mode === "prep";
+  const vidsDisabled = mode === "local" || mode === "prep" || mode === "free-providers";
   els.googleVidsConfig.classList.toggle("is-hidden", vidsDisabled);
   els.primaryProfile.disabled = vidsDisabled;
   els.fallbackProfile.disabled = vidsDisabled;
@@ -574,6 +578,7 @@ function buildRunBody(rowOverride = null) {
     row: Number(rowOverride || els.rowNumber.value || 2),
     mode: state.mode,
     maxScenes: Number(els.maxScenes.value || 6),
+    freeVideoProviders: els.freeVideoProviders.value.trim(),
     profiles: selectedProfiles(),
     useAvatar: els.useAvatar.checked,
     avatar: els.avatarChoice.value,
@@ -653,6 +658,7 @@ function updateQuotaEstimate() {
   const enoughAvatar = estimate.avatar <= avatarLeft;
   const modeText = {
     prep: "Script/assets only",
+    "free-providers": "Free provider pack",
     local: "Local MP4",
     google: "Vids Clips",
     "google-full": "All Vids Clips"
@@ -724,6 +730,7 @@ function updateInfoCards() {
   const outputParts = [
     state.output.video ? "Video ready" : "",
     state.output.generatedFolder ? "Generated folder ready" : "",
+    state.output.providerFolder ? "Provider pack ready" : "",
     state.output.cacheFolder ? "Vids cache ready" : ""
   ].filter(Boolean);
   const latestOutputParts = [
@@ -735,11 +742,14 @@ function updateInfoCards() {
   els.selectedToolInfo.textContent = toolTitle;
   els.selectedToolMeta.textContent = toolMeta || "Load Excel tools first.";
   els.modeInfo.textContent = modeLabel(state.mode);
-  els.modeMeta.textContent = `${scenes} scene(s) | ${estimate.total} Google job estimate`;
+  els.modeMeta.textContent = state.mode === "free-providers"
+    ? `${scenes} scene(s) | provider prompts only`
+    : `${scenes} scene(s) | ${estimate.total} Google job estimate`;
   els.profileInfo.textContent = `${state.profiles.length} added, ${loggedIn} login ok`;
   els.profileMeta.textContent = [
     limitUsedCount ? `${limitUsedCount} limit used` : "Quota tracker clean",
     limitUsed ? "Selected profile limit used" : "",
+    state.mode === "free-providers" ? "No Vids quota; manual/free provider prompts" : "",
     estimate.aiVideo || estimate.avatar ? `${estimate.aiVideo} AI + ${estimate.avatar} avatar needed` : "No Vids quota in this mode"
   ].filter(Boolean).join(" | ");
   els.outputInfo.textContent = outputParts[0] || (latestHistory ? "Recent output" : "Waiting");
@@ -753,15 +763,18 @@ function setOutputButtons(report, run) {
   const mp4Path = report?.mp4Path || "";
   const cacheFolder = report?.vidsClipCacheFolder || "";
   const generatedFolder = report?.generatedFolder || "";
+  const providerFolder = report?.freeVideoProviderPackFolder || "";
   state.output.video = mp4Path;
   state.output.videoFolder = mp4Path ? directoryOf(mp4Path) : "";
   state.output.generatedFolder = generatedFolder;
+  state.output.providerFolder = providerFolder;
   state.output.cacheFolder = cacheFolder;
   state.output.runFolder = run?.outputDir || report?.outputDir || "";
 
   els.openVideoBtn.disabled = !state.output.video;
   els.openVideoFolderBtn.disabled = !state.output.videoFolder;
   els.openGeneratedFolderBtn.disabled = !state.output.generatedFolder;
+  els.openProviderFolderBtn.disabled = !state.output.providerFolder;
   els.openCacheFolderBtn.disabled = !state.output.cacheFolder;
   els.openRunFolderBtn.disabled = !state.output.runFolder;
 
@@ -786,6 +799,10 @@ async function loadDefaults() {
   els.avatarChoice.value = data.googleVids?.defaultAvatar || "auto";
   els.avatarScenes.value = data.googleVids?.defaultAvatarScenes || "1,2,6";
   els.ingredientScenes.value = data.googleVids?.defaultIngredientScenes || "3,4,5";
+  els.freeVideoProviders.value = data.freeVideoProviders?.defaultProviders || els.freeVideoProviders.value || "capcut,pika,runway,canva,did,shotstack";
+  if (data.freeVideoProviders?.options?.length) {
+    els.providerHelp.textContent = `Creates prompt packs for: ${data.freeVideoProviders.options.map((item) => item.label || item.id).join(", ")}. Download clips into vids-clips/scene-XX.mp4, then Local MP4 uses them.`;
+  }
 
   applyQuotaToFields(els.primaryProfile.value);
   await loadTools();
@@ -998,6 +1015,7 @@ function showResult(run) {
       report.vidsUrl ? `Google Vids: ${report.vidsUrl}` : "",
       report.vidsSceneClips?.length ? `Vids scene clips: ${report.vidsSceneClips.length}` : "",
       report.generatedFolder ? `Generated: ${report.generatedFolder}` : "",
+      report.freeVideoProviderPackFolder ? `Providers: ${report.freeVideoProviderPackFolder}` : "",
       report.generatedFiles?.length ? `Generated saved: ${report.generatedFiles.length}` : "",
       report.vidsClipCacheFolder ? `Vids cache: ${report.vidsClipCacheFolder}` : "",
       report.cachedVidsClips?.length ? `Cached clips: ${report.cachedVidsClips.length}` : "",
@@ -1013,14 +1031,16 @@ function showResult(run) {
     els.resultMeta.textContent = [
       report.vidsUrl,
       report.generatedFolder ? `Generated: ${report.generatedFolder}` : "",
+      report.freeVideoProviderPackFolder ? `Providers: ${report.freeVideoProviderPackFolder}` : "",
       report.vidsClipCacheFolder ? `Vids cache: ${report.vidsClipCacheFolder}` : ""
     ].filter(Boolean).join("\n");
     return;
   }
-  if (report?.generatedFolder || report?.vidsClipCacheFolder) {
+  if (report?.generatedFolder || report?.vidsClipCacheFolder || report?.freeVideoProviderPackFolder) {
     els.resultTitle.textContent = run.status === "complete" ? "Assets ready" : "Run failed";
     els.resultMeta.textContent = [
       report.generatedFolder ? `Generated: ${report.generatedFolder}` : "",
+      report.freeVideoProviderPackFolder ? `Providers: ${report.freeVideoProviderPackFolder}` : "",
       report.vidsClipCacheFolder ? `Vids cache: ${report.vidsClipCacheFolder}` : "",
       report.preparedWorkbook ? `Workbook: ${report.preparedWorkbook}` : "",
       report.error || ""
@@ -1034,6 +1054,7 @@ function showResult(run) {
 function modeLabel(mode) {
   return {
     prep: "Script + Assets",
+    "free-providers": "Free Clip Pack",
     local: "Local MP4",
     google: "Vids Clips",
     "google-full": "All Vids Clips",
@@ -1097,6 +1118,7 @@ function renderQueue(queue) {
       report.driveFolderPath ? `Drive: ${shortPath(report.driveFolderPath)}` : "",
       report.vidsSceneClips?.length ? `Scene clips: ${report.vidsSceneClips.length}` : "",
       report.generatedFolder ? `Generated: ${shortPath(report.generatedFolder)}` : "",
+      report.freeVideoProviderPackFolder ? `Providers: ${shortPath(report.freeVideoProviderPackFolder)}` : "",
       report.vidsClipCacheFolder ? `Cache: ${shortPath(report.vidsClipCacheFolder)}` : "",
       report.error ? `Error: ${report.error}` : "",
       item.endedAt ? `Ended: ${formatTime(item.endedAt)}` : ""
@@ -1108,6 +1130,7 @@ function renderQueue(queue) {
       report.driveVideoPath ? `<button class="secondary-button" data-action="preview-path" data-path="${escapeHtml(report.driveVideoPath)}" type="button">Drive Preview</button>` : "",
       report.driveFolderPath ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(report.driveFolderPath)}" type="button">Drive</button>` : "",
       report.generatedFolder ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(report.generatedFolder)}" type="button">Generated</button>` : "",
+      report.freeVideoProviderPackFolder ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(report.freeVideoProviderPackFolder)}" type="button">Providers</button>` : "",
       report.vidsClipCacheFolder ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(report.vidsClipCacheFolder)}" type="button">Cache</button>` : "",
       item.status === "failed" || item.status === "paused" ? `<button class="secondary-button" data-action="retry-row" data-row="${item.row}" type="button">Retry</button>` : ""
     ].filter(Boolean).join("");
@@ -1140,6 +1163,7 @@ function renderHistory(history) {
       entry.driveFolderPath ? `Drive: ${shortPath(entry.driveFolderPath)}` : "",
       entry.vidsSceneClips?.length ? `Scene clips: ${entry.vidsSceneClips.length}` : "",
       entry.generatedFolder ? `Generated: ${shortPath(entry.generatedFolder)}` : "",
+      entry.freeVideoProviderPackFolder ? `Providers: ${shortPath(entry.freeVideoProviderPackFolder)}` : "",
       entry.vidsClipCacheFolder ? `Cache: ${shortPath(entry.vidsClipCacheFolder)}` : "",
       entry.vidsUrl ? "Google Vids link saved" : "",
       entry.error ? `Issue: ${entry.error}` : "",
@@ -1152,6 +1176,7 @@ function renderHistory(history) {
       entry.driveVideoPath ? `<button class="secondary-button" data-action="preview-path" data-path="${escapeHtml(entry.driveVideoPath)}" type="button">Drive Preview</button>` : "",
       entry.driveFolderPath ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(entry.driveFolderPath)}" type="button">Drive</button>` : "",
       entry.generatedFolder ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(entry.generatedFolder)}" type="button">Generated</button>` : "",
+      entry.freeVideoProviderPackFolder ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(entry.freeVideoProviderPackFolder)}" type="button">Providers</button>` : "",
       entry.vidsClipCacheFolder ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(entry.vidsClipCacheFolder)}" type="button">Cache</button>` : "",
       entry.outputDir ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(entry.outputDir)}" type="button">Run</button>` : ""
     ].filter(Boolean).join("");
@@ -1421,6 +1446,7 @@ els.refreshDocsBtn.addEventListener("click", () => {
   els.queueRows,
   els.driveSyncDir,
   els.updateSourceWorkbook,
+  els.freeVideoProviders,
   els.avatarScenes,
   els.ingredientScenes,
   els.quotaAiLimit,
@@ -1517,6 +1543,7 @@ els.stopBtn.addEventListener("click", () => {
 els.openVideoBtn.addEventListener("click", () => openOutput("video"));
 els.openVideoFolderBtn.addEventListener("click", () => openOutput("videoFolder"));
 els.openGeneratedFolderBtn.addEventListener("click", () => openOutput("generatedFolder"));
+els.openProviderFolderBtn.addEventListener("click", () => openOutput("providerFolder"));
 els.openCacheFolderBtn.addEventListener("click", () => openOutput("cacheFolder"));
 els.openRunFolderBtn.addEventListener("click", () => openOutput("runFolder"));
 

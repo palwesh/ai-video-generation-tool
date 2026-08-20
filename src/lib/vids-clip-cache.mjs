@@ -4,6 +4,7 @@ import { ensureDir, readJson, writeJson, writeText } from "./fsx.mjs";
 
 export const VIDS_CLIP_CACHE_FOLDER = "vids-clips";
 export const VIDS_CLIP_CACHE_MANIFEST = "cache-manifest.json";
+const FREE_VIDEO_PROVIDER_FOLDER = "free-video-providers";
 
 const videoExtensions = new Set([".mp4", ".webm", ".mov"]);
 
@@ -26,9 +27,9 @@ function safeCacheFileName(value, fallback = "google-vids-export.mp4") {
 
 function clipReadme() {
   return [
-    "# Google Vids Clip Cache",
+    "# Video Clip Cache",
     "",
-    "Save reusable Google Vids/avatar clips for this tool here.",
+    "Save reusable Google Vids/avatar/free-provider clips for this tool here.",
     "",
     "Accepted scene-level names:",
     "",
@@ -36,13 +37,16 @@ function clipReadme() {
     "- scene-1.webm",
     "- avatar-scene-01.mp4",
     "- google-vids-scene-01.mp4",
+    "- capcut-scene-01.mp4",
+    "- pika-scene-01.mp4",
+    "- runway-scene-01.mp4",
     "",
     "Accepted timeline export names:",
     "",
     "- full-google-vids-export.mp4",
     "- partial-google-vids-export-scenes-01-03.mp4",
     "",
-    "The local Remotion renderer checks this folder first. Scene-specific clips win over full/partial timeline exports. If no clip is available for a scene, it uses the normal tool screenshots and demo recordings.",
+    "The local Remotion renderer checks this folder first. Scene-specific clips win over full/partial timeline exports. If no clip is available for a scene, it also checks `../free-video-providers/`, then uses the normal tool screenshots and demo recordings.",
     ""
   ].join("\n");
 }
@@ -238,6 +242,47 @@ function scoreSceneClip(fileName, sceneNumber) {
   return index === -1 ? -1 : patterns.length - index;
 }
 
+async function collectVideoFiles(rootDir, options = {}) {
+  const maxDepth = Number(options.maxDepth || 4);
+  const found = [];
+
+  async function walk(currentDir, depth) {
+    if (depth > maxDepth) {
+      return;
+    }
+    let entries = [];
+    try {
+      entries = await fs.readdir(currentDir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const absolutePath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(absolutePath, depth + 1);
+      } else if (entry.isFile() && isVideoFile(absolutePath)) {
+        found.push(absolutePath);
+      }
+    }
+  }
+
+  await walk(rootDir, 0);
+  return found.sort();
+}
+
+function providerSceneScore(filePath, sceneNumber) {
+  const relative = filePath.toLowerCase();
+  const baseScore = scoreSceneClip(path.basename(filePath), sceneNumber);
+  const n = String(sceneNumber);
+  const nn = sceneToken(sceneNumber);
+  const folderScore = new RegExp(`scene[-_ ]?0?${n}([/\\\\]|$)`).test(relative)
+    || new RegExp(`scene[-_ ]?${nn}([/\\\\]|$)`).test(relative)
+    ? 3
+    : 0;
+  return Math.max(baseScore, folderScore);
+}
+
 export async function findCachedVidsAssets(toolDir, options = {}) {
   const sceneCount = Math.max(1, Math.min(7, Number(options.sceneCount || 6) || 6));
   const cacheDir = vidsClipCacheDir(toolDir);
@@ -275,6 +320,30 @@ export async function findCachedVidsAssets(toolDir, options = {}) {
         file: chosen.file,
         absolutePath: path.join(cacheDir, chosen.file),
         source: "scene_clip"
+      };
+    }
+  }
+
+  const freeProviderDir = path.join(toolDir, FREE_VIDEO_PROVIDER_FOLDER);
+  const providerFiles = await collectVideoFiles(freeProviderDir);
+  if (providerFiles.length) {
+    result.files.push(...providerFiles);
+  }
+
+  for (let sceneNumber = 1; sceneNumber <= sceneCount; sceneNumber += 1) {
+    if (result.sceneClips[sceneNumber - 1]) {
+      continue;
+    }
+    const chosen = providerFiles
+      .map((file) => ({ file, score: providerSceneScore(file, sceneNumber) }))
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score || a.file.localeCompare(b.file))[0];
+    if (chosen) {
+      result.sceneClips[sceneNumber - 1] = {
+        sceneNumber,
+        file: path.basename(chosen.file),
+        absolutePath: chosen.file,
+        source: "free_video_provider_clip"
       };
     }
   }

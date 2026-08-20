@@ -26,7 +26,8 @@
     "vids:queue": "node src/google-vids-queue.mjs",
     "workbook:update": "node src/update-prepared-workbook.mjs",
     "drive:download-vid": "node src/download-google-vid.mjs",
-    "browser:install": "playwright install chromium"
+    "browser:install": "playwright install chromium",
+    "setup:windows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-windows.ps1"
   },
   "dependencies": {
     "@remotion/cli": "^4.0.512",

@@ -11,6 +11,7 @@ import { ensureDir, readJson, writeJson } from "./lib/fsx.mjs";
 import { readWorkbookTable, normalizeWorkbookObjects } from "./lib/input.mjs";
 import { writeSimpleXlsx } from "./lib/simple-xlsx-writer.mjs";
 import { fileHyperlink, folderHyperlink, hyperlinkFormula } from "./lib/link-cells.mjs";
+import { freeVideoProviders as availableFreeVideoProviders } from "./lib/free-video-providers.mjs";
 
 dotenv.config({ quiet: true });
 
@@ -18,7 +19,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 const args = parseArgs(process.argv.slice(2));
 const port = Number(args.port || process.env.TRF_UI_PORT || 4317);
-const defaultInput = "/Users/palsahu/workplace/projects/n learn/Book1.xlsx";
+const defaultInput = process.env.TRF_DEFAULT_INPUT || "/Users/palsahu/workplace/projects/n learn/Book1.xlsx";
 const defaultProfiles = ["work/google-vids-profile", "work/google-vids-profile-2"];
 const configPath = path.join(projectRoot, "config/default.json");
 const appConfig = JSON.parse(fsSync.readFileSync(configPath, "utf8"));
@@ -26,6 +27,7 @@ const googleVidsConfig = appConfig.googleVids || {};
 const defaultAvatar = googleVidsConfig.defaultAvatar || "auto";
 const defaultAvatarScenes = googleVidsConfig.defaultAvatarScenes || "1,2,6";
 const defaultIngredientScenes = googleVidsConfig.defaultIngredientScenes || "3,4,5";
+const defaultFreeVideoProviders = appConfig.freeVideoProviders?.defaultProviders || "capcut,pika,runway,canva,did,shotstack";
 const avatarOptions = Array.isArray(googleVidsConfig.avatarOptions) && googleVidsConfig.avatarOptions.length
   ? googleVidsConfig.avatarOptions
   : [{ label: "Auto Realistic", value: "auto" }];
@@ -50,8 +52,12 @@ const defaultQuotaTemplate = {
 };
 
 const defaultDocs = [
+  "WINDOWS-RUN-GUIDE.md",
   "README.md",
   "docs/master-automation-doc.md",
+  "docs/free-video-providers.md",
+  "docs/windows-setup.md",
+  "docs/portable-git-setup.md",
   "outputs/free-mode-guide.md",
   "outputs/agent-setup-pack.md",
   "outputs/full-test-report.md"
@@ -71,6 +77,8 @@ const queueProgressHeaders = [
   "TRF Queue Generated Folder Path",
   "TRF Queue Vids Cache",
   "TRF Queue Vids Cache Path",
+  "TRF Queue Free Provider Pack",
+  "TRF Queue Free Provider Pack Path",
   "TRF Queue Google Vids",
   "TRF Queue Google Vids URL",
   "TRF Queue Prepared Workbook",
@@ -225,6 +233,9 @@ function normalizeRunBody(body = {}) {
   if ((mode === "google" || mode === "google-full" || mode === "dry") && !String(normalized.ingredientScenes || "").trim()) {
     normalized.ingredientScenes = defaultIngredientScenes;
   }
+  if (!String(normalized.freeVideoProviders || "").trim()) {
+    normalized.freeVideoProviders = defaultFreeVideoProviders;
+  }
 
   return normalized;
 }
@@ -358,6 +369,8 @@ function historyEntryForRun(run) {
     driveManifestPath: report.driveManifestPath || "",
     vidsUrl: report.vidsUrl || "",
     vidsClipCacheFolder: report.vidsClipCacheFolder || "",
+    freeVideoProviderPackFolder: report.freeVideoProviderPackFolder || "",
+    freeVideoProviderPrompts: report.freeVideoProviderPrompts || "",
     cachedVidsClips: report.cachedVidsClips || [],
     generatedFolder: report.generatedFolder || "",
     generatedFiles: report.generatedFiles || [],
@@ -834,8 +847,11 @@ function runArgsFromBody(body, outputDir) {
   if (body.updateSourceWorkbook) {
     runArgs.push("--update-source-workbook");
   }
+  if (normalized.freeVideoProviders) {
+    runArgs.push("--free-video-providers", String(normalized.freeVideoProviders));
+  }
 
-  if (mode === "prep") {
+  if (mode === "prep" || mode === "free-providers") {
     runArgs.push("--prep-only");
   } else if (mode === "local") {
     runArgs.push("--local-only");
@@ -1056,6 +1072,8 @@ function runSummary(run) {
     driveManifestPath: report.driveManifestPath || "",
     vidsUrl: report.vidsUrl || "",
     vidsClipCacheFolder: report.vidsClipCacheFolder || "",
+    freeVideoProviderPackFolder: report.freeVideoProviderPackFolder || "",
+    freeVideoProviderPrompts: report.freeVideoProviderPrompts || "",
     cachedVidsClips: report.cachedVidsClips || [],
     generatedFolder: report.generatedFolder || "",
     generatedFiles: report.generatedFiles || [],
@@ -1109,6 +1127,8 @@ function queueProgressValues(item) {
     report.generatedFolder || "",
     report.vidsClipCacheFolder ? folderHyperlink(report.vidsClipCacheFolder, "Open cache") : "",
     report.vidsClipCacheFolder || "",
+    report.freeVideoProviderPackFolder ? folderHyperlink(report.freeVideoProviderPackFolder, "Open providers") : "",
+    report.freeVideoProviderPackFolder || "",
     report.vidsUrl ? hyperlinkFormula(report.vidsUrl, "Open Google Vids") : "",
     report.vidsUrl || "",
     report.preparedWorkbook ? fileHyperlink(report.preparedWorkbook, "Open workbook") : "",
@@ -1439,6 +1459,10 @@ async function handleApi(req, res, pathname, searchParams) {
           defaultAvatarScenes,
           defaultIngredientScenes,
           avatarOptions
+        },
+        freeVideoProviders: {
+          defaultProviders: defaultFreeVideoProviders,
+          options: availableFreeVideoProviders
         },
         driveSync: {
           rootDir: process.env.TRF_DRIVE_SYNC_DIR || appConfig.driveSync?.rootDir || ""

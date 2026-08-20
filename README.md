@@ -12,6 +12,7 @@ Output per tool:
 - `reel-script.md` and `reel-script.json` with compact Hook-Body-CTA script
 - `scene-plan.json` with 3-6 scenes of 10 seconds each; default is 6 scenes / 60 seconds
 - `google-vids-prompts.csv` for Google Vids
+- `free-video-providers/` prompt folders for CapCut, Pika, Runway, Canva, D-ID, and Shotstack
 - `post-copy.md` with caption and hashtags
 - `generated/` archive folder with final MP4s, reports, props, export logs, and render assets
 - `vids-clips/` cache folder for reusable Google Vids/avatar scene clips and optional timeline exports
@@ -28,6 +29,24 @@ cp .env.example .env
 Optional: add `OPENAI_API_KEY` in `.env` for AI script rewriting. Without it, the runner uses a simple local fallback.
 
 For moving this project to another laptop through git, see `docs/portable-git-setup.md`.
+
+## Windows Laptop Setup
+
+On a fresh Windows laptop, clone/copy the project, open PowerShell in the project folder, then run:
+
+```powershell
+.\setup-windows.bat
+```
+
+With your Excel file path:
+
+```powershell
+.\setup-windows.bat -ExcelPath "C:\Users\YOUR_NAME\Documents\Book1.xlsx"
+```
+
+The script installs/checks Node.js 20+, dependencies, Git, Chrome, Playwright Chromium, FFmpeg when available, creates `.env`, and starts the dashboard. Full guide: `docs/windows-setup.md`.
+
+For a simple Windows-first checklist, read `WINDOWS-RUN-GUIDE.md`.
 
 ## Run Sample
 
@@ -169,6 +188,7 @@ The dashboard lets you pick the Excel row, mode, primary/fallback Google Vids pr
 Dashboard production controls:
 
 - `Script + Assets`: prepares script, scene JSON, Vids prompts, screenshots, recordings, and workbook links without rendering or using Google Vids quota.
+- `Free Clip Pack`: prepares CapCut, Pika, Runway, Canva, D-ID, and Shotstack scene prompt folders without rendering or using Google Vids quota.
 - `Local MP4`: fully free local Reel render with captions, voiceover, music, real tool screenshots, and demo recordings.
 - `Vids clip cache`: every tool folder has `vids-clips/`; local MP4 uses cached Google Vids/avatar clips first when they exist.
 - `Vids Clips`: Google Vids generates each selected scene as a separate clip, downloads it into `vids-generated-scenes/scene-XX/`, caches it as `vids-clips/scene-XX.mp4`, then local rendering merges the final Reel.
@@ -246,7 +266,15 @@ It also includes:
 vids-generated-scenes/
 ```
 
+It also includes:
+
+```text
+free-video-providers/
+```
+
 `vids-generated-scenes/scene-01/`, `scene-02/`, etc. keep each scene prompt and notes together. Save scene-level Google Vids exports there for audit, and copy reusable MP4s to `vids-clips/scene-01.mp4` when you want the local final editor to use them.
+
+`free-video-providers/` keeps provider-specific prompt folders for CapCut, Pika, Runway, Canva, D-ID, and Shotstack. After downloading a provider clip, save/copy it to `vids-clips/scene-XX.mp4`; Local MP4 mode uses cached clips first.
 
 Put reusable Google Vids/avatar footage here, or let the agent cache exported files when Google Vids export succeeds. Supported names:
 

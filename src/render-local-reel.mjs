@@ -185,7 +185,7 @@ async function writeMusicBedWav(filePath, durationSeconds = 70) {
   await fs.writeFile(filePath, buffer);
 }
 
-async function createVoiceoverWav(text, outputPath, tempPath) {
+async function createMacVoiceoverWav(text, outputPath, tempPath) {
   const sayArgs = ["-r", sayRate];
   if (sayVoice) {
     sayArgs.push("-v", sayVoice);
@@ -196,33 +196,102 @@ async function createVoiceoverWav(text, outputPath, tempPath) {
   return path.relative(path.resolve("public"), outputPath).split(path.sep).join("/");
 }
 
+function windowsSpeechRate(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return 1;
+  }
+  if (numeric >= -10 && numeric <= 10) {
+    return Math.round(numeric);
+  }
+  return Math.max(-10, Math.min(10, Math.round((numeric - 180) / 15)));
+}
+
+async function createWindowsVoiceoverWav(text, outputPath, tempDir) {
+  const scriptPath = path.join(tempDir, "write-voiceover-wav.ps1");
+  await fs.writeFile(scriptPath, [
+    "param(",
+    "  [Parameter(Mandatory=$true)][string]$Text,",
+    "  [Parameter(Mandatory=$true)][string]$OutputPath,",
+    "  [int]$Rate = 1,",
+    "  [string]$Voice = \"\"",
+    ")",
+    "$ErrorActionPreference = \"Stop\"",
+    "Add-Type -AssemblyName System.Speech",
+    "$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer",
+    "try {",
+    "  $synth.Rate = [Math]::Max(-10, [Math]::Min(10, $Rate))",
+    "  $synth.Volume = 100",
+    "  if ($Voice) {",
+    "    $match = $synth.GetInstalledVoices() | Where-Object { $_.VoiceInfo.Name -like \"*$Voice*\" -or $_.VoiceInfo.Culture.Name -like \"*$Voice*\" } | Select-Object -First 1",
+    "    if ($match) { $synth.SelectVoice($match.VoiceInfo.Name) }",
+    "  }",
+    "  $dir = Split-Path -Parent $OutputPath",
+    "  if ($dir) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }",
+    "  $synth.SetOutputToWaveFile($OutputPath)",
+    "  $synth.Speak($Text)",
+    "} finally {",
+    "  $synth.Dispose()",
+    "}",
+    ""
+  ].join("\n"));
+
+  const commandArgs = [
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    scriptPath,
+    "-Text",
+    String(text || ""),
+    "-OutputPath",
+    outputPath,
+    "-Rate",
+    String(windowsSpeechRate(sayRate))
+  ];
+  if (sayVoice && !/^auto$/i.test(sayVoice)) {
+    commandArgs.push("-Voice", sayVoice);
+  }
+  await runCommand("PowerShell voiceover", "powershell.exe", commandArgs);
+  return path.relative(path.resolve("public"), outputPath).split(path.sep).join("/");
+}
+
 async function createAudioAssets(scenes, assetDir, outputDir, durationSeconds = 60) {
   if (!audioEnabled) {
     return { enabled: false, voiceovers: [], music: "" };
   }
 
-  const hasSay = await accessOrNull("/usr/bin/say");
-  const hasAfconvert = await accessOrNull("/usr/bin/afconvert");
-  if (!hasSay || !hasAfconvert) {
-    return {
-      enabled: false,
-      voiceovers: [],
-      music: "",
-      warning: "macOS say/afconvert was not available."
-    };
-  }
-
   const tempDir = path.join(outputDir, "audio-temp");
   await ensureDir(tempDir);
 
-  const voiceovers = [];
+  let voiceoverMode = "";
   const warnings = [];
+  if (process.platform === "darwin") {
+    const hasSay = await accessOrNull("/usr/bin/say");
+    const hasAfconvert = await accessOrNull("/usr/bin/afconvert");
+    if (hasSay && hasAfconvert) {
+      voiceoverMode = "macos-say";
+    } else {
+      warnings.push("macOS say/afconvert was not available; voiceover WAV files were skipped.");
+    }
+  } else if (process.platform === "win32") {
+    voiceoverMode = "windows-sapi";
+  } else {
+    warnings.push(`No built-in voiceover generator configured for ${process.platform}; voiceover WAV files were skipped.`);
+  }
+
+  const voiceovers = [];
   for (const [index, scene] of scenes.entries()) {
     const wavPath = path.join(assetDir, `voiceover-scene-${index + 1}.wav`);
     const aiffPath = path.join(tempDir, `voiceover-scene-${index + 1}.aiff`);
     try {
-      const relativePath = await createVoiceoverWav(scene.voiceover, wavPath, aiffPath);
-      voiceovers.push(relativePath);
+      if (voiceoverMode === "macos-say") {
+        voiceovers.push(await createMacVoiceoverWav(scene.voiceover, wavPath, aiffPath));
+      } else if (voiceoverMode === "windows-sapi") {
+        voiceovers.push(await createWindowsVoiceoverWav(scene.voiceover, wavPath, tempDir));
+      } else {
+        voiceovers.push("");
+      }
     } catch (error) {
       warnings.push(`Scene ${index + 1} voiceover failed: ${error.message}`);
       voiceovers.push("");
@@ -240,6 +309,7 @@ async function createAudioAssets(scenes, assetDir, outputDir, durationSeconds = 
 
   return {
     enabled: Boolean(voiceovers.some(Boolean) || music),
+    voiceoverMode,
     voiceovers,
     music,
     warnings

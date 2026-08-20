@@ -11,12 +11,13 @@ The current default production flow is now:
 3. Improve the script into a compact Hook-Body-CTA arc.
 4. Keep final Reel length between 30 and 60 seconds.
 5. Use 3-6 scenes of exactly 10 seconds each; default is 6 scenes / 60 seconds.
-6. Save `reel-script.md`, `reel-script.json`, `scene-plan.json`, `google-vids-prompts.csv`, and `post-copy.md`.
+6. Save `reel-script.md`, `reel-script.json`, `scene-plan.json`, `google-vids-prompts.csv`, `free-video-providers/`, and `post-copy.md`.
 7. Save scene-level Google Vids prompt folders in `vids-generated-scenes/scene-XX/`.
-8. Use real tool screenshots/recordings for demo, workflow, output, and before/after proof.
-9. Generate/cache Google Vids/avatar clips when quota is available.
-10. Merge the final Reel locally with captions, voiceover, music, transitions, progress bar, CTA, and safety reminder.
-11. Save final MP4, reports, props, render assets, exports, and generated files under the same tool folder.
+8. Save free/free-trial provider prompt folders for CapCut, Pika, Runway, Canva, D-ID, and Shotstack.
+9. Use real tool screenshots/recordings for demo, workflow, output, and before/after proof.
+10. Generate/cache Google Vids/avatar/provider clips when quota is available.
+11. Merge the final Reel locally with captions, voiceover, music, transitions, progress bar, CTA, and safety reminder.
+12. Save final MP4, reports, props, render assets, exports, and generated files under the same tool folder.
 
 Default Google Vids settings:
 
@@ -165,6 +166,13 @@ Google Vids prompt output:
 google-vids-prompts.csv
 ```
 
+Free provider prompt output:
+
+```text
+free-video-providers/
+free-video-providers/all-free-provider-prompts.csv
+```
+
 Post caption output:
 
 ```text
@@ -289,9 +297,10 @@ generated/local-render/assets/
 generated/google-vids/profile-name/
 generated/google-vids-export/profile-name/
 generated/generated-manifest.json
+free-video-providers/
 ```
 
-Use `generated/` for final outputs and audit files. Use `vids-clips/` for reusable Google Vids/avatar footage that should feed future local renders.
+Use `generated/` for final outputs and audit files. Use `free-video-providers/` for CapCut/Pika/Runway/Canva/D-ID/Shotstack prompts. Use `vids-clips/` for reusable Google Vids/avatar/provider footage that should feed future local renders.
 
 ## Dashboard Use
 
@@ -350,6 +359,7 @@ Dashboard modes:
 
 ```text
 Script + Assets -> prepares script, scene plan, screenshots, recordings, prompts, and workbook links only.
+Free Clip Pack -> prepares free provider prompt folders with no Google Vids quota.
 Local MP4 -> creates a free local video with captions, voiceover, music, and real tool proof.
 Vids Clips -> asks Google Vids to generate/export separate scene clips, then local merge.
 All Vids Clips -> same scene-by-scene download flow for every scene; use only when quota is available.
@@ -771,6 +781,18 @@ npm run workbook:update -- --workbook outputs/runs/prepared-.../prepared-tool-re
 
 Yes, this setup can run on another laptop.
 
+For Windows, the easiest setup is:
+
+```powershell
+.\setup-windows.bat -ExcelPath "C:\Users\YOUR_NAME\Documents\Book1.xlsx"
+```
+
+This checks/installs Node.js 20+, npm dependencies, Git, Chrome, Playwright Chromium, FFmpeg when available, creates `.env`, and starts the dashboard. Full guide:
+
+```text
+docs/windows-setup.md
+```
+
 Steps:
 
 1. Copy the project folder.
@@ -930,7 +952,7 @@ Scene clip download uses browser automation, not a public API. The agent saves e
 Local MP4:
 
 ```text
-Voiceover currently uses macOS local voice tools.
+Voiceover uses macOS `say`/`afconvert` on Mac and PowerShell speech synthesis on Windows when available.
 It is good for free draft/usable content, but a premium human/AI voice can improve final quality.
 ffmpeg is not installed on this machine, so some video frame extraction checks use Remotion frame rendering instead.
 ```

@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import { parseArgs } from "./lib/args.mjs";
+import { applyChromeLaunchOptions, launchWithBundledFallback } from "./lib/browser-paths.mjs";
 dotenv.config({ quiet: true });
 
 const { chromium } = await import("playwright");
@@ -7,13 +8,11 @@ const { chromium } = await import("playwright");
 const args = parseArgs(process.argv.slice(2));
 const profileDir = args.profile || "work/google-vids-profile";
 const waitMs = args["wait-ms"] ? Number(args["wait-ms"]) : null;
-const macChromeExecutable = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const launchOptions = {
   headless: false,
   viewport: { width: 1365, height: 768 }
 };
-
-launchOptions.executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH || macChromeExecutable;
+await applyChromeLaunchOptions(launchOptions, { channelFallback: false });
 
 console.log("Opening Google Vids with a persistent browser profile.");
 console.log(`Profile: ${profileDir}`);
@@ -24,7 +23,11 @@ if (waitMs) {
   console.log("When login is complete, return here and press Enter.");
 }
 
-const context = await chromium.launchPersistentContext(profileDir, launchOptions);
+const context = await launchWithBundledFallback(
+  chromium,
+  launchOptions,
+  (options) => chromium.launchPersistentContext(profileDir, options)
+);
 const page = await context.newPage();
 await page.goto("https://vids.new", { waitUntil: "domcontentloaded" });
 

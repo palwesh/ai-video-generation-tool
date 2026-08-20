@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { parseArgs } from "./lib/args.mjs";
 import { ensureDir, readJson, writeJson, writeText } from "./lib/fsx.mjs";
 import { buildGoogleVidsClipPrompt, buildGoogleVidsMasterPrompt } from "./lib/vids-master-prompt.mjs";
+import { applyChromeLaunchOptions, launchWithBundledFallback } from "./lib/browser-paths.mjs";
 
 dotenv.config({ quiet: true });
 
@@ -18,7 +19,6 @@ const outputRoot = args.output || path.join(
   `google-vids-operate-${new Date().toISOString().replace(/[:.]/g, "-")}`
 );
 const targetUrl = args.url || "https://vids.new";
-const macChromeExecutable = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 if (!scenesPath) {
   console.error("Missing --tool-dir or --scenes.");
@@ -28,13 +28,6 @@ if (!scenesPath) {
 
 async function accessOrNull(filePath) {
   return fs.access(filePath).then(() => filePath).catch(() => null);
-}
-
-async function existingChromeExecutable() {
-  if (process.env.PLAYWRIGHT_EXECUTABLE_PATH) {
-    return process.env.PLAYWRIGHT_EXECUTABLE_PATH;
-  }
-  return await accessOrNull(macChromeExecutable);
 }
 
 async function screenshot(page, outputDir, name) {
@@ -1583,15 +1576,16 @@ const launchOptions = {
   headless: false,
   viewport: { width: 1365, height: 768 }
 };
-const executablePath = await existingChromeExecutable();
-if (executablePath) {
-  launchOptions.executablePath = executablePath;
-}
+await applyChromeLaunchOptions(launchOptions, { channelFallback: false });
 
 console.log(`Opening Google Vids with profile: ${profileDir}`);
 console.log(`Prompt file: ${promptPath}`);
 
-const context = await chromium.launchPersistentContext(profileDir, launchOptions);
+const context = await launchWithBundledFallback(
+  chromium,
+  launchOptions,
+  (options) => chromium.launchPersistentContext(profileDir, options)
+);
 const page = await context.newPage();
 const steps = [];
 

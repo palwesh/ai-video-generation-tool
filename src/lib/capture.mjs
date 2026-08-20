@@ -1,8 +1,7 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 import { ensureDir } from "./fsx.mjs";
-
-const MAC_CHROME_EXECUTABLE = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+import { applyChromeLaunchOptions, launchWithBundledFallback } from "./browser-paths.mjs";
 
 function validUrl(value) {
   try {
@@ -334,28 +333,10 @@ export async function captureToolWebsite(row, runDir, config) {
   const launchOptions = {
     headless: true
   };
-
-  if (process.env.PLAYWRIGHT_EXECUTABLE_PATH) {
-    launchOptions.executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH;
-  } else {
-    const hasMacChrome = await fs.access(MAC_CHROME_EXECUTABLE).then(() => true).catch(() => false);
-    if (hasMacChrome) {
-      launchOptions.executablePath = MAC_CHROME_EXECUTABLE;
-    } else {
-      launchOptions.channel = process.env.PLAYWRIGHT_CHANNEL || "chrome";
-    }
-  }
+  await applyChromeLaunchOptions(launchOptions, { channelFallback: false });
 
   let browser;
-  try {
-    browser = await chromium.launch(launchOptions);
-  } catch (error) {
-    if (!launchOptions.channel) {
-      throw error;
-    }
-    delete launchOptions.channel;
-    browser = await chromium.launch(launchOptions);
-  }
+  browser = await launchWithBundledFallback(chromium, launchOptions, (options) => chromium.launch(options));
   const files = [];
 
   try {

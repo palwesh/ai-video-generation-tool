@@ -1,8 +1,8 @@
 import path from "node:path";
-import fs from "node:fs/promises";
 import dotenv from "dotenv";
 import { parseArgs } from "./lib/args.mjs";
 import { ensureDir, writeJson } from "./lib/fsx.mjs";
+import { applyChromeLaunchOptions, launchWithBundledFallback } from "./lib/browser-paths.mjs";
 
 dotenv.config({ quiet: true });
 
@@ -14,19 +14,9 @@ const outputDir = args.output || path.join(
   "runs",
   `google-vids-check-${new Date().toISOString().replace(/[:.]/g, "-")}`
 );
-const macChromeExecutable = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 function normalizeText(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
-}
-
-async function existingChromeExecutable() {
-  if (process.env.PLAYWRIGHT_EXECUTABLE_PATH) {
-    return process.env.PLAYWRIGHT_EXECUTABLE_PATH;
-  }
-
-  const hasMacChrome = await fs.access(macChromeExecutable).then(() => true).catch(() => false);
-  return hasMacChrome ? macChromeExecutable : null;
 }
 
 const { chromium } = await import("playwright");
@@ -34,29 +24,20 @@ const launchOptions = {
   headless: Boolean(args.headless),
   viewport: { width: 1365, height: 768 }
 };
-
-const executablePath = await existingChromeExecutable();
-if (executablePath) {
-  launchOptions.executablePath = executablePath;
-} else {
-  launchOptions.channel = process.env.PLAYWRIGHT_CHANNEL || "chrome";
-}
+await applyChromeLaunchOptions(launchOptions, { channelFallback: false });
 
 await ensureDir(outputDir);
 
 console.log(`Opening ${targetUrl} with profile: ${profileDir}`);
 let context;
 try {
-  context = await chromium.launchPersistentContext(profileDir, launchOptions);
+  context = await launchWithBundledFallback(
+    chromium,
+    launchOptions,
+    (options) => chromium.launchPersistentContext(profileDir, options)
+  );
 } catch (error) {
-  if (launchOptions.executablePath && !process.env.PLAYWRIGHT_EXECUTABLE_PATH) {
-    delete launchOptions.executablePath;
-    delete launchOptions.channel;
-    console.warn("System Chrome launch failed. Retrying with bundled Playwright Chromium.");
-    context = await chromium.launchPersistentContext(profileDir, launchOptions);
-  } else {
-    throw error;
-  }
+  throw error;
 }
 const page = await context.newPage();
 

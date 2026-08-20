@@ -1,8 +1,8 @@
 import path from "node:path";
-import fs from "node:fs/promises";
 import dotenv from "dotenv";
 import { parseArgs } from "./lib/args.mjs";
 import { ensureDir, writeJson } from "./lib/fsx.mjs";
+import { applyChromeLaunchOptions, launchWithBundledFallback } from "./lib/browser-paths.mjs";
 
 dotenv.config({ quiet: true });
 
@@ -15,23 +15,11 @@ const outputDir = path.resolve(args.output || path.join(
   `google-vids-export-${new Date().toISOString().replace(/[:.]/g, "-")}`
 ));
 const timeoutMs = Number(args.timeout || 600000);
-const macChromeExecutable = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 if (!targetUrl) {
   console.error("Missing --url for the Google Vids file.");
   console.error("Example: npm run vids:export -- --url \"https://docs.google.com/videos/d/FILE_ID/edit\"");
   process.exit(1);
-}
-
-async function accessOrNull(filePath) {
-  return fs.access(filePath).then(() => filePath).catch(() => null);
-}
-
-async function existingChromeExecutable() {
-  if (process.env.PLAYWRIGHT_EXECUTABLE_PATH) {
-    return process.env.PLAYWRIGHT_EXECUTABLE_PATH;
-  }
-  return await accessOrNull(macChromeExecutable);
 }
 
 function redactText(value) {
@@ -157,12 +145,13 @@ const launchOptions = {
   acceptDownloads: true,
   viewport: { width: 1365, height: 768 }
 };
-const executablePath = await existingChromeExecutable();
-if (executablePath) {
-  launchOptions.executablePath = executablePath;
-}
+await applyChromeLaunchOptions(launchOptions, { channelFallback: false });
 
-const context = await chromium.launchPersistentContext(profileDir, launchOptions);
+const context = await launchWithBundledFallback(
+  chromium,
+  launchOptions,
+  (options) => chromium.launchPersistentContext(profileDir, options)
+);
 const page = await context.newPage();
 const steps = [];
 

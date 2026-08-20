@@ -25,6 +25,7 @@ const shouldCapture = Boolean(args.capture) || (config.capture?.enabled && !args
 const reelConfig = resolveReelConfig(config, {
   sceneCount: args["scene-count"] || args["target-scenes"] || args["max-scenes"]
 });
+const freeVideoProviders = args["free-video-providers"] || config.freeVideoProviders?.defaultProviders || "all";
 const batchStamp = new Date().toISOString().replace(/[:.]/g, "-");
 const batchDir = path.resolve(args.out || config.output?.rootDir || "outputs/runs", `prepared-${batchStamp}`);
 await ensureDir(batchDir);
@@ -43,13 +44,15 @@ console.log(`Website capture: ${shouldCapture ? "enabled" : "disabled"}`);
 console.log(`Tool base URL: ${toolBaseUrl || "not configured"}`);
 console.log(`Output: ${batchDir}`);
 console.log(`Reel structure: ${reelConfig.sceneCount} scenes, ${reelConfig.totalDurationSeconds}s total`);
+console.log(`Free provider pack: ${freeVideoProviders}`);
 
 for (const row of selectedRows) {
   console.log(`\nPreparing: ${row.tool_name}`);
   const result = await processToolRow(row, batchDir, config, {
     capture: shouldCapture,
     useAi,
-    sceneCount: reelConfig.sceneCount
+    sceneCount: reelConfig.sceneCount,
+    freeVideoProviders
   });
   resultsBySourceRow.set(row.source_row_number, result);
   console.log(`Captured ${result.capture.files.length} reference file(s).`);
@@ -105,7 +108,9 @@ const extraHeaders = [
   "TRF Asset Brief",
   "TRF Reel Script MD",
   "TRF Reel Script JSON",
-  "TRF Vids Generated Scenes Folder"
+  "TRF Vids Generated Scenes Folder",
+  "TRF Free Video Provider Pack",
+  "TRF Free Video Provider Prompts"
 ];
 
 function firstFile(files, name) {
@@ -171,6 +176,8 @@ function enrichmentFor(sourceRowNumber) {
     "TRF Reel Script MD": result.files.reelScriptMdPath || "",
     "TRF Reel Script JSON": result.files.reelScriptJsonPath || "",
     "TRF Vids Generated Scenes Folder": result.files.vidsGeneratedScenesPath || "",
+    "TRF Free Video Provider Pack": result.files.freeVideoProviderPackPath || "",
+    "TRF Free Video Provider Prompts": result.files.freeVideoProviderPromptsPath || "",
     "TRF Final MP4 Path": "",
     "TRF QA Status": "Needs human review",
     "TRF Last Automation Run": new Date().toISOString(),

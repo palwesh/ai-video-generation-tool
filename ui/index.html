@@ -78,10 +78,20 @@
             <label>Mode</label>
             <div class="segmented" role="radiogroup" aria-label="Mode">
               <button class="segment" data-mode="prep" type="button">Script + Assets</button>
+              <button class="segment" data-mode="free-providers" type="button">Free Clip Pack</button>
               <button class="segment active" data-mode="local" type="button">Local MP4</button>
               <button class="segment" data-mode="google" type="button">Vids Clips</button>
               <button class="segment" data-mode="google-full" type="button">All Vids Clips</button>
             </div>
+          </div>
+
+          <div class="profile-box provider-config">
+            <div class="section-label">Free clip providers</div>
+            <div class="field">
+              <label for="freeVideoProviders">Provider list</label>
+              <input id="freeVideoProviders" type="text" value="capcut,pika,runway,canva,did,shotstack" autocomplete="off">
+            </div>
+            <p id="providerHelp" class="small-note">Creates scene prompts for free/free-trial tools. Download clips into vids-clips/scene-XX.mp4, then Local MP4 uses them.</p>
           </div>
 
           <div id="googleVidsConfig" class="profile-box google-config">
@@ -219,6 +229,7 @@
               <button id="openVideoBtn" class="secondary-button" type="button" disabled>Open Video</button>
               <button id="openVideoFolderBtn" class="secondary-button" type="button" disabled>Video Folder</button>
               <button id="openGeneratedFolderBtn" class="secondary-button" type="button" disabled>Generated</button>
+              <button id="openProviderFolderBtn" class="secondary-button" type="button" disabled>Providers</button>
               <button id="openCacheFolderBtn" class="secondary-button" type="button" disabled>Vids Cache</button>
               <button id="openRunFolderBtn" class="secondary-button" type="button" disabled>Run Folder</button>
             </div>

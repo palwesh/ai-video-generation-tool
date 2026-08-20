@@ -79,6 +79,28 @@ Open:
 http://127.0.0.1:4317
 ```
 
+## Windows Quick Setup
+
+After cloning on Windows, open PowerShell in the project folder and run:
+
+```powershell
+.\setup-windows.bat
+```
+
+With your Excel path:
+
+```powershell
+.\setup-windows.bat -ExcelPath "C:\Users\YOUR_NAME\Documents\Book1.xlsx"
+```
+
+This checks/installs Node.js 20+, npm dependencies, Git, Chrome, Playwright Chromium, FFmpeg when winget can install it, creates `.env`, and starts the dashboard.
+
+Detailed Windows guide:
+
+```text
+docs/windows-setup.md
+```
+
 ## Excel File
 
 Your current Excel file is outside the repo:
