@@ -83,10 +83,20 @@ export function buildGoogleVidsClipPrompt(scenePlan, sceneNumber, manifest = {},
   const referenceLine = referenceFiles.length
     ? `Use these attached real tool screenshots as the visible laptop/phone screen reference: ${referenceFiles.slice(0, 3).map(assetLabel).join(", ")}. Keep the screen readable and do not replace it with unrelated UI.`
     : `If the tool UI appears, show the actual Tool URL on screen: ${toolUrl}. Do not invent controls, results, or fake pages.`;
+  const isHookScene = Number(sceneNumber) === 1;
+  const hookDirection = isHookScene
+    ? [
+      "This is ONLY the first 10-second hook clip that will be merged with real tool screenshots and demo footage later.",
+      "Open with the first hook line immediately in the first 2 seconds; no greeting, no slow intro.",
+      "Use a realistic creator/avatar speaking directly to camera in Hinglish, with a laptop showing the tool page briefly as proof.",
+      "Do not generate a full tutorial, full workflow, fake results, or unrelated stock footage. Keep it as a punchy hook/presenter clip."
+    ].join(" ")
+    : "";
 
   return trimBlock([
     `Create a 10-second 9:16 vertical video for ${toolName}.`,
     `Scene ${scene.scene_number}/${scenePlan.scenes.length || 6} intent: ${sceneIntent(scene.scene_number, scenePlan.scenes.length || 6)}.`,
+    hookDirection,
     `Visual: ${compact(scene.visual || scene.video_prompt, 520)}`,
     referenceLine,
     `Voiceover: ${compact(scene.voiceover, 260)}`,

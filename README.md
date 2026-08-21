@@ -169,6 +169,14 @@ npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Bo
 
 This does not use Google Vids as the final merger. It creates and exports `scene-01`, `scene-02`, etc. separately, saves them under `vids-generated-scenes/scene-XX/`, caches them under `vids-clips/scene-XX.mp4`, then renders the final MP4 locally.
 
+Google Vids hook only, then local edit with real tool assets:
+
+```bash
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --hook-vids-first --vids-scenes 1 --scene-count 6 --max-scenes 6
+```
+
+This spends Google Vids quota only on the first 10-second hook/avatar clip. The exported hook is saved under `vids-generated-scenes/scene-01/`, cached as `vids-clips/scene-01.mp4`, and the final Reel is merged locally with real screenshots, demo recordings, captions, music, and voiceover.
+
 ## Frontend Dashboard
 
 Start the local dashboard:
@@ -183,13 +191,16 @@ Open:
 http://127.0.0.1:4317
 ```
 
-The dashboard lets you pick the Excel row, mode, primary/fallback Google Vids profile, AI Video avatar selection, and run the one-video agent from a button. It uses a compact control sidebar, quick status cards, one-page tabs, a scrollable black terminal panel, and a final MP4 preview when a local file is produced.
+The dashboard now opens in `Basic` mode. The existing full control set is under `Advanced Features`, including Excel row selection, modes, Google Vids profiles, queue/history, docs, terminal, and MP4 preview.
 
 Dashboard production controls:
 
+- `Choose Excel`: select an `.xlsx`, `.xls`, or `.csv` file from your laptop. The dashboard copies it into `work/uploads/`, sets the input path, and loads tool rows automatically. To update the original workbook file itself, paste its full path manually and click `Load`.
 - `Script + Assets`: prepares script, scene JSON, Vids prompts, screenshots, recordings, and workbook links without rendering or using Google Vids quota.
 - `Free Clip Pack`: prepares CapCut, Pika, Runway, Canva, D-ID, and Shotstack scene prompt folders without rendering or using Google Vids quota.
 - `Local MP4`: fully free local Reel render with captions, voiceover, music, real tool screenshots, and demo recordings.
+- `Quality Reel Preset`: one click sets the recommended free workflow: Local MP4, 6 scenes, female/male avatar hook, real tool captures, free Edge TTS voice, captions, and music.
+- `Hook Vids + Local`: generates only Scene 1 as a Google Vids/avatar hook clip, downloads/caches it, then merges the final MP4 locally with real tool screenshots and demo recordings.
 - `Vids clip cache`: every tool folder has `vids-clips/`; local MP4 uses cached Google Vids/avatar clips first when they exist.
 - `Vids Clips`: Google Vids generates each selected scene as a separate clip, downloads it into `vids-generated-scenes/scene-XX/`, caches it as `vids-clips/scene-XX.mp4`, then local rendering merges the final Reel.
 - `All Vids Clips`: same scene-by-scene download flow for every scene; use only when quota is available.
@@ -234,6 +245,12 @@ Full Google Vids attempt when your Vids quota is available:
 
 ```bash
 npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --scene-count 6 --max-scenes 6
+```
+
+Recommended hybrid mode when you want a strong Vids/avatar hook but reliable real tool proof:
+
+```bash
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --hook-vids-first --vids-scenes 1 --scene-count 6 --max-scenes 6
 ```
 
 Google Vids mode selects an AI/avatar presenter by default on intro/outro scenes. The default avatar scenes are `1,2,6`, while tool proof scenes `3,4,5` stay in AI Video mode with real screenshots. Add `--no-avatar` to skip this, or set avatar selection to specific scenes:
@@ -312,6 +329,7 @@ generated/agent/prepared-tool-reel-workbook.xlsx
 generated/agent/one-video-agent-report.json
 generated/local-render/final-video.mp4
 generated/local-render/local-reel-report.json
+generated/local-render/reel-quality-report.json
 generated/local-render/remotion-props.json
 generated/local-render/assets/
 generated/google-vids/profile-name/
@@ -319,7 +337,9 @@ generated/google-vids-export/profile-name/
 generated/generated-manifest.json
 ```
 
-The prepared workbook includes `TRF Generated Folder` and `TRF Generated Files`, so you can open one tool row and find the saved outputs quickly.
+The prepared workbook includes `TRF Generated Folder`, `TRF Generated Files`, `TRF Reel Quality Score`, and `TRF Reel Quality Report`, so you can open one tool row and find the saved outputs quickly.
+
+The quality report scores each reel on avatar hook, hook copy, real tool proof, screen recording, voiceover, captions, music, CTA/review reminder, and 30-60 second duration. Treat `post_ready_review` as a strong draft that still needs one human review before upload.
 
 Use multiple logged-in Google Vids profiles. The agent tries the first profile, then the next one if generation/export fails. This is for legitimate accounts you control; respect Google Vids quotas and terms.
 
@@ -349,6 +369,8 @@ npm run render:local -- --tool-dir outputs/runs/one-video-agent-.../tool-folder 
 
 The local MP4 is a free Reel with captions, captured tool screenshots, recorded tool usage where available, generated scene voiceover, subtle music, and a creator/avatar badge. Add `--no-audio` to `render:local` only if you want a silent visual draft.
 
+Every local MP4 render also writes `reel-quality-report.json` and mirrors it into `generated/local-render/`. The dashboard and workbook show the score so weak reels are easy to catch before posting.
+
 For a less robotic final voice, export a human voiceover pack and record or generate each scene as a separate audio file:
 
 ```bash
@@ -376,8 +398,37 @@ npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Bo
 Generate natural scene voiceovers:
 
 ```bash
+npm run voiceover:generate -- --tool-dir outputs/runs/one-video-agent-.../tool-folder --provider edge --voice hi-IN-SwaraNeural
 npm run voiceover:generate -- --tool-dir outputs/runs/one-video-agent-.../tool-folder --provider openai --voice verse
 npm run voiceover:generate -- --tool-dir outputs/runs/one-video-agent-.../tool-folder --provider elevenlabs --voice YOUR_ELEVENLABS_VOICE_ID
+```
+
+Free voice setup:
+
+```bash
+python3 -m pip install edge-tts
+```
+
+Recommended free voices:
+
+```text
+hi-IN-SwaraNeural    Hindi female, good for Hindi/Devanagari scripts
+hi-IN-MadhurNeural   Hindi male
+en-IN-NeerjaNeural   Indian English female, often better for Roman Hinglish
+en-IN-PrabhatNeural  Indian English male
+```
+
+Run a full one-video job with free Edge TTS:
+
+```bash
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --local-only --tts-provider edge --tts-voice hi-IN-SwaraNeural
+```
+
+Choose the opening presenter style:
+
+```bash
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --local-only --hook-avatar female
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --local-only --hook-avatar male
 ```
 
 Useful `.env` keys:

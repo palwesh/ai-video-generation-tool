@@ -16,7 +16,10 @@
     "openaiModel": "gpt-4o-mini-tts",
     "openaiVoice": "verse",
     "elevenLabsModel": "eleven_multilingual_v2",
-    "note": "Use local for built-in macOS/Windows TTS. Use openai or elevenlabs when API keys are configured."
+    "edgeVoice": "hi-IN-SwaraNeural",
+    "edgeRate": "+6%",
+    "hookAvatarStyle": "female",
+    "note": "Use local for built-in macOS/Windows TTS. Use edge for free Hindi/Hinglish neural TTS when edge-tts is installed. Use openai or elevenlabs when API keys are configured."
   },
   "avatarGeneration": {
     "provider": "manual",

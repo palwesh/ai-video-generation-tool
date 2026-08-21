@@ -18,9 +18,28 @@
             <span id="serverStatus" class="status-dot">Ready</span>
           </div>
 
+          <div class="feature-tabs" role="tablist" aria-label="Feature level">
+            <button class="feature-tab active" data-feature-tab="basic" type="button">Basic</button>
+            <button class="feature-tab" data-feature-tab="advanced" type="button">Advanced Features</button>
+          </div>
+
+          <section id="basicControls" class="basic-controls">
+            <div class="basic-placeholder">
+              <p class="eyebrow">BASIC</p>
+              <h2>Process ready</h2>
+              <p class="small-note">Basic workflow will appear here after you define the exact process.</p>
+            </div>
+          </section>
+
+          <section id="advancedControls" class="advanced-feature-panel is-hidden">
           <div class="field">
             <label for="inputPath">Excel file</label>
-            <input id="inputPath" type="text" autocomplete="off">
+            <div class="path-picker">
+              <input id="inputPath" type="text" autocomplete="off">
+              <button id="chooseExcelBtn" class="secondary-button" type="button">Choose</button>
+            </div>
+            <input id="excelFileInput" class="visually-hidden" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv">
+            <p id="excelFileStatus" class="small-note">Choose an Excel/CSV file or paste a full path.</p>
           </div>
 
           <div class="field">
@@ -80,8 +99,13 @@
               <button class="segment" data-mode="prep" type="button">Script + Assets</button>
               <button class="segment" data-mode="free-providers" type="button">Free Clip Pack</button>
               <button class="segment active" data-mode="local" type="button">Local MP4</button>
+              <button class="segment" data-mode="google-hook" type="button">Hook Vids + Local</button>
               <button class="segment" data-mode="google" type="button">Vids Clips</button>
               <button class="segment" data-mode="google-full" type="button">All Vids Clips</button>
+            </div>
+            <div class="button-row preset-row">
+              <button id="qualityPresetBtn" class="secondary-button" type="button">Quality Reel Preset</button>
+              <span class="small-note">Best free setup for real demo reels.</span>
             </div>
           </div>
 
@@ -123,6 +147,7 @@
                 <label for="ttsProvider">Voice</label>
                 <select id="ttsProvider">
                   <option value="local">Local TTS</option>
+                  <option value="edge">Edge TTS Free</option>
                   <option value="openai">OpenAI TTS</option>
                   <option value="elevenlabs">ElevenLabs</option>
                   <option value="none">No voice gen</option>
@@ -136,6 +161,14 @@
             <div class="field">
               <label for="ttsModel">Voice model</label>
               <input id="ttsModel" type="text" value="gpt-4o-mini-tts" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="hookAvatarStyle">Hook avatar</label>
+              <select id="hookAvatarStyle">
+                <option value="female">Female presenter</option>
+                <option value="male">Male presenter</option>
+                <option value="auto">Auto presenter</option>
+              </select>
             </div>
             <div class="field">
               <label for="avatarReferenceImages">Avatar images</label>
@@ -282,9 +315,20 @@
               <button id="addProfileBtn" class="secondary-button" type="button">Add + Login</button>
             </div>
           </div>
+          </section>
         </aside>
 
-        <section class="output-stack">
+        <section id="basicWorkspace" class="output-stack basic-workspace">
+          <section class="panel basic-main-panel">
+            <div>
+              <p class="eyebrow">BASIC WORKFLOW</p>
+              <h2>Ready for your process</h2>
+              <p class="summary-hint">Advanced tools are moved into the Advanced Features tab. The basic flow will be added here next.</p>
+            </div>
+          </section>
+        </section>
+
+        <section id="advancedWorkspace" class="output-stack is-hidden">
           <section class="panel run-summary">
             <div>
               <p class="eyebrow">RUN CONTROL</p>

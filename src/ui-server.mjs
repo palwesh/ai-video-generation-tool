@@ -35,6 +35,9 @@ const defaultVoiceoverProvider = appConfig.voiceover?.provider || "local";
 const defaultOpenAiTtsModel = appConfig.voiceover?.openaiModel || "gpt-4o-mini-tts";
 const defaultOpenAiTtsVoice = appConfig.voiceover?.openaiVoice || "verse";
 const defaultElevenLabsModel = appConfig.voiceover?.elevenLabsModel || "eleven_multilingual_v2";
+const defaultEdgeTtsVoice = appConfig.voiceover?.edgeVoice || "hi-IN-SwaraNeural";
+const defaultEdgeTtsRate = appConfig.voiceover?.edgeRate || "+6%";
+const defaultHookAvatarStyle = appConfig.voiceover?.hookAvatarStyle || "female";
 const defaultAvatarGenerationProvider = appConfig.avatarGeneration?.provider || "manual";
 const defaultAvatarReferenceImages = appConfig.avatarGeneration?.referenceImages || "";
 const defaultAvatarGenerationProviders = appConfig.avatarGeneration?.providers || "heygen,did,runway,veo,pika";
@@ -139,6 +142,24 @@ function readBody(req) {
   });
 }
 
+function readBinaryBody(req, maxBytes = 50 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let total = 0;
+    req.on("data", (chunk) => {
+      total += chunk.length;
+      if (total > maxBytes) {
+        reject(new Error(`Upload is too large. Max ${Math.round(maxBytes / 1024 / 1024)} MB.`));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
+
 function sendSse(res, event, data) {
   res.write(`event: ${event}\n`);
   res.write(`data: ${JSON.stringify(data)}\n\n`);
@@ -146,6 +167,28 @@ function sendSse(res, event, data) {
 
 function timestampSlug() {
   return new Date().toISOString().replace(/[:.]/g, "-");
+}
+
+function safeUploadFileName(value) {
+  const fallback = "tools.xlsx";
+  let raw = String(value || fallback).trim();
+  try {
+    raw = decodeURIComponent(raw);
+  } catch {
+    // Keep the raw header value if it is not URI encoded.
+  }
+  const base = path.basename(raw || fallback);
+  const extension = path.extname(base).toLowerCase();
+  if (![".xlsx", ".xls", ".csv"].includes(extension)) {
+    throw new Error("Please choose an .xlsx, .xls, or .csv file.");
+  }
+  const name = path.basename(base, extension)
+    .replace(/[^a-z0-9._ -]+/gi, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80) || "tools";
+  return `${name}${extension}`;
 }
 
 function normalizeProfileList(value) {
@@ -237,11 +280,15 @@ function normalizeRunBody(body = {}) {
     normalized.avatarScenes = allSceneList(maxScenes);
   }
 
+  if (mode === "google-hook" && normalized.useAvatar !== false && !String(normalized.avatarScenes || "").trim()) {
+    normalized.avatarScenes = "1";
+  }
+
   if ((mode === "google" || mode === "dry") && normalized.useAvatar !== false && !String(normalized.avatarScenes || "").trim()) {
     normalized.avatarScenes = defaultAvatarScenes;
   }
 
-  if ((mode === "google" || mode === "google-full" || mode === "dry") && !String(normalized.ingredientScenes || "").trim()) {
+  if ((mode === "google" || mode === "google-full" || mode === "google-hook" || mode === "dry") && !String(normalized.ingredientScenes || "").trim()) {
     normalized.ingredientScenes = defaultIngredientScenes;
   }
   if (!String(normalized.freeVideoProviders || "").trim()) {
@@ -257,13 +304,20 @@ function normalizeRunBody(body = {}) {
     normalized.ttsProvider = defaultVoiceoverProvider;
   }
   if (!String(normalized.ttsModel || "").trim()) {
-    normalized.ttsModel = normalized.ttsProvider === "elevenlabs" ? defaultElevenLabsModel : defaultOpenAiTtsModel;
+    normalized.ttsModel = normalized.ttsProvider === "elevenlabs"
+      ? defaultElevenLabsModel
+      : normalized.ttsProvider === "edge"
+        ? "edge-tts"
+        : defaultOpenAiTtsModel;
   }
   if (!String(normalized.ttsVoice || "").trim()) {
-    normalized.ttsVoice = defaultOpenAiTtsVoice;
+    normalized.ttsVoice = normalized.ttsProvider === "edge" ? defaultEdgeTtsVoice : defaultOpenAiTtsVoice;
   }
   if (!String(normalized.avatarReferenceImages || "").trim()) {
     normalized.avatarReferenceImages = defaultAvatarReferenceImages;
+  }
+  if (!String(normalized.hookAvatarStyle || "").trim()) {
+    normalized.hookAvatarStyle = defaultHookAvatarStyle;
   }
   if (!String(normalized.avatarClipProvider || "").trim()) {
     normalized.avatarClipProvider = defaultAvatarGenerationProvider;
@@ -281,7 +335,7 @@ function normalizeRunBody(body = {}) {
 function quotaEstimateFor(body, rowCount = 1) {
   const normalized = normalizeRunBody(body);
   const maxScenes = normalized.maxScenes;
-  const generating = normalized.mode === "google" || normalized.mode === "google-full";
+  const generating = normalized.mode === "google" || normalized.mode === "google-full" || normalized.mode === "google-hook";
   if (!generating) {
     return {
       aiVideoClips: 0,
@@ -292,18 +346,23 @@ function quotaEstimateFor(body, rowCount = 1) {
     };
   }
 
+  const targetSceneCount = normalized.mode === "google-hook" ? 1 : maxScenes;
+  const targetScenes = normalized.mode === "google-hook" ? [1] : Array.from({ length: maxScenes }, (_, index) => index + 1);
   const avatarScenes = normalized.useAvatar === false
     ? []
-    : parseSceneList(normalized.avatarScenes || defaultAvatarScenes, maxScenes);
+    : parseSceneList(normalized.avatarScenes || (normalized.mode === "google-hook" ? "1" : defaultAvatarScenes), maxScenes)
+      .filter((scene) => targetScenes.includes(scene));
   const avatarClips = avatarScenes.length * rowCount;
-  const aiVideoClips = Math.max(0, maxScenes - avatarScenes.length) * rowCount;
+  const aiVideoClips = Math.max(0, targetSceneCount - avatarScenes.length) * rowCount;
 
   return {
     aiVideoClips,
     avatarClips,
-    totalSceneJobs: maxScenes * rowCount,
+    totalSceneJobs: targetSceneCount * rowCount,
     rowCount,
-    note: "Estimate only. Failed generations can still consume Google quota."
+    note: normalized.mode === "google-hook"
+      ? "Only Scene 1 hook is generated in Google Vids; the final reel is merged locally with real tool assets."
+      : "Estimate only. Failed generations can still consume Google quota."
   };
 }
 
@@ -412,6 +471,11 @@ function historyEntryForRun(run) {
     cachedVidsClips: report.cachedVidsClips || [],
     generatedFolder: report.generatedFolder || "",
     generatedFiles: report.generatedFiles || [],
+    qualityReportPath: report.qualityReportPath || "",
+    qualityScore: report.qualityScore || 0,
+    qualityStatus: report.qualityStatus || "",
+    qualityWarnings: report.qualityWarnings || [],
+    qaStatus: report.qaStatus || "",
     vidsProfile: report.vidsProfile || "",
     vidsProfilesTried: report.vidsProfilesTried || [],
     fallback: report.fallback || "",
@@ -451,7 +515,7 @@ async function recordRunHistory(run) {
           updatedAt: new Date().toISOString()
         };
       }
-    } else if (entry.status === "complete" && (entry.mode === "generate_export" || entry.mode === "google" || entry.mode === "google-full")) {
+    } else if (entry.status === "complete" && (entry.mode === "generate_export" || entry.mode === "google" || entry.mode === "google-full" || entry.mode === "google-hook")) {
       const profile = entry.vidsProfile || entry.vidsProfilesTried?.[0] || "";
       if (profile && !entry.fallback) {
         const estimate = quotaEstimateFor(run.body || {}, 1);
@@ -787,10 +851,41 @@ async function listTools(inputPath) {
       lastMode: latest?.mode || "",
       lastMp4Path: latest?.mp4Path || "",
       lastVidsUrl: latest?.vidsUrl || "",
+      lastQualityScore: latest?.qualityScore || 0,
+      lastQualityStatus: latest?.qualityStatus || "",
       lastError: latest?.error || "",
       lastEndedAt: latest?.endedAt || ""
     };
   });
+}
+
+async function saveUploadedInput(req) {
+  const originalName = req.headers["x-file-name"] || "tools.xlsx";
+  const safeName = safeUploadFileName(originalName);
+  const data = await readBinaryBody(req);
+  if (!data.length) {
+    throw new Error("Selected file was empty.");
+  }
+
+  const uploadDir = path.join(projectRoot, "work", "uploads");
+  await ensureDir(uploadDir);
+  const savedName = `${timestampSlug()}-${safeName}`;
+  const savedPath = path.resolve(uploadDir, savedName);
+  const relativePath = path.relative(projectRoot, savedPath);
+  if (relativePath.startsWith("../") || path.isAbsolute(relativePath)) {
+    throw new Error("Upload path escaped the project folder.");
+  }
+  await fs.writeFile(savedPath, data);
+
+  const tools = await listTools(savedPath);
+  return {
+    input: savedPath,
+    relativePath,
+    originalName: String(originalName || ""),
+    savedName,
+    bytes: data.length,
+    tools
+  };
 }
 
 function publicRun(run) {
@@ -904,6 +999,9 @@ function runArgsFromBody(body, outputDir) {
       runArgs.push("--tts-voice", String(normalized.ttsVoice));
     }
   }
+  if (normalized.hookAvatarStyle) {
+    runArgs.push("--hook-avatar", String(normalized.hookAvatarStyle));
+  }
   if (normalized.avatarReferenceImages) {
     runArgs.push("--creator-images", String(normalized.avatarReferenceImages));
     runArgs.push("--avatar-pack-providers", String(normalized.avatarPackProviders || defaultAvatarGenerationProviders));
@@ -924,8 +1022,11 @@ function runArgsFromBody(body, outputDir) {
     runArgs.push("--local-only");
   } else {
     runArgs.push("--max-scenes", String(Number.isFinite(maxScenes) ? maxScenes : 6));
-    if (mode === "google" || mode === "google-full") {
+    if (mode === "google" || mode === "google-full" || mode === "google-hook") {
       runArgs.push("--generate");
+      if (mode === "google-hook") {
+        runArgs.push("--hook-vids-first", "--vids-scenes", "1");
+      }
     }
     if (body.useIngredients !== false) {
       runArgs.push("--ingredients", String(body.ingredients || "auto"));
@@ -1544,6 +1645,9 @@ async function handleApi(req, res, pathname, searchParams) {
           openaiModel: defaultOpenAiTtsModel,
           openaiVoice: defaultOpenAiTtsVoice,
           elevenLabsModel: defaultElevenLabsModel,
+          edgeVoice: defaultEdgeTtsVoice,
+          edgeRate: defaultEdgeTtsRate,
+          hookAvatarStyle: defaultHookAvatarStyle,
           hasOpenAiKey: Boolean(process.env.OPENAI_API_KEY),
           hasElevenLabsKey: Boolean(process.env.ELEVENLABS_API_KEY)
         },
@@ -1600,6 +1704,11 @@ async function handleApi(req, res, pathname, searchParams) {
 
     if (req.method === "GET" && pathname === "/api/tools") {
       json(res, 200, { ok: true, tools: await listTools(searchParams.get("input") || defaultInput) });
+      return;
+    }
+
+    if (req.method === "POST" && pathname === "/api/input-upload") {
+      json(res, 201, { ok: true, upload: await saveUploadedInput(req) });
       return;
     }
 

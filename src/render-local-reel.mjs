@@ -25,6 +25,9 @@ const audioEnabled = !args["no-audio"];
 const sayVoice = args.voice || process.env.TRF_SAY_VOICE || "";
 const sayRate = String(args["voice-rate"] || process.env.TRF_SAY_RATE || 205);
 const spokenField = args["spoken-field"] || process.env.TRF_SPOKEN_FIELD || "voiceover_audio";
+const hookAvatarStyle = String(args["hook-avatar"] || args["hook-avatar-style"] || process.env.TRF_HOOK_AVATAR_STYLE || "female")
+  .trim()
+  .toLowerCase();
 const customVoiceoverDir = args["voiceover-dir"]
   ? path.resolve(args["voiceover-dir"])
   : path.join(toolDir || process.cwd(), "voiceovers");
@@ -46,6 +49,187 @@ function safeFileName(value) {
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
     .toLowerCase() || "tool-reel";
+}
+
+function hasAsset(value) {
+  if (Array.isArray(value)) {
+    return value.some(hasAsset);
+  }
+  if (value && typeof value === "object") {
+    return Object.values(value).some(hasAsset);
+  }
+  return Boolean(String(value || "").trim());
+}
+
+function addQualityCheck(checks, id, label, ok, points, note = "") {
+  checks.push({
+    id,
+    label,
+    ok: Boolean(ok),
+    points: ok ? points : 0,
+    maxPoints: points,
+    note
+  });
+}
+
+function sceneText(scene, fields = ["voiceover", "spoken_voiceover", "voiceover_audio", "onscreen_text", "visual", "video_prompt"]) {
+  return fields.map((field) => String(scene?.[field] || "")).join(" ").trim();
+}
+
+function buildQualityReport({ props, assets, audioAssets, outputPath, sizeBytes, totalDurationSeconds }) {
+  const scenes = Array.isArray(props.scenes) ? props.scenes : [];
+  const firstScene = scenes[0] || {};
+  const lastScene = scenes[scenes.length - 1] || {};
+  const hookText = sceneText(firstScene);
+  const lastText = sceneText(lastScene);
+  const allText = scenes.map((scene) => sceneText(scene)).join(" ");
+  const checks = [];
+  const warnings = [];
+
+  const hasAvatarHook = ["female", "male", "auto"].includes(String(assets.hookAvatarStyle || "").toLowerCase())
+    || hasAsset(assets.avatarHost)
+    || hasAsset(assets.vidsClips?.[0]);
+  addQualityCheck(
+    checks,
+    "avatar_hook",
+    "First scene has avatar/presenter hook",
+    hasAvatarHook,
+    18,
+    hasAvatarHook
+      ? "Hook scene is configured to open with a presenter/avatar style."
+      : "Add a Vids/avatar hook clip or avatar host image for the first 10 seconds."
+  );
+
+  const strongHook = hookText.length >= 45
+    && /(stop|ruk|wait|problem|galti|save|easy|free|tool|seconds|sec|demo|secret|fast|quick|kaam|time)/i.test(hookText);
+  addQualityCheck(
+    checks,
+    "hook_copy",
+    "Hook copy is specific and scroll-stopping",
+    strongHook,
+    12,
+    strongHook
+      ? "Hook has enough context and problem/value language."
+      : "Make the first line more specific: pain, promise, and tool outcome in one sentence."
+  );
+
+  const realToolProof = Boolean(props.toolUrl) && hasAsset([assets.desktop, assets.desktopFull, assets.mobile, assets.demoBefore, assets.demoAfter]);
+  addQualityCheck(
+    checks,
+    "real_tool_proof",
+    "Real tool URL screenshots are present",
+    realToolProof,
+    18,
+    realToolProof
+      ? "Real website captures are available for the edit."
+      : "Capture the actual tool page before rendering; avoid fake UI."
+  );
+
+  const screenRecording = hasAsset([assets.demoVideo, assets.mobileScroll]);
+  addQualityCheck(
+    checks,
+    "screen_recording",
+    "Real screen recording is available",
+    screenRecording,
+    10,
+    screenRecording
+      ? "Tool interaction footage can be used in the demo/body."
+      : "Add at least one short desktop/mobile recording for a less static reel."
+  );
+
+  const voiceoverCount = Array.isArray(audioAssets.voiceovers) ? audioAssets.voiceovers.filter(Boolean).length : 0;
+  const voiceoverReady = voiceoverCount >= Math.max(1, Math.min(3, scenes.length));
+  addQualityCheck(
+    checks,
+    "voiceover",
+    "Voiceover files are generated",
+    voiceoverReady,
+    14,
+    voiceoverReady
+      ? `${voiceoverCount} scene voiceover file(s) found.`
+      : "Generate natural voiceover files or add manual voice files in the voiceovers folder."
+  );
+
+  const captionReady = scenes.length > 0 && scenes.every((scene) => String(scene?.onscreen_text || "").trim().length >= 8);
+  addQualityCheck(
+    checks,
+    "captions",
+    "Every scene has clean on-screen caption text",
+    captionReady,
+    12,
+    captionReady
+      ? "Caption text exists for every scene."
+      : "Add short, readable captions for every scene."
+  );
+
+  addQualityCheck(
+    checks,
+    "music",
+    "Music bed is available",
+    hasAsset(audioAssets.music),
+    6,
+    hasAsset(audioAssets.music)
+      ? "Background music bed is present."
+      : "Add low-volume music for reel energy."
+  );
+
+  const ctaReady = /(try|open|link|follow|share|save|comment|publish|review|check|use|visit|download|final)/i.test(lastText || allText);
+  addQualityCheck(
+    checks,
+    "cta_review",
+    "Final scene has CTA or review reminder",
+    ctaReady,
+    6,
+    ctaReady
+      ? "Final scene includes action/review language."
+      : "Add a clear CTA plus final human review reminder."
+  );
+
+  const durationReady = totalDurationSeconds >= 30 && totalDurationSeconds <= 60;
+  addQualityCheck(
+    checks,
+    "duration",
+    "Reel duration is tight",
+    durationReady,
+    4,
+    durationReady
+      ? `${totalDurationSeconds}s fits the 30-60s target.`
+      : `${totalDurationSeconds}s is outside the preferred 30-60s range.`
+  );
+
+  for (const check of checks) {
+    if (!check.ok) {
+      warnings.push(check.note);
+    }
+  }
+
+  const score = checks.reduce((sum, check) => sum + check.points, 0);
+  const maxScore = checks.reduce((sum, check) => sum + check.maxPoints, 0);
+  const percent = maxScore ? Math.round((score / maxScore) * 100) : 0;
+  const status = percent >= 88
+    ? "post_ready_review"
+    : percent >= 72
+      ? "usable_needs_review"
+      : "needs_improvement";
+
+  return {
+    ok: percent >= 72,
+    score: percent,
+    rawScore: score,
+    maxScore,
+    status,
+    summary: status === "post_ready_review"
+      ? "Strong draft. Do one human review, then it is close to post-ready."
+      : status === "usable_needs_review"
+        ? "Usable draft. Improve the missing checklist items before posting."
+        : "Needs improvement before posting.",
+    outputPath,
+    sizeBytes,
+    durationSeconds: totalDurationSeconds,
+    checks,
+    warnings,
+    generatedAt: new Date().toISOString()
+  };
 }
 
 async function copyAsset(source, destinationDir, name) {
@@ -425,7 +609,8 @@ const assets = {
   demoAfter: await copyAsset(desktopDemoAfter, assetDir, "desktop-demo-after"),
   demoVideo: await copyAsset(desktopDemoVideo, assetDir, "desktop-demo"),
   mobileScroll: await copyAsset(mobileScrollVideo, assetDir, "mobile-scroll"),
-  avatarHost: await copyAsset(avatarHostImage, assetDir, "avatar-host")
+  avatarHost: await copyAsset(avatarHostImage, assetDir, "avatar-host"),
+  hookAvatarStyle: ["female", "male", "auto"].includes(hookAvatarStyle) ? hookAvatarStyle : "female"
 };
 const vidsCacheAssets = await copyCachedVidsAssets(toolDir, assetDir, scenePlan.scenes.length);
 assets.vidsClips = vidsCacheAssets.sceneClips;
@@ -450,6 +635,7 @@ const props = {
 const propsPath = path.join(outputRoot, "remotion-props.json");
 const outputPath = path.join(outputRoot, args.filename || `${safeFileName(props.toolName)}-local-reel.mp4`);
 const reportPath = path.join(outputRoot, "local-reel-report.json");
+const qualityReportPath = path.join(outputRoot, "reel-quality-report.json");
 await writeJson(propsPath, props);
 
 const report = {
@@ -461,6 +647,7 @@ const report = {
   outputPath,
   assets,
   audio: audioAssets,
+  hookAvatarStyle: assets.hookAvatarStyle,
   sceneDurationSeconds,
   totalDurationSeconds,
   renderedAt: new Date().toISOString()
@@ -532,10 +719,35 @@ async function mirrorLocalRenderOutputs(report) {
 try {
   const render = await runRender(propsPath, outputPath);
   const stat = await fs.stat(outputPath);
+  const quality = buildQualityReport({
+    props,
+    assets,
+    audioAssets,
+    outputPath,
+    sizeBytes: stat.size,
+    totalDurationSeconds
+  });
   report.ok = true;
   report.sizeBytes = stat.size;
   report.render = render;
+  report.quality = quality;
+  report.qualityScore = quality.score;
+  report.qualityStatus = quality.status;
+  report.qualityWarnings = quality.warnings;
+  report.qualityReportPath = qualityReportPath;
+  await writeJson(qualityReportPath, quality);
   await mirrorLocalRenderOutputs(report);
+  const qualityEntry = await mirrorGeneratedFile({
+    toolDir,
+    sourcePath: qualityReportPath,
+    category: "local-render",
+    fileName: "reel-quality-report.json",
+    label: "Reel quality report",
+    note: "Automated production checklist for avatar hook, real demo proof, voiceover, captions, CTA, and duration."
+  });
+  if (qualityEntry) {
+    report.generatedArchive.files.push(qualityEntry);
+  }
   await writeJson(reportPath, report);
   const reportEntry = await mirrorGeneratedFile({
     toolDir,

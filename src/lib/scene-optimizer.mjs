@@ -86,8 +86,8 @@ function sceneCaption(sceneNumber, sceneCount, row, existing) {
   const toolName = safeToolName(row);
   const role = roleForScene(sceneNumber, sceneCount);
   const defaults = {
-    hook: "Stop manual checks",
-    hook_intro: "One tool, faster result",
+    hook: "Manual work? Stop.",
+    hook_intro: "Watch this quick fix",
     intro: shortPhrase(toolName, "Micro tool", 30),
     demo: "Real tool demo",
     demo_workflow: "Demo -> result",
@@ -109,7 +109,7 @@ function sceneVoiceover(sceneNumber, sceneCount, row, existing) {
   const toolUrl = safeToolUrl(row.tool_url);
   const role = roleForScene(sceneNumber, sceneCount);
   const defaults = {
-    hook: `Agar ${topic} manual kar rahe ho, chhota task bhi time kha leta hai. Isko faster aur cleaner banate hain.`,
+    hook: `Agar ${topic} abhi manual kar rahe ho, aap time aur accuracy dono lose kar rahe ho. Dekho ye quick fix.`,
     hook_intro: `Agar ${topic} manual kar rahe ho, ${toolName} isko faster aur cleaner banata hai. Chalo real demo dekhte hain.`,
     intro: `${toolName} ek focused micro tool hai. ${targetUser} ke liye: ${benefit}. Heavy setup nahi, quick review.`,
     demo: `Ab real demo: ${toolUrl} open hai. Fictional data add karo, visible action run karo, aur result review karo.`,
@@ -130,8 +130,8 @@ function sceneVisual(sceneNumber, sceneCount, row, existing, hasCaptureAssets) {
   const toolUrl = safeToolUrl(row.tool_url);
   const role = roleForScene(sceneNumber, sceneCount);
   const defaults = {
-    hook: "Same professional UGC creator/avatar notices repeated manual work, then turns to a laptop with the real tool page ready.",
-    hook_intro: "Same creator shows the problem and introduces the tool while the real tool page is visible on a laptop.",
+    hook: "Male or female UGC avatar starts face-to-camera with a sharp hook, then points to a laptop with the real tool page ready.",
+    hook_intro: "Same avatar shows the problem and introduces the tool while the real tool page is visible on a laptop.",
     intro: "Same creator introduces the micro tool beside a laptop and phone setup, keeping the actual tool page visible.",
     demo: `Actual screen demo opens ${toolUrl}, uses fictional/demo data only, clicks visible controls, and shows the result screen.`,
     demo_workflow: `Actual screen demo opens ${toolUrl}, adds fictional input, runs a visible action, and reviews the output.`,

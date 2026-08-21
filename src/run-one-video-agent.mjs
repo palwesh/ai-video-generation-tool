@@ -35,6 +35,7 @@ const localOnly = Boolean(args["local-only"]);
 const generateInVids = Boolean(args.generate) && !localOnly && !prepOnly;
 const useVidsSceneClips = generateInVids && !args["vids-timeline-export"];
 const allowLocalFallback = generateInVids && !args["no-local-fallback"];
+const hookVidsFirst = Boolean(args["hook-vids-first"] || args["vids-hook-first"] || args["hook-first"]);
 const shouldCapture = !args["no-capture"];
 const aiProvider = args["ai-provider"] || process.env.TRF_AI_PROVIDER || config.ai?.provider || "openai";
 const aiModel = args["ai-model"] || process.env.OPENAI_MODEL || process.env.GEMINI_MODEL || config.ai?.openaiModel || config.aiModel || "";
@@ -46,6 +47,7 @@ const creatorImages = args["creator-images"] || args["avatar-images"] || args["r
 const avatarProviderPackProviders = args["avatar-pack-providers"] || config.avatarGeneration?.providers || "heygen,did,runway,veo,pika";
 const avatarClipProvider = String(args["avatar-provider"] || config.avatarGeneration?.provider || "manual").toLowerCase();
 const generateAvatarClips = Boolean(args["generate-avatar-clips"] || args["generate-avatar"] || (avatarClipProvider === "heygen" && args["avatar-provider"]));
+const hookAvatarStyle = String(args["hook-avatar"] || args["hook-avatar-style"] || config.voiceover?.hookAvatarStyle || "female").toLowerCase();
 const ttsProvider = String(args["tts-provider"] || args["voice-provider"] || config.voiceover?.provider || "local").toLowerCase();
 const shouldGenerateVoiceovers = !["", "none", "off", "local", "macos", "windows"].includes(ttsProvider);
 const driveSyncDir = resolveDriveSyncDir(config, args);
@@ -94,6 +96,10 @@ const extraHeaders = [
   "TRF Vids Cached Clips",
   "TRF Final MP4 Path",
   "TRF QA Status",
+  "TRF Reel Quality Score",
+  "TRF Reel Quality Status",
+  "TRF Reel Quality Report",
+  "TRF Reel Quality Notes",
   "TRF Last Automation Run",
   "TRF Final Video Link",
   "TRF Final Video Folder Link",
@@ -231,6 +237,10 @@ function enrichmentFor(normalized, result, final = {}) {
     Array.isArray(final.cachedVidsClips) ? final.cachedVidsClips.join("\n") : "",
     final.mp4Path || "",
     final.qaStatus || "Needs human review",
+    final.qualityScore ? `${final.qualityScore}/100` : "",
+    final.qualityStatus || "",
+    final.qualityReportPath ? fileHyperlink(final.qualityReportPath, "Open quality report") : "",
+    Array.isArray(final.qualityWarnings) ? final.qualityWarnings.slice(0, 4).join("\n") : "",
     new Date().toISOString(),
     finalVideoLink,
     finalVideoFolderLink,
@@ -420,6 +430,9 @@ function parseSceneSelection(value) {
 }
 
 function selectedVidsSceneNumbers(scenePlan) {
+  if (hookVidsFirst && !args["vids-scenes"]) {
+    return [1];
+  }
   let sceneNumbers = args["vids-scenes"]
     ? parseSceneSelection(args["vids-scenes"])
     : validSceneNumbers(scenePlan.scenes);
@@ -446,6 +459,7 @@ async function renderLocalReel(result, steps, generatedFiles, reason, status = "
     "src/render-local-reel.mjs",
     "--tool-dir", result.runDir,
     "--output", localOutputDir,
+    "--hook-avatar", hookAvatarStyle,
     "--filename", `${result.slug}-local-fallback-reel.mp4`
   ];
 
@@ -474,10 +488,16 @@ async function renderLocalReel(result, steps, generatedFiles, reason, status = "
 
   return {
     reportPath: localReportPath,
+    qualityReportPath: localReport.qualityReportPath || "",
+    qualityScore: localReport.qualityScore || localReport.quality?.score || 0,
+    qualityStatus: localReport.qualityStatus || localReport.quality?.status || "",
+    qualityWarnings: localReport.qualityWarnings || localReport.quality?.warnings || [],
     mp4Path: localReport.toolFolderOutputPath || localReport.outputPath,
     originalMp4Path: localReport.outputPath,
     status,
-    qaStatus: "Local MP4 rendered; final human review needed before posting"
+    qaStatus: localReport.quality
+      ? `Quality ${localReport.quality.score}/100 - ${localReport.quality.summary}`
+      : "Local MP4 rendered; final human review needed before posting"
   };
 }
 
@@ -1093,6 +1113,10 @@ async function main() {
   const vidsProfilesTried = [];
   let googleVidsStatus = prepOnly ? "Script/assets prepared; video skipped" : localOnly ? "Local MP4 rendered" : generateInVids ? "Generated; export pending" : "Dry-run prompt fill complete";
   let qaStatus = prepOnly ? "Prep only; render or generate before posting" : generateInVids || localOnly ? "Needs final human review before posting" : "Dry-run only";
+  let qualityReportPath = "";
+  let qualityScore = 0;
+  let qualityStatus = "";
+  let qualityWarnings = [];
   let driveSync = null;
   let driveSyncError = "";
   let sourceWorkbookUpdate = null;
@@ -1105,6 +1129,10 @@ async function main() {
     generatedFiles,
     mp4Path,
     qaStatus,
+    qualityReportPath,
+    qualityScore,
+    qualityStatus,
+    qualityWarnings,
     driveSyncStatus: driveSync?.status || (driveSyncError ? `Drive sync failed: ${driveSyncError}` : driveSyncDir ? (mp4Path ? "Drive sync pending" : "Skipped; no final MP4") : "Not uploaded"),
     driveVideoPath: driveSync?.driveVideoPath || "",
     driveFolderPath: driveSync?.driveFolderPath || "",
@@ -1118,6 +1146,12 @@ async function main() {
     naturalVoiceoverReportPath: naturalVoiceover.reportPath || "",
     sourceWorkbookUpdate
   });
+  const applyQualityFromRender = (localRender) => {
+    qualityReportPath = localRender.qualityReportPath || "";
+    qualityScore = localRender.qualityScore || 0;
+    qualityStatus = localRender.qualityStatus || "";
+    qualityWarnings = Array.isArray(localRender.qualityWarnings) ? localRender.qualityWarnings : [];
+  };
 
   if (prepOnly) {
     steps.push({
@@ -1132,6 +1166,7 @@ async function main() {
     fallbackReportPath = localRender.reportPath;
     googleVidsStatus = localRender.status;
     qaStatus = localRender.qaStatus;
+    applyQualityFromRender(localRender);
   } else {
     const profilesToTry = generateInVids ? vidsProfiles : vidsProfiles.slice(0, 1);
     console.log(`Google Vids profiles configured: ${profilesToTry.join(", ")}`);
@@ -1396,14 +1431,21 @@ async function main() {
         result,
         steps,
         generatedFiles,
-        "Google Vids scene clips downloaded",
-        "Google Vids scene clips downloaded; local MP4 merged"
+          hookVidsFirst ? "Google Vids hook clip downloaded" : "Google Vids scene clips downloaded",
+          hookVidsFirst
+            ? "Google Vids hook clip downloaded; local MP4 merged with real tool assets"
+            : "Google Vids scene clips downloaded; local MP4 merged"
       );
       mp4Path = localMerge.mp4Path;
-      fallback = "local_scene_clip_merge";
+      fallback = hookVidsFirst ? "local_hook_vids_merge" : "local_scene_clip_merge";
       fallbackReportPath = localMerge.reportPath;
-      googleVidsStatus = "Scene clips downloaded; local MP4 merged";
-      qaStatus = "Local MP4 merged from Vids scene clips; final human review needed before posting";
+      applyQualityFromRender(localMerge);
+      googleVidsStatus = hookVidsFirst
+        ? "Hook Vids clip downloaded; local MP4 merged"
+        : "Scene clips downloaded; local MP4 merged";
+      qaStatus = hookVidsFirst
+        ? "Local MP4 merged from first Vids hook plus real tool assets; final human review needed before posting"
+        : "Local MP4 merged from Vids scene clips; final human review needed before posting";
     } else if (generateInVids && googleVidsError && allowLocalFallback) {
       const fallbackStatus = partialGeneratedScenes.length
         ? `Google Vids inserted scenes ${partialGeneratedScenes.join(", ")} but failed before final export; local MP4 rendered`
@@ -1414,6 +1456,7 @@ async function main() {
       fallbackReportPath = localFallback.reportPath;
       googleVidsStatus = localFallback.status;
       qaStatus = localFallback.qaStatus;
+      applyQualityFromRender(localFallback);
     } else if (generateInVids && useVidsSceneClips && args["no-export"]) {
       googleVidsStatus = "Scene prompts generated; export skipped";
       qaStatus = "Needs scene MP4 export and final local merge";
@@ -1452,6 +1495,8 @@ async function main() {
     },
     toolDir: result.runDir,
     vidsUrl,
+    hookVidsFirst,
+    hookAvatarStyle,
     vidsSceneClipMode: useVidsSceneClips,
     vidsSceneUrls,
     vidsSceneClips,
@@ -1481,6 +1526,11 @@ async function main() {
     cachedVidsClips,
     generatedFolder,
     generatedFiles,
+    qualityReportPath,
+    qualityScore,
+    qualityStatus,
+    qualityWarnings,
+    qaStatus,
     preparedWorkbookCopy: preparedWorkbookCopy?.destinationPath || "",
     agentReportCopy: "",
     googleVidsError,

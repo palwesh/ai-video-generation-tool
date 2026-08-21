@@ -11,7 +11,8 @@
 7. Convert the script into 3-6 scenes of 10 seconds each; default is 6 scenes / 60 seconds.
 8. Save Google Vids-ready scene prompts and `vids-generated-scenes/scene-XX/` folders.
 9. Save post caption and hashtags.
-10. Create an enriched workbook copy with output columns for asset paths, reel script files, Vids status, Drive sync status, Drive video/folder links, final MP4 path, and QA.
+10. Render or merge the final Reel, then create `reel-quality-report.json` with avatar hook, real demo proof, voiceover, captions, CTA, and duration checks.
+11. Create an enriched workbook copy with output columns for asset paths, reel script files, Vids status, Drive sync status, Drive video/folder links, final MP4 path, QA status, quality score, and quality report.
 
 ## Google Vids Reality
 
@@ -24,6 +25,7 @@ Google Vids supports prompt-based AI clips and MP4 download, but a stable public
 - Submit, insert, and export one generated Google Vids scene at a time.
 - Save each scene export under `vids-generated-scenes/scene-XX/` and cache it as `vids-clips/scene-XX.mp4`.
 - Merge final MP4 locally from cached Vids scene clips plus real tool screenshots/recordings.
+- Recommended hybrid option: generate only the first 10-second hook/avatar clip in Google Vids with `--hook-vids-first --vids-scenes 1`, cache it as `vids-clips/scene-01.mp4`, then let local rendering use real screenshots and demo recordings for the rest.
 - If `--drive-sync-dir` is provided, copy the final MP4 and tool folder into the Google Drive Desktop synced folder and write the Drive video/folder links into the workbook.
 
 Tested browser automation status:
@@ -37,7 +39,7 @@ Tested browser automation status:
 - Compact prompts are used in Google Vids, so each 10-second clip stays focused and easier to generate.
 - Google sign-in/account-chooser pages fail fast with a clear login/profile error instead of silently filling the wrong page.
 - MP4 export/download works with `npm run vids:export`.
-- Free local 30-60 second MP4 rendering works with real screenshots/recording, captions, voiceover, and music.
+- Free local 30-60 second MP4 rendering works with real screenshots/recording, captions, voiceover, music, and automated quality reporting.
 
 ## Future V2
 

@@ -246,6 +246,12 @@ partial-google-vids-export-scenes-01-03.mp4
 
 Default Google Vids mode creates one Vids file per scene, exports each scene MP4, stores it in `vids-generated-scenes/scene-XX/`, and caches it as `vids-clips/scene-XX.mp4`. Local rendering then merges the final Reel. The old full-timeline export path is available with `--vids-timeline-export`.
 
+Hook-first hybrid mode creates only Scene 1 in Google Vids, exports it as a 10-second hook/avatar clip, stores it in `vids-generated-scenes/scene-01/`, caches it as `vids-clips/scene-01.mp4`, and then renders the final Reel locally with real tool screenshots and demo recordings:
+
+```bash
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --hook-vids-first --vids-scenes 1 --scene-count 6 --max-scenes 6
+```
+
 When local MP4 render runs, priority is:
 
 ```text
@@ -292,6 +298,7 @@ generated/agent/prepared-tool-reel-workbook.xlsx
 generated/agent/one-video-agent-report.json
 generated/local-render/final-video.mp4
 generated/local-render/local-reel-report.json
+generated/local-render/reel-quality-report.json
 generated/local-render/remotion-props.json
 generated/local-render/assets/
 generated/google-vids/profile-name/
@@ -299,6 +306,8 @@ generated/google-vids-export/profile-name/
 generated/generated-manifest.json
 free-video-providers/
 ```
+
+`reel-quality-report.json` scores the Reel on avatar hook, hook copy, real tool proof, screen recording, voiceover, captions, music, CTA/review reminder, and 30-60 second duration. The dashboard and workbook surface the score so low-quality drafts can be improved before posting.
 
 Use `generated/` for final outputs and audit files. Use `free-video-providers/` for CapCut/Pika/Runway/Canva/D-ID/Shotstack prompts. Use `vids-clips/` for reusable Google Vids/avatar/provider footage that should feed future local renders.
 
@@ -352,7 +361,8 @@ Run / Queue & History / Docs tabs
 read and search docs inside dashboard
 ```
 
-The dashboard uses a compact sticky control sidebar on desktop. The main area has one-page tabs, quick status cards, a black terminal panel with internal scrolling, an output preview, queue/history cards, and a searchable docs reader.
+The dashboard opens in `Basic` mode. The existing full control dashboard is now grouped under `Advanced Features`, including one-page tabs, quick status cards, a black terminal panel with internal scrolling, an output preview, queue/history cards, profile limits, and a searchable docs reader.
+Use `Choose` beside the Excel file field to select an `.xlsx`, `.xls`, or `.csv` file. The dashboard saves a copy in `work/uploads/`, sets the input path, and loads the tool rows automatically. To update the original workbook file itself, paste its full path manually and click `Load`.
 The Profiles & Limits tab is the best place to check every Google Vids account at once.
 
 Dashboard modes:
@@ -361,6 +371,8 @@ Dashboard modes:
 Script + Assets -> prepares script, scene plan, screenshots, recordings, prompts, and workbook links only.
 Free Clip Pack -> prepares free provider prompt folders with no Google Vids quota.
 Local MP4 -> creates a free local video with captions, voiceover, music, and real tool proof.
+Quality Reel Preset -> sets Local MP4, 6 scenes, female/male avatar hook, Edge TTS free voice, real captures, captions, and music.
+Hook Vids + Local -> generates only the first 10-second Google Vids/avatar hook, then merges locally with real screenshots and demo recordings.
 Vids Clips -> asks Google Vids to generate/export separate scene clips, then local merge.
 All Vids Clips -> same scene-by-scene download flow for every scene; use only when quota is available.
 ```
@@ -697,6 +709,7 @@ outputs/runs/one-video-agent-.../
       local-render/
         tool-name-local-fallback-reel.mp4
         local-reel-report.json
+        reel-quality-report.json
         remotion-props.json
         assets/
       google-vids/
@@ -712,6 +725,7 @@ outputs/runs/one-video-agent-.../
   local-render/
     tool-name-local-fallback-reel.mp4
     local-reel-report.json
+    reel-quality-report.json
     remotion-props.json
 ```
 
@@ -1150,6 +1164,7 @@ LLM script:
 
 Natural voice:
 - Local TTS: free fallback, but robotic.
+- Edge TTS Free: install `edge-tts`, provider edge, voice `hi-IN-SwaraNeural`, `hi-IN-MadhurNeural`, `en-IN-NeerjaNeural`, or `en-IN-PrabhatNeural`.
 - OpenAI TTS: set OPENAI_API_KEY, provider openai, model gpt-4o-mini-tts, voice verse/marin/cedar/etc.
 - ElevenLabs: set ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID, provider elevenlabs.
 
@@ -1168,9 +1183,18 @@ Scene 3-5: real tool screenshots and recordings.
 Scene 6: avatar CTA plus safety reminder.
 ```
 
+Opening presenter style:
+
+```bash
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --local-only --hook-avatar female
+npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --local-only --hook-avatar male
+```
+
 Commands:
 
 ```bash
+python3 -m pip install edge-tts
+npm run voiceover:generate -- --tool-dir outputs/runs/.../tool-folder --provider edge --voice hi-IN-SwaraNeural
 npm run voiceover:generate -- --tool-dir outputs/runs/.../tool-folder --provider openai --voice verse
 npm run voiceover:generate -- --tool-dir outputs/runs/.../tool-folder --provider elevenlabs --voice YOUR_ELEVENLABS_VOICE_ID
 npm run avatar:generate -- --tool-dir outputs/runs/.../tool-folder --provider heygen --scenes 1,2,6 --voice-id YOUR_HEYGEN_VOICE_ID
@@ -1197,7 +1221,7 @@ Best next upgrades:
 6. Add manual approval step before spending Google Vids quota.
 7. Add retry controls for only failed scenes.
 8. Add thumbnail/cover image generator for every reel.
-9. Add quality score checks for blank frames, caption readability, and audio presence.
+9. Improve quality scoring with deeper blank-frame detection, caption contrast checks, and audio loudness checks.
 10. Add automatic scene splitting from cached full Google Vids exports when ffmpeg is installed.
 ```
 

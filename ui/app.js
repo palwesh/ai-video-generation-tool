@@ -1,6 +1,13 @@
 const els = {
   serverStatus: document.getElementById("serverStatus"),
+  basicControls: document.getElementById("basicControls"),
+  advancedControls: document.getElementById("advancedControls"),
+  basicWorkspace: document.getElementById("basicWorkspace"),
+  advancedWorkspace: document.getElementById("advancedWorkspace"),
   inputPath: document.getElementById("inputPath"),
+  chooseExcelBtn: document.getElementById("chooseExcelBtn"),
+  excelFileInput: document.getElementById("excelFileInput"),
+  excelFileStatus: document.getElementById("excelFileStatus"),
   driveSyncDir: document.getElementById("driveSyncDir"),
   updateSourceWorkbook: document.getElementById("updateSourceWorkbook"),
   toolSelect: document.getElementById("toolSelect"),
@@ -14,6 +21,7 @@ const els = {
   stopQueueBtn: document.getElementById("stopQueueBtn"),
   freeVideoProviders: document.getElementById("freeVideoProviders"),
   providerHelp: document.getElementById("providerHelp"),
+  qualityPresetBtn: document.getElementById("qualityPresetBtn"),
   aiMediaStatus: document.getElementById("aiMediaStatus"),
   useAiScript: document.getElementById("useAiScript"),
   aiProvider: document.getElementById("aiProvider"),
@@ -21,6 +29,7 @@ const els = {
   ttsProvider: document.getElementById("ttsProvider"),
   ttsVoice: document.getElementById("ttsVoice"),
   ttsModel: document.getElementById("ttsModel"),
+  hookAvatarStyle: document.getElementById("hookAvatarStyle"),
   avatarReferenceImages: document.getElementById("avatarReferenceImages"),
   avatarClipProvider: document.getElementById("avatarClipProvider"),
   heygenVoiceId: document.getElementById("heygenVoiceId"),
@@ -99,6 +108,7 @@ const els = {
 
 const state = {
   mode: "local",
+  featureTab: "basic",
   activeRunId: "",
   activeQueueId: "",
   activeTab: "run",
@@ -139,6 +149,38 @@ async function api(path, options = {}) {
   return data;
 }
 
+async function uploadExcelFile(file) {
+  if (!file) {
+    return;
+  }
+  if (!/\.(xlsx|xls|csv)$/i.test(file.name)) {
+    throw new Error("Please choose an .xlsx, .xls, or .csv file.");
+  }
+
+  setStatus("Uploading", "busy");
+  els.chooseExcelBtn.disabled = true;
+  els.excelFileStatus.textContent = `Uploading ${file.name}...`;
+  const response = await fetch("/api/input-upload", {
+    method: "POST",
+    headers: {
+      "content-type": "application/octet-stream",
+      "x-file-name": encodeURIComponent(file.name)
+    },
+    body: await file.arrayBuffer()
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.error || `Upload failed: ${response.status}`);
+  }
+
+  const upload = data.upload || {};
+  els.inputPath.value = upload.input || "";
+  els.excelFileStatus.textContent = `${upload.originalName || file.name} copied to work/uploads | ${formatBytes(upload.bytes || file.size)} | ${upload.tools?.length || 0} tool row(s) loaded`;
+  renderToolOptions(upload.tools || []);
+  setStatus("Ready");
+  appendTerminal(`Excel selected: ${upload.input || file.name}\n`, "system");
+}
+
 function setStatus(text, tone = "ready") {
   els.serverStatus.textContent = text;
   els.serverStatus.style.background = tone === "busy" ? "#fff7ed" : tone === "error" ? "#ffebe9" : "#eaf8ef";
@@ -157,6 +199,17 @@ function resetTerminal(text = "") {
   els.terminal.textContent = text || "";
 }
 
+function setFeatureTab(tab) {
+  state.featureTab = tab === "advanced" ? "advanced" : "basic";
+  document.querySelectorAll(".feature-tab").forEach((button) => {
+    button.classList.toggle("active", button.dataset.featureTab === state.featureTab);
+  });
+  els.basicControls.classList.toggle("is-hidden", state.featureTab !== "basic");
+  els.advancedControls.classList.toggle("is-hidden", state.featureTab !== "advanced");
+  els.basicWorkspace.classList.toggle("is-hidden", state.featureTab !== "basic");
+  els.advancedWorkspace.classList.toggle("is-hidden", state.featureTab !== "advanced");
+}
+
 function setMode(mode) {
   state.mode = mode;
   document.querySelectorAll(".segment").forEach((button) => {
@@ -164,6 +217,9 @@ function setMode(mode) {
   });
   if (mode === "google-full" && els.useAvatar.checked) {
     els.avatarScenes.value = "1,2,3,4,5,6";
+  }
+  if (mode === "google-hook" && els.useAvatar.checked) {
+    els.avatarScenes.value = "1";
   }
   if (mode === "google" && els.useAvatar.checked && els.avatarScenes.value.trim() === "1,2,3,4,5,6") {
     els.avatarScenes.value = "1,2,6";
@@ -182,6 +238,38 @@ function setMode(mode) {
   els.noLocalFallback.disabled = vidsDisabled;
   updateQuotaEstimate();
   updateInfoCards();
+}
+
+function applyQualityPreset() {
+  const ai = state.aiDefaults || {};
+  const voice = state.voiceoverDefaults || {};
+  setMode("local");
+  els.maxScenes.value = "6";
+  els.freeVideoProviders.value = "capcut,pika,runway,canva,did,shotstack";
+  els.useAiScript.checked = Boolean(ai.hasOpenAiKey || ai.hasGeminiKey);
+  if (els.useAiScript.checked && ai.hasGeminiKey && !ai.hasOpenAiKey) {
+    els.aiProvider.value = "gemini";
+    els.aiModel.value = ai.defaultGeminiModel || "gemini-2.5-pro";
+  } else {
+    els.aiProvider.value = "openai";
+    els.aiModel.value = ai.defaultModel || "gpt-5-mini";
+  }
+  els.ttsProvider.value = "edge";
+  els.ttsVoice.value = voice.edgeVoice || "hi-IN-SwaraNeural";
+  els.ttsModel.value = "edge-tts";
+  els.hookAvatarStyle.value = "female";
+  els.generateAvatarClips.checked = false;
+  els.noLocalFallback.checked = false;
+  els.reuseUrl.checked = true;
+  syncAiMediaModels();
+  updateQuotaEstimate();
+  updateInfoCards();
+  resetTerminal([
+    "Quality Reel Preset applied.",
+    "Flow: real tool screenshots + screen recording + captions + music + free Edge TTS voice.",
+    "Tip: install Edge TTS once if voice generation fails: python3 -m pip install edge-tts",
+    ""
+  ].join("\n"));
 }
 
 function quotaLimitUsed(quota = {}) {
@@ -599,6 +687,7 @@ function buildRunBody(rowOverride = null) {
     ttsProvider: els.ttsProvider.value,
     ttsVoice: els.ttsVoice.value.trim(),
     ttsModel: els.ttsModel.value.trim(),
+    hookAvatarStyle: els.hookAvatarStyle.value,
     avatarReferenceImages: els.avatarReferenceImages.value.trim(),
     avatarClipProvider: els.avatarClipProvider.value,
     heygenVoiceId: els.heygenVoiceId.value.trim(),
@@ -634,7 +723,7 @@ function updateAiMediaStatus() {
     els.avatarReferenceImages.value.trim() ? `Avatar ${avatarOk ? "ready" : "key/voice missing"}` : "Avatar refs optional"
   ];
   els.aiMediaStatus.textContent = parts.join(" | ");
-  els.aiMediaStatus.style.color = aiOk && voiceOk && avatarOk ? "#137a42" : "#9f2b22";
+  els.aiMediaStatus.style.color = (!els.useAiScript.checked || aiOk) && voiceOk && avatarOk ? "#137a42" : "#9f2b22";
 }
 
 function syncAiMediaModels() {
@@ -647,11 +736,16 @@ function syncAiMediaModels() {
     els.aiModel.value = ai.defaultModel || "gpt-5-mini";
   }
   if (els.ttsProvider.value === "elevenlabs") {
-    if (!els.ttsModel.value.trim() || /^gpt-/i.test(els.ttsModel.value.trim())) {
+    if (!els.ttsModel.value.trim() || /^(gpt-|edge-tts)/i.test(els.ttsModel.value.trim())) {
       els.ttsModel.value = voice.elevenLabsModel || "eleven_multilingual_v2";
     }
+  } else if (els.ttsProvider.value === "edge") {
+    els.ttsModel.value = "edge-tts";
+    if (!els.ttsVoice.value.trim() || /^(verse|marin|cedar|alloy|nova)$/i.test(els.ttsVoice.value.trim())) {
+      els.ttsVoice.value = voice.edgeVoice || "hi-IN-SwaraNeural";
+    }
   } else if (els.ttsProvider.value === "openai") {
-    if (!els.ttsModel.value.trim() || /^eleven/i.test(els.ttsModel.value.trim())) {
+    if (!els.ttsModel.value.trim() || /^(eleven|edge-tts)/i.test(els.ttsModel.value.trim())) {
       els.ttsModel.value = voice.openaiModel || "gpt-4o-mini-tts";
     }
     if (!els.ttsVoice.value.trim()) {
@@ -704,15 +798,18 @@ function countScenes(value, maxScenes) {
 
 function estimateQuota(rowCount = 1) {
   const maxScenes = Math.max(3, Math.min(6, Number(els.maxScenes.value || 6)));
-  const generating = state.mode === "google" || state.mode === "google-full";
+  const generating = state.mode === "google" || state.mode === "google-full" || state.mode === "google-hook";
   if (!generating) {
     return { aiVideo: 0, avatar: 0, total: 0, rowCount };
   }
-  const avatarCount = els.useAvatar.checked ? countScenes(els.avatarScenes.value || "1,2,6", maxScenes) : 0;
+  const targetSceneCount = state.mode === "google-hook" ? 1 : maxScenes;
+  const avatarScenes = parseNumberList(els.avatarScenes.value || (state.mode === "google-hook" ? "1" : "1,2,6"))
+    .filter((scene) => scene >= 1 && scene <= maxScenes && (state.mode !== "google-hook" || scene === 1));
+  const avatarCount = els.useAvatar.checked ? avatarScenes.length : 0;
   return {
-    aiVideo: Math.max(0, maxScenes - avatarCount) * rowCount,
+    aiVideo: Math.max(0, targetSceneCount - avatarCount) * rowCount,
     avatar: avatarCount * rowCount,
-    total: maxScenes * rowCount,
+    total: targetSceneCount * rowCount,
     rowCount
   };
 }
@@ -731,10 +828,11 @@ function updateQuotaEstimate() {
     prep: "Script/assets only",
     "free-providers": "Free provider pack",
     local: "Local MP4",
+    "google-hook": "Hook Vids + Local",
     google: "Vids Clips",
     "google-full": "All Vids Clips"
   }[state.mode] || state.mode;
-  const warning = limitUsed && (state.mode === "google" || state.mode === "google-full")
+  const warning = limitUsed && (state.mode === "google" || state.mode === "google-full" || state.mode === "google-hook")
     ? "Selected profile marked LIMIT USED. Try another profile or use Local MP4."
     : "";
   els.quotaEstimate.textContent = [
@@ -806,6 +904,7 @@ function updateInfoCards() {
   ].filter(Boolean);
   const latestOutputParts = [
     latestHistory?.mp4Path ? `Last video: ${shortPath(latestHistory.mp4Path)}` : "",
+    latestHistory?.qualityScore ? `Quality: ${latestHistory.qualityScore}/100` : "",
     latestHistory?.generatedFolder ? `Generated: ${shortPath(latestHistory.generatedFolder)}` : "",
     latestHistory?.endedAt ? formatTime(latestHistory.endedAt) : ""
   ].filter(Boolean);
@@ -813,8 +912,12 @@ function updateInfoCards() {
   els.selectedToolInfo.textContent = toolTitle;
   els.selectedToolMeta.textContent = toolMeta || "Load Excel tools first.";
   els.modeInfo.textContent = modeLabel(state.mode);
-  els.modeMeta.textContent = state.mode === "free-providers"
+  els.modeMeta.textContent = state.mode === "google-hook"
+    ? `${scenes} scenes | 1 Vids hook + local edit`
+    : state.mode === "free-providers"
     ? `${scenes} scene(s) | provider prompts only`
+    : state.mode === "local"
+    ? `${scenes} scene(s) | avatar hook + real demo`
     : `${scenes} scene(s) | ${estimate.total} Google job estimate`;
   els.profileInfo.textContent = `${state.profiles.length} added, ${loggedIn} login ok`;
   els.profileMeta.textContent = [
@@ -879,8 +982,13 @@ async function loadDefaults() {
   els.aiProvider.value = data.ai?.defaultProvider || "openai";
   els.aiModel.value = data.ai?.defaultModel || "gpt-5-mini";
   els.ttsProvider.value = data.voiceover?.defaultProvider || "local";
-  els.ttsVoice.value = data.voiceover?.openaiVoice || "verse";
-  els.ttsModel.value = data.voiceover?.openaiModel || "gpt-4o-mini-tts";
+  els.ttsVoice.value = data.voiceover?.defaultProvider === "edge"
+    ? data.voiceover?.edgeVoice || "hi-IN-SwaraNeural"
+    : data.voiceover?.openaiVoice || "verse";
+  els.ttsModel.value = data.voiceover?.defaultProvider === "edge"
+    ? "edge-tts"
+    : data.voiceover?.openaiModel || "gpt-4o-mini-tts";
+  els.hookAvatarStyle.value = data.voiceover?.hookAvatarStyle || "female";
   els.avatarReferenceImages.value = data.avatarGeneration?.referenceImages || "";
   els.avatarClipProvider.value = data.avatarGeneration?.defaultProvider || "manual";
   els.heygenVoiceId.value = data.avatarGeneration?.heygenVoiceId || "";
@@ -1022,10 +1130,8 @@ async function renderDocView() {
   els.docContent.innerHTML = html || "<p>No content.</p>";
 }
 
-async function loadTools() {
-  setStatus("Loading", "busy");
-  const data = await api(`/api/tools?input=${encodeURIComponent(els.inputPath.value)}`);
-  state.tools = data.tools || [];
+function renderToolOptions(tools) {
+  state.tools = tools || [];
   els.toolSelect.innerHTML = state.tools.map((tool) => {
     const status = tool.status ? ` [${tool.status}]` : "";
     const label = `Row ${tool.row} - ${tool.name}${status}`;
@@ -1036,6 +1142,13 @@ async function loadTools() {
     els.rowNumber.value = first.row;
     els.toolSelect.value = String(first.row);
   }
+  updateInfoCards();
+}
+
+async function loadTools() {
+  setStatus("Loading", "busy");
+  const data = await api(`/api/tools?input=${encodeURIComponent(els.inputPath.value)}`);
+  renderToolOptions(data.tools || []);
   setStatus("Ready");
   updateInfoCards();
 }
@@ -1092,7 +1205,8 @@ function showResult(run) {
   setOutputButtons(report, run);
   if (report?.mp4Path) {
     const isLocalFallback = report.mode === "generate_export" && report.fallback === "local_remotion";
-    els.resultTitle.textContent = isLocalFallback ? "Local fallback video ready" : "Video ready";
+    const isHookMerge = report.hookVidsFirst || report.fallback === "local_hook_vids_merge";
+    els.resultTitle.textContent = isHookMerge ? "Hook + local edit video ready" : isLocalFallback ? "Local fallback video ready" : "Video ready";
     const parts = [
       `MP4: ${report.mp4Path}`,
       report.driveVideoPath ? `Drive video: ${report.driveVideoPath}` : "",
@@ -1105,8 +1219,13 @@ function showResult(run) {
       report.naturalVoiceoverFolder ? `Natural voice: ${report.naturalVoiceoverFolder}` : "",
       report.avatarReferencePackFolder ? `Avatar pack: ${report.avatarReferencePackFolder}` : "",
       report.generatedFiles?.length ? `Generated saved: ${report.generatedFiles.length}` : "",
+      report.qualityScore ? `Quality score: ${report.qualityScore}/100 (${report.qualityStatus || "review"})` : "",
+      report.qualityReportPath ? `Quality report: ${report.qualityReportPath}` : "",
+      report.qualityWarnings?.length ? `Quality notes: ${report.qualityWarnings.slice(0, 3).join(" | ")}` : "",
+      report.qaStatus ? `QA: ${report.qaStatus}` : "",
       report.vidsClipCacheFolder ? `Vids cache: ${report.vidsClipCacheFolder}` : "",
       report.cachedVidsClips?.length ? `Cached clips: ${report.cachedVidsClips.length}` : "",
+      isHookMerge ? "Flow: Scene 1 generated in Google Vids, rest merged locally from real tool assets." : "",
       isLocalFallback && report.googleVidsError ? `Why: Google Vids failed before final export, so local MP4 was rendered.` : "",
       report.partialGeneratedScenes?.length ? `Vids scenes inserted before failure: ${report.partialGeneratedScenes.join(", ")}` : "",
       `Workbook: ${report.preparedWorkbook || ""}`
@@ -1133,6 +1252,8 @@ function showResult(run) {
       report.freeVideoProviderPackFolder ? `Providers: ${report.freeVideoProviderPackFolder}` : "",
       report.voiceoverPackFolder ? `Voice pack: ${report.voiceoverPackFolder}` : "",
       report.avatarReferencePackFolder ? `Avatar pack: ${report.avatarReferencePackFolder}` : "",
+      report.qualityScore ? `Quality score: ${report.qualityScore}/100 (${report.qualityStatus || "review"})` : "",
+      report.qualityReportPath ? `Quality report: ${report.qualityReportPath}` : "",
       report.vidsClipCacheFolder ? `Vids cache: ${report.vidsClipCacheFolder}` : "",
       report.preparedWorkbook ? `Workbook: ${report.preparedWorkbook}` : "",
       report.error || ""
@@ -1148,6 +1269,7 @@ function modeLabel(mode) {
     prep: "Script + Assets",
     "free-providers": "Free Clip Pack",
     local: "Local MP4",
+    "google-hook": "Hook Vids + Local",
     google: "Vids Clips",
     "google-full": "All Vids Clips",
     local_only: "Local MP4",
@@ -1255,6 +1377,7 @@ function renderHistory(history) {
       entry.driveFolderPath ? `Drive: ${shortPath(entry.driveFolderPath)}` : "",
       entry.vidsSceneClips?.length ? `Scene clips: ${entry.vidsSceneClips.length}` : "",
       entry.generatedFolder ? `Generated: ${shortPath(entry.generatedFolder)}` : "",
+      entry.qualityScore ? `Quality: ${entry.qualityScore}/100 (${entry.qualityStatus || "review"})` : "",
       entry.freeVideoProviderPackFolder ? `Providers: ${shortPath(entry.freeVideoProviderPackFolder)}` : "",
       entry.vidsClipCacheFolder ? `Cache: ${shortPath(entry.vidsClipCacheFolder)}` : "",
       entry.vidsUrl ? "Google Vids link saved" : "",
@@ -1268,6 +1391,7 @@ function renderHistory(history) {
       entry.driveVideoPath ? `<button class="secondary-button" data-action="preview-path" data-path="${escapeHtml(entry.driveVideoPath)}" type="button">Drive Preview</button>` : "",
       entry.driveFolderPath ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(entry.driveFolderPath)}" type="button">Drive</button>` : "",
       entry.generatedFolder ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(entry.generatedFolder)}" type="button">Generated</button>` : "",
+      entry.qualityReportPath ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(entry.qualityReportPath)}" type="button">Quality</button>` : "",
       entry.freeVideoProviderPackFolder ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(entry.freeVideoProviderPackFolder)}" type="button">Providers</button>` : "",
       entry.vidsClipCacheFolder ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(entry.vidsClipCacheFolder)}" type="button">Cache</button>` : "",
       entry.outputDir ? `<button class="secondary-button" data-action="open-path" data-path="${escapeHtml(entry.outputDir)}" type="button">Run</button>` : ""
@@ -1470,6 +1594,12 @@ document.querySelectorAll(".segment").forEach((button) => {
   button.addEventListener("click", () => setMode(button.dataset.mode));
 });
 
+document.querySelectorAll(".feature-tab").forEach((button) => {
+  button.addEventListener("click", () => setFeatureTab(button.dataset.featureTab));
+});
+
+els.qualityPresetBtn.addEventListener("click", applyQualityPreset);
+
 document.querySelectorAll(".tab-button").forEach((button) => {
   button.addEventListener("click", () => setActiveTab(button.dataset.tab));
 });
@@ -1545,6 +1675,7 @@ els.refreshDocsBtn.addEventListener("click", () => {
   els.ttsProvider,
   els.ttsVoice,
   els.ttsModel,
+  els.hookAvatarStyle,
   els.avatarReferenceImages,
   els.avatarClipProvider,
   els.heygenVoiceId,
@@ -1570,6 +1701,29 @@ els.refreshDocsBtn.addEventListener("click", () => {
 
 els.quotaExhausted.addEventListener("change", () => {
   updateQuotaEstimate();
+  updateInfoCards();
+});
+
+els.chooseExcelBtn.addEventListener("click", () => {
+  els.excelFileInput.click();
+});
+
+els.excelFileInput.addEventListener("change", () => {
+  const file = els.excelFileInput.files?.[0];
+  uploadExcelFile(file)
+    .catch((error) => {
+      setStatus("Error", "error");
+      els.excelFileStatus.textContent = error.message;
+      appendTerminal(`${error.message}\n`, "stderr");
+    })
+    .finally(() => {
+      els.chooseExcelBtn.disabled = false;
+      els.excelFileInput.value = "";
+    });
+});
+
+els.inputPath.addEventListener("input", () => {
+  els.excelFileStatus.textContent = "Manual path entered. Click Load to read tools.";
   updateInfoCards();
 });
 
@@ -1693,6 +1847,7 @@ document.addEventListener("click", (event) => {
   }
 });
 
+setFeatureTab(state.featureTab);
 setActiveTab(state.activeTab);
 setMode(state.mode);
 loadDefaults().catch((error) => {

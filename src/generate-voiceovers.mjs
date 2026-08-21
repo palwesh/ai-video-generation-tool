@@ -1,5 +1,6 @@
 import path from "node:path";
 import fs from "node:fs/promises";
+import { spawn } from "node:child_process";
 import dotenv from "dotenv";
 import { parseArgs } from "./lib/args.mjs";
 import { ensureDir, readJson, writeJson } from "./lib/fsx.mjs";
@@ -72,6 +73,57 @@ async function writeAudioResponse(response, outputPath, label) {
   };
 }
 
+function commandUnavailableMessage(command) {
+  if (command === "edge-tts") {
+    return "edge-tts command is not installed. Install free Edge TTS with: python3 -m pip install edge-tts";
+  }
+  return `${command} command is not available.`;
+}
+
+function runCommand(label, command, commandArgs) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, commandArgs, {
+      cwd: process.cwd(),
+      shell: process.platform === "win32",
+      windowsHide: true
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout?.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr?.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on("error", (error) => {
+      if (error.code === "ENOENT") {
+        reject(new Error(commandUnavailableMessage(command)));
+        return;
+      }
+      reject(error);
+    });
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve({ stdout, stderr });
+        return;
+      }
+      reject(new Error(`${label} failed with code ${code}: ${(stderr || stdout || "").trim()}`));
+    });
+  });
+}
+
+async function runFirstAvailable(label, candidates, installHint) {
+  const errors = [];
+  for (const candidate of candidates) {
+    try {
+      return await runCommand(label, candidate.command, candidate.args);
+    } catch (error) {
+      errors.push(error.message);
+    }
+  }
+  throw new Error(`${errors.at(-1) || `${label} command failed.`} ${installHint}`);
+}
+
 async function generateOpenAiVoice(text, outputPath) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -125,6 +177,57 @@ async function generateElevenLabsVoice(text, outputPath) {
   return await writeAudioResponse(response, outputPath, "ElevenLabs");
 }
 
+async function generateEdgeVoice(text, outputPath) {
+  const voice = args.voice || process.env.EDGE_TTS_VOICE || "hi-IN-SwaraNeural";
+  const rate = args.rate || process.env.EDGE_TTS_RATE || "+6%";
+  const pitch = args.pitch || process.env.EDGE_TTS_PITCH || "+0Hz";
+  const volume = args.volume || process.env.EDGE_TTS_VOLUME || "+0%";
+  const commandArgs = [
+    "--voice", voice,
+    "--rate", rate,
+    "--pitch", pitch,
+    "--volume", volume,
+    "--text", text,
+    "--write-media", outputPath
+  ];
+  const localVenvPython = path.resolve(
+    process.cwd(),
+    "work",
+    "edge-tts-venv",
+    process.platform === "win32" ? path.join("Scripts", "python.exe") : path.join("bin", "python")
+  );
+  const configuredPython = process.env.EDGE_TTS_PYTHON || "";
+  const pythonCandidates = process.platform === "win32"
+    ? [
+      ...(configuredPython ? [{ command: configuredPython, args: ["-m", "edge_tts", ...commandArgs] }] : []),
+      { command: localVenvPython, args: ["-m", "edge_tts", ...commandArgs] },
+      { command: "py", args: ["-m", "edge_tts", ...commandArgs] },
+      { command: "python", args: ["-m", "edge_tts", ...commandArgs] }
+    ]
+    : [
+      ...(configuredPython ? [{ command: configuredPython, args: ["-m", "edge_tts", ...commandArgs] }] : []),
+      { command: localVenvPython, args: ["-m", "edge_tts", ...commandArgs] },
+      { command: "python3", args: ["-m", "edge_tts", ...commandArgs] },
+      { command: "python", args: ["-m", "edge_tts", ...commandArgs] }
+    ];
+  await runFirstAvailable(
+    "Edge TTS",
+    [{ command: "edge-tts", args: commandArgs }, ...pythonCandidates],
+    process.platform === "win32"
+      ? "Install free Edge TTS with: py -m pip install edge-tts"
+      : "Install free Edge TTS with: python3 -m pip install edge-tts"
+  );
+  const stat = await fs.stat(outputPath);
+  return {
+    outputPath,
+    sizeBytes: stat.size,
+    voice,
+    rate,
+    pitch,
+    volume
+  };
+}
+
 async function generateVoice(text, outputPath) {
   if (provider === "elevenlabs" || provider === "eleven") {
     return await generateElevenLabsVoice(text, outputPath);
@@ -132,7 +235,10 @@ async function generateVoice(text, outputPath) {
   if (provider === "openai") {
     return await generateOpenAiVoice(text, outputPath);
   }
-  throw new Error(`Unsupported TTS provider "${provider}". Use openai or elevenlabs.`);
+  if (provider === "edge" || provider === "edge-tts" || provider === "free") {
+    return await generateEdgeVoice(text, outputPath);
+  }
+  throw new Error(`Unsupported TTS provider "${provider}". Use openai, elevenlabs, or edge.`);
 }
 
 await ensureDir(voiceoverDir);
@@ -180,6 +286,8 @@ try {
         status: "generated",
         outputPath: generated.outputPath,
         sizeBytes: generated.sizeBytes,
+        voice: generated.voice || args.voice || "",
+        rate: generated.rate || args.rate || "",
         text
       });
       console.log(`Generated voiceover scene ${sceneNumber}: ${outputPath}`);

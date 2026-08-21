@@ -117,6 +117,7 @@ Then run Local MP4 mode; it will use cached provider clips first.
 ## Notes
 
 - Windows local voiceover uses PowerShell speech synthesis when available.
+- For a free neural Hindi/Hinglish voice, install Edge TTS with `py -m pip install edge-tts`, then run `npm run voiceover:generate -- --tool-dir path\to\tool-folder --provider edge --voice hi-IN-SwaraNeural`.
 - For a more natural final voice, run `npm run voiceover:pack -- --tool-dir path\to\tool-folder`, record `scene-01.mp3`, `scene-02.mp3`, etc. in the created `voiceovers` folder, then render with `--voiceover-dir path\to\tool-folder\voiceovers`.
 - If API keys are configured, run `npm run voiceover:generate -- --tool-dir path\to\tool-folder --provider openai` or `--provider elevenlabs` to generate scene MP3 files automatically.
 - To use your own avatar image, add its Windows path in the dashboard Avatar images field. The agent creates `avatar-references` and `avatar-generation` prompt folders.
