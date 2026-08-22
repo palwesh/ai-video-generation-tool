@@ -79,6 +79,7 @@ export function buildGoogleVidsClipPrompt(scenePlan, sceneNumber, manifest = {},
   const toolName = tool.tool_name || tool.topic || "AltF micro tool";
   const toolUrl = tool.tool_url || "provided Tool URL";
   const captureFiles = manifest.capture?.files || [];
+  const sceneCount = Number(scenePlan.metadata?.reel_scene_count || scenePlan.metadata?.scene_count || scenePlan.scenes.length || 6) || 6;
   const referenceFiles = Array.isArray(options.referenceFiles) ? options.referenceFiles : captureFiles;
   const referenceLine = referenceFiles.length
     ? `Use these attached real tool screenshots as the visible laptop/phone screen reference: ${referenceFiles.slice(0, 3).map(assetLabel).join(", ")}. Keep the screen readable and do not replace it with unrelated UI.`
@@ -95,7 +96,7 @@ export function buildGoogleVidsClipPrompt(scenePlan, sceneNumber, manifest = {},
 
   return trimBlock([
     `Create a 10-second 9:16 vertical video for ${toolName}.`,
-    `Scene ${scene.scene_number}/${scenePlan.scenes.length || 6} intent: ${sceneIntent(scene.scene_number, scenePlan.scenes.length || 6)}.`,
+    `Scene ${scene.scene_number}/${sceneCount} intent: ${sceneIntent(scene.scene_number, sceneCount)}.`,
     hookDirection,
     `Visual: ${compact(scene.visual || scene.video_prompt, 520)}`,
     referenceLine,

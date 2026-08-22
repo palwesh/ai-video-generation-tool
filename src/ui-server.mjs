@@ -576,7 +576,7 @@ async function recordProfileAvatarUse(profilePath) {
     state.quotas[profile] = {
       ...current,
       avatarUsed: clamp(Number(current.avatarUsed || 0) + 1, 0, 5000),
-      quotaNote: current.quotaNote || "Usage is estimated from successful hook avatar runs.",
+      quotaNote: current.quotaNote || "Usage is estimated from successful avatar clip runs.",
       estimatedUsageUpdatedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -2135,6 +2135,38 @@ function buildHookOnscreenText(scriptText, tool) {
   return shortScriptPhrase(firstSentence, `${shortToolLabel(tool)} in seconds`, 7, 54);
 }
 
+function brandedToolLabel(tool, language = "Hinglish") {
+  const label = shortToolLabel(tool);
+  if (/^alt\s*f|^altftool/i.test(label)) {
+    return label;
+  }
+  return normalizeViralLanguage(language) === "English" ? `AltFTool's ${label}` : `AltFTool ka ${label}`;
+}
+
+function buildCtaAvatarScript(tool, scriptBuild = {}, options = {}) {
+  const durationSeconds = clamp(asFiniteNumber(options.durationSeconds, 8), 6, 10);
+  const language = normalizeViralLanguage(options.scriptLanguage || scriptBuild.scriptLanguage || tool.language || "Hinglish");
+  const toolLabel = brandedToolLabel(tool, language);
+  const maxWords = hookWordLimit(durationSeconds);
+  const lines = language === "English"
+    ? `Try ${toolLabel}, the link is in the caption. Save this reel and follow for the next useful micro-tool demo.`
+    : language === "Hindi"
+      ? `${toolLabel} try करो, link caption में है. Reel save करो और next useful micro-tool demo के लिए follow करो.`
+      : `${toolLabel} try karo, link caption me hai. Reel save karo aur next useful micro-tool demo ke liye follow karo.`;
+  return limitScriptWords(lines, maxWords);
+}
+
+function buildCtaOnscreenText(tool, language = "Hinglish") {
+  const label = brandedToolLabel(tool, language);
+  const normalized = normalizeViralLanguage(language);
+  const base = normalized === "English"
+    ? `${label}: link in caption`
+    : normalized === "Hindi"
+      ? `${label}: link caption में`
+      : `${label}: link caption me`;
+  return shortScriptPhrase(base, "Link caption me", 7, 54);
+}
+
 function captureFilePathsFromArtifacts(...sources) {
   const files = [];
   for (const source of sources.filter(Boolean)) {
@@ -2153,17 +2185,33 @@ function captureFilePathsFromArtifacts(...sources) {
 }
 
 function hookAvatarReadme(result) {
-  return [
-    `# Hook Avatar - ${result.tool?.tool_name || "Tool"}`,
+  const ctaLines = result.includeCtaAvatar === false ? [] : [
+    `5. Generate/download the CTA MP4 and keep/copy it as \`cta_avatar.mp4\` and \`../vids-clips/scene-${String(result.ctaSceneNumber || 6).padStart(2, "0")}.mp4\`.`
+  ];
+  const ctaScriptLines = result.includeCtaAvatar === false ? [] : [
     "",
-    "Purpose: generate only the first hook clip for the Reel.",
+    "CTA script:",
+    "",
+    result.ctaScript
+  ];
+  const ctaPromptLines = result.includeCtaAvatar === false ? [] : [
+    "",
+    "Google Vids CTA prompt:",
+    "",
+    result.googleVidsCtaPrompt
+  ];
+  return [
+    `# Hook + CTA Avatar - ${result.tool?.tool_name || "Tool"}`,
+    "",
+    "Purpose: generate the first hook clip and optional final CTA avatar clip for the Reel.",
     "",
     "Use this flow:",
     "",
     "1. Generate/open Google Vids from the dashboard.",
-    "2. Use AI Avatar for Scene 1 only.",
-    "3. Download the generated MP4.",
-    "4. Keep/copy the MP4 as `hook_avatar.mp4` and `../vids-clips/scene-01.mp4`.",
+    "2. Use AI Avatar in portrait mode for the hook scene.",
+    "3. Download the generated hook MP4.",
+    "4. Keep/copy the hook MP4 as `hook_avatar.mp4` and `../vids-clips/scene-01.mp4`.",
+    ...ctaLines,
     "",
     "Google Vids character:",
     "",
@@ -2173,10 +2221,12 @@ function hookAvatarReadme(result) {
     "Hook script:",
     "",
     result.hookScript,
+    ...ctaScriptLines,
     "",
     "Google Vids prompt:",
     "",
     result.googleVidsPrompt,
+    ...ctaPromptLines,
     "",
     "Safety: use fictional/demo data only and review the generated human/avatar clip before posting.",
     ""
@@ -2231,8 +2281,21 @@ async function prepareHookAvatar(body = {}) {
   await ensureDir(hookDir);
   await ensureDir(assetsDir);
   const vidsClipCacheFolder = await ensureVidsClipCache(runDir);
+  const scriptScenes = Array.isArray(scriptBuild.plan?.scenes) ? scriptBuild.plan.scenes : [];
+  const reelSceneCount = clamp(
+    asFiniteNumber(scriptBuild.sceneCount || scriptBuild.plan?.metadata?.scene_count || scriptScenes.length, 6),
+    3,
+    6
+  );
+  const ctaSceneNumber = reelSceneCount;
+  const includeCtaAvatar = body.includeCtaAvatar !== false;
   const hookScript = buildHookAvatarScript(tool, scriptBuild, {
     durationSeconds,
+    scriptLanguage: body.scriptLanguage || scriptBuild.scriptLanguage
+  });
+  const ctaDurationSeconds = clamp(asFiniteNumber(body.ctaDurationSeconds || body.ctaDuration || durationSeconds, 8), 6, 10);
+  const ctaScript = buildCtaAvatarScript(tool, scriptBuild, {
+    durationSeconds: ctaDurationSeconds,
     scriptLanguage: body.scriptLanguage || scriptBuild.scriptLanguage
   });
   const avatarChoice = selectHookAvatarForReel(
@@ -2246,28 +2309,49 @@ async function prepareHookAvatar(body = {}) {
     ? "Google Vids should auto-select the most realistic portrait AI avatar for this reel hook."
     : `Use/select the Google Vids AI avatar character "${avatarChoice.label}" if available.`;
   const onscreenText = buildHookOnscreenText(hookScript, tool);
+  const ctaOnscreenText = buildCtaOnscreenText(tool, body.scriptLanguage || scriptBuild.scriptLanguage || tool.language || "Hinglish");
+  const hookScene = {
+    scene_number: 1,
+    duration: durationSeconds,
+    voiceover: hookScript,
+    onscreen_text: onscreenText,
+    visual: `${characterDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection(tone)}. Portrait 9:16 reel frame. Laptop beside presenter briefly shows the real tool page.`,
+    video_prompt: [
+      `Create a ${durationSeconds}-second 9:16 vertical portrait AI avatar hook clip.`,
+      characterDirection,
+      hookPresenterDirection(presenter),
+      hookToneDirection(tone),
+      `The avatar speaks this exact line naturally: ${hookScript}`,
+      "Modern SaaS desk setup, soft daylight, clean background, laptop visible with the real tool page as context.",
+      "No fake UI, no personal information, no unrelated stock footage."
+    ].join(" ")
+  };
+  const ctaScene = {
+    scene_number: ctaSceneNumber,
+    duration: ctaDurationSeconds,
+    voiceover: ctaScript,
+    onscreen_text: ctaOnscreenText,
+    visual: `${characterDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection("friendly")} Final face-to-camera CTA, phone shows an Instagram draft/caption area, laptop has the real tool page visible in the background.`,
+    video_prompt: [
+      `Create a ${ctaDurationSeconds}-second 9:16 vertical portrait AI avatar CTA clip.`,
+      characterDirection,
+      hookPresenterDirection(presenter),
+      "Friendly confident closing energy, direct eye contact, natural hand gesture toward the caption area.",
+      `The avatar speaks this exact line naturally: ${ctaScript}`,
+      "Show a phone with a generic Instagram caption draft, no real account details, and a laptop in the background with the actual tool context.",
+      "End with a clear save/follow gesture. No fake UI, no personal information, no unrelated stock footage."
+    ].join(" ")
+  };
   const scenePlan = {
-    scenes: [{
-      scene_number: 1,
-      duration: durationSeconds,
-      voiceover: hookScript,
-      onscreen_text: onscreenText,
-      visual: `${characterDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection(tone)}. Portrait 9:16 reel frame. Laptop beside presenter briefly shows the real tool page.`,
-      video_prompt: [
-        `Create a ${durationSeconds}-second 9:16 vertical portrait AI avatar hook clip.`,
-        characterDirection,
-        hookPresenterDirection(presenter),
-        hookToneDirection(tone),
-        `The avatar speaks this exact line naturally: ${hookScript}`,
-        "Modern SaaS desk setup, soft daylight, clean background, laptop visible with the real tool page as context.",
-        "No fake UI, no personal information, no unrelated stock footage."
-      ].join(" ")
-    }],
+    scenes: includeCtaAvatar ? [hookScene, ctaScene] : [hookScene],
     metadata: {
       generated_at: new Date().toISOString(),
       language: scriptBuild.scriptLanguage || tool.language || "Hinglish",
       script_type: scriptBuild.scriptLanguage || tool.language || "Hinglish",
-      hook_avatar_only: true,
+      hook_avatar_only: !includeCtaAvatar,
+      hook_cta_avatar_pack: includeCtaAvatar,
+      reel_scene_count: reelSceneCount,
+      cta_scene_number: ctaSceneNumber,
       video_size: "portrait_9_16",
       google_vids_avatar: googleVidsAvatar,
       avatar_choice: avatarChoice,
@@ -2298,17 +2382,38 @@ async function prepareHookAvatar(body = {}) {
       onscreenText,
       videoPath: "",
       cachedScenePath: ""
-    }
+    },
+    ctaAvatar: includeCtaAvatar ? {
+      presenter,
+      avatarChoice,
+      googleVidsAvatar,
+      portrait: true,
+      tone: "friendly",
+      durationSeconds: ctaDurationSeconds,
+      sceneNumber: ctaSceneNumber,
+      status: "prepared",
+      ctaScript,
+      onscreenText: ctaOnscreenText,
+      videoPath: "",
+      cachedScenePath: ""
+    } : null
   };
   const scenePlanPath = path.join(hookDir, "scene-plan.json");
   const manifestPath = path.join(hookDir, "manifest.json");
   const hookScriptPath = path.join(hookDir, "hook-script.txt");
+  const ctaScriptPath = path.join(hookDir, "cta-script.txt");
   const promptPath = path.join(hookDir, "google-vids-hook-prompt.txt");
+  const ctaPromptPath = path.join(hookDir, "google-vids-cta-prompt.txt");
   const saveAsPath = path.join(hookDir, "save-as.txt");
   const hookManifestPath = path.join(hookDir, "hook-avatar-manifest.json");
   const googleVidsPrompt = buildGoogleVidsClipPrompt(scenePlan, 1, manifest, {
     referenceFiles: manifest.capture.files
   });
+  const googleVidsCtaPrompt = includeCtaAvatar
+    ? buildGoogleVidsClipPrompt(scenePlan, ctaSceneNumber, manifest, {
+      referenceFiles: manifest.capture.files
+    })
+    : "";
   const result = {
     id: `hook-avatar-${slugify(tool.tool_name || `row-${rowNumber}`)}-${timestampSlug()}`,
     status: "prepared",
@@ -2326,39 +2431,64 @@ async function prepareHookAvatar(body = {}) {
     portrait: true,
     tone,
     durationSeconds,
+    ctaDurationSeconds,
+    includeCtaAvatar,
+    ctaSceneNumber,
     hookScript,
     onscreenText,
+    ctaScript: includeCtaAvatar ? ctaScript : "",
+    ctaOnscreenText: includeCtaAvatar ? ctaOnscreenText : "",
     googleVidsPrompt,
+    googleVidsCtaPrompt,
     scenePlanPath,
     manifestPath,
     hookScriptPath,
+    ctaScriptPath: includeCtaAvatar ? ctaScriptPath : "",
     promptPath,
+    ctaPromptPath: includeCtaAvatar ? ctaPromptPath : "",
     saveAsPath,
     hookManifestPath,
     videoPath: "",
     cachedScenePath: "",
+    ctaVideoPath: "",
+    ctaCachedScenePath: "",
     files: []
   };
   manifest.hookAvatar.id = result.id;
   manifest.hookAvatar.generatedAt = result.generatedAt;
+  if (manifest.ctaAvatar) {
+    manifest.ctaAvatar.id = result.id;
+    manifest.ctaAvatar.generatedAt = result.generatedAt;
+  }
   await writeJson(scenePlanPath, scenePlan);
   await writeJson(manifestPath, manifest);
   await fs.writeFile(hookScriptPath, `${hookScript}\n`, "utf8");
   await fs.writeFile(promptPath, `${googleVidsPrompt}\n`, "utf8");
+  if (includeCtaAvatar) {
+    await fs.writeFile(ctaScriptPath, `${ctaScript}\n`, "utf8");
+    await fs.writeFile(ctaPromptPath, `${googleVidsCtaPrompt}\n`, "utf8");
+  }
   await fs.writeFile(saveAsPath, [
     path.join(hookDir, "hook_avatar.mp4"),
     path.join(assetsDir, "hook_avatar.mp4"),
-    path.join(vidsClipCacheFolder, "scene-01.mp4")
+    path.join(vidsClipCacheFolder, "scene-01.mp4"),
+    ...(includeCtaAvatar ? [
+      path.join(hookDir, "cta_avatar.mp4"),
+      path.join(assetsDir, "cta_avatar.mp4"),
+      path.join(vidsClipCacheFolder, `scene-${String(ctaSceneNumber).padStart(2, "0")}.mp4`)
+    ] : [])
   ].join("\n") + "\n", "utf8");
-  await fs.writeFile(path.join(hookDir, "README.md"), `${hookAvatarReadme({ ...result, googleVidsPrompt })}\n`, "utf8");
+  await fs.writeFile(path.join(hookDir, "README.md"), `${hookAvatarReadme({ ...result, googleVidsPrompt, googleVidsCtaPrompt })}\n`, "utf8");
   result.files = [
     scenePlanPath,
     manifestPath,
     hookScriptPath,
+    includeCtaAvatar ? ctaScriptPath : "",
     promptPath,
+    includeCtaAvatar ? ctaPromptPath : "",
     saveAsPath,
     path.join(hookDir, "README.md")
-  ].map(publicAssetFile);
+  ].filter(Boolean).map(publicAssetFile);
   await writeJson(hookManifestPath, result);
   result.files.push(publicAssetFile(hookManifestPath));
 
@@ -2391,6 +2521,10 @@ async function updateHookAvatarManifest(prepared, patch = {}) {
       ...(current.hookAvatar || {}),
       ...(patch.hookAvatar || {})
     },
+    ctaAvatar: {
+      ...(current.ctaAvatar || {}),
+      ...(patch.ctaAvatar || {})
+    },
     files: undefined,
     updatedAt: new Date().toISOString()
   };
@@ -2398,11 +2532,15 @@ async function updateHookAvatarManifest(prepared, patch = {}) {
     next.scenePlanPath,
     next.manifestPath,
     next.hookScriptPath,
+    next.ctaScriptPath,
     next.promptPath,
+    next.ctaPromptPath,
     next.saveAsPath,
     path.join(next.hookDir, "README.md"),
     next.videoPath,
     next.cachedScenePath,
+    next.ctaVideoPath,
+    next.ctaCachedScenePath,
     next.hookManifestPath
   ].filter(Boolean).map(publicAssetFile);
   await writeJson(next.hookManifestPath, next);
@@ -2510,10 +2648,17 @@ function hookProfilesFromBody(body = {}) {
     .slice(0, 2);
 }
 
-async function generateHookAvatarForProfile(prepared, body, run, profile, profileIndex = 0) {
+async function generateHookAvatarForProfile(prepared, body, run, profile, profileIndex = 0, options = {}) {
+  const sceneKind = options.sceneKind === "cta" ? "cta" : "hook";
+  const isCta = sceneKind === "cta";
+  const sceneNumber = Number(options.sceneNumber || (isCta ? prepared.ctaSceneNumber : 1) || 1);
+  const fileName = isCta ? "cta_avatar.mp4" : "hook_avatar.mp4";
+  const sceneLabel = isCta ? "CTA avatar" : "hook avatar";
+  const reportLabel = isCta ? "cta" : "hook";
   const profileLabel = safeHookProfileLabel(profile, profileIndex);
-  const operateDir = path.join(prepared.hookDir, "google-vids", profileLabel);
-  const exportDir = path.join(prepared.hookDir, "google-vids-export", profileLabel);
+  const outputLabel = isCta ? `${profileLabel}-cta` : profileLabel;
+  const operateDir = path.join(prepared.hookDir, "google-vids", outputLabel);
+  const exportDir = path.join(prepared.hookDir, "google-vids-export", outputLabel);
   await ensureDir(operateDir);
   await ensureDir(exportDir);
   const afterSubmitWait = clamp(asFiniteNumber(body.afterSubmitWait || body.afterSubmitWaitMs, 120000), 30000, 600000);
@@ -2522,14 +2667,14 @@ async function generateHookAvatarForProfile(prepared, body, run, profile, profil
   const operateArgs = [
     "--scenes", prepared.scenePlanPath,
     "--manifest", prepared.manifestPath,
-    "--scene", "1",
+    "--scene", String(sceneNumber),
     "--max-scenes", "1",
     "--output", operateDir,
     "--profile", profile,
     "--video-size", "portrait",
     "--require-portrait",
     "--avatar", selectedAvatar,
-    "--avatar-scenes", "1",
+    "--avatar-scenes", String(sceneNumber),
     "--submit",
     "--insert",
     "--after-submit-wait", String(afterSubmitWait),
@@ -2540,9 +2685,9 @@ async function generateHookAvatarForProfile(prepared, body, run, profile, profil
   }
 
   addHookAvatarLog(run, `Selected Google Vids avatar: ${prepared.avatarChoice?.label || selectedAvatar} (${prepared.avatarChoice?.reason || "manual/default"}).`);
-  addHookAvatarLog(run, `Opening Google Vids for hook avatar generation using ${profile}.`);
+  addHookAvatarLog(run, `Opening Google Vids for ${sceneLabel} generation using ${profile}.`);
   let operateError = null;
-  await runHookNodeScript(run, `hook-vids:${profileLabel}`, "src/google-vids-operate.mjs", operateArgs)
+  await runHookNodeScript(run, `${reportLabel}-vids:${profileLabel}`, "src/google-vids-operate.mjs", operateArgs)
     .catch((error) => {
       operateError = error;
     });
@@ -2550,8 +2695,8 @@ async function generateHookAvatarForProfile(prepared, body, run, profile, profil
   const vidsReport = await readJsonArtifact(vidsReportPath);
   if (operateError || !vidsReport?.ok) {
     const message = vidsReport?.manualAction
-      ? `${vidsReport.error || operateError?.message || "Google Vids hook generation did not complete."} Manual action: ${vidsReport.manualAction}`
-      : vidsReport?.error || operateError?.message || "Google Vids hook generation did not complete.";
+      ? `${vidsReport.error || operateError?.message || `Google Vids ${sceneLabel} generation did not complete.`} Manual action: ${vidsReport.manualAction}`
+      : vidsReport?.error || operateError?.message || `Google Vids ${sceneLabel} generation did not complete.`;
     const error = new Error(message);
     error.report = vidsReport;
     throw error;
@@ -2560,11 +2705,11 @@ async function generateHookAvatarForProfile(prepared, body, run, profile, profil
   const noExport = Boolean(body.noExport || body.prepareOnly);
   if (noExport) {
     return updateHookAvatarManifest(prepared, {
-      status: "generated_in_vids_export_skipped",
-      vidsUrl,
-      vidsReportPath,
-      operateDir,
-      hookAvatar: {
+      status: isCta ? "cta_generated_in_vids_export_skipped" : "generated_in_vids_export_skipped",
+      [isCta ? "ctaVidsUrl" : "vidsUrl"]: vidsUrl,
+      [isCta ? "ctaVidsReportPath" : "vidsReportPath"]: vidsReportPath,
+      [isCta ? "ctaOperateDir" : "operateDir"]: operateDir,
+      [isCta ? "ctaAvatar" : "hookAvatar"]: {
         status: "generated_in_vids_export_skipped",
         vidsUrl,
         vidsReportPath
@@ -2572,13 +2717,13 @@ async function generateHookAvatarForProfile(prepared, body, run, profile, profil
     });
   }
 
-  addHookAvatarLog(run, `Exporting one-scene hook avatar MP4 from Google Vids using ${profile}.`);
+  addHookAvatarLog(run, `Exporting one-scene ${sceneLabel} MP4 from Google Vids using ${profile}.`);
   let exportError = null;
-  await runHookNodeScript(run, `hook-export:${profileLabel}`, "src/google-vids-export.mjs", [
+  await runHookNodeScript(run, `${reportLabel}-export:${profileLabel}`, "src/google-vids-export.mjs", [
     "--url", vidsUrl,
     "--output", exportDir,
     "--timeout", String(body.exportTimeout || 600000),
-    "--filename", "hook_avatar.mp4",
+    "--filename", fileName,
     "--profile", profile,
     "--manual-recovery-wait", String(manualRecoveryWait)
   ]).catch((error) => {
@@ -2589,27 +2734,49 @@ async function generateHookAvatarForProfile(prepared, body, run, profile, profil
   const exportedPath = exportReport?.savedPath || "";
   if (exportError || !exportReport?.ok || !exportedPath) {
     const message = exportReport?.manualAction
-      ? `${exportReport.error || exportReport?.failure || exportError?.message || "Google Vids export did not save hook MP4."} Manual action: ${exportReport.manualAction}`
-      : exportReport?.error || exportReport?.failure || exportError?.message || "Google Vids export did not save hook MP4.";
+      ? `${exportReport.error || exportReport?.failure || exportError?.message || `Google Vids export did not save ${sceneLabel} MP4.`} Manual action: ${exportReport.manualAction}`
+      : exportReport?.error || exportReport?.failure || exportError?.message || `Google Vids export did not save ${sceneLabel} MP4.`;
     const error = new Error(message);
     error.report = exportReport;
     throw error;
   }
 
-  const hookVideoPath = path.join(prepared.hookDir, "hook_avatar.mp4");
-  const assetsHookVideoPath = path.join(prepared.assetsDir, "hook_avatar.mp4");
-  await fs.copyFile(exportedPath, hookVideoPath);
+  const videoPath = path.join(prepared.hookDir, fileName);
+  const assetsVideoPath = path.join(prepared.assetsDir, fileName);
+  await fs.copyFile(exportedPath, videoPath);
   await ensureDir(prepared.assetsDir);
-  await fs.copyFile(exportedPath, assetsHookVideoPath);
+  await fs.copyFile(exportedPath, assetsVideoPath);
   const cached = await cacheVidsSceneClip({
     toolDir: prepared.runDir,
-    sourcePath: hookVideoPath,
-    sceneNumber: 1,
+    sourcePath: videoPath,
+    sceneNumber,
     profile,
-    note: "Hook avatar generated via Google Vids from the dashboard hook-only flow.",
+    note: `${isCta ? "CTA" : "Hook"} avatar generated via Google Vids from the dashboard avatar flow.`,
     qualityStatus: "needs_human_review"
   });
-  const result = await updateHookAvatarManifest(prepared, {
+  const patch = isCta ? {
+    status: prepared.videoPath ? "complete" : "cta_complete",
+    activeProfile: prepared.activeProfile || profile,
+    ctaActiveProfile: profile,
+    ctaVidsUrl: vidsUrl,
+    ctaVidsReportPath: vidsReportPath,
+    ctaExportReportPath: exportReportPath,
+    ctaOperateDir: operateDir,
+    ctaExportDir: exportDir,
+    ctaVideoPath: videoPath,
+    assetsCtaVideoPath: assetsVideoPath,
+    ctaCachedScenePath: cached?.cachedPath || "",
+    ctaAvatar: {
+      status: "complete",
+      activeProfile: profile,
+      vidsUrl,
+      vidsReportPath,
+      exportReportPath,
+      videoPath,
+      assetsCtaVideoPath: assetsVideoPath,
+      cachedScenePath: cached?.cachedPath || ""
+    }
+  } : {
     status: "complete",
     activeProfile: profile,
     profilesTried: [profile],
@@ -2618,8 +2785,8 @@ async function generateHookAvatarForProfile(prepared, body, run, profile, profil
     exportReportPath,
     operateDir,
     exportDir,
-    videoPath: hookVideoPath,
-    assetsHookVideoPath,
+    videoPath,
+    assetsHookVideoPath: assetsVideoPath,
     cachedScenePath: cached?.cachedPath || "",
     hookAvatar: {
       status: "complete",
@@ -2627,20 +2794,28 @@ async function generateHookAvatarForProfile(prepared, body, run, profile, profil
       vidsUrl,
       vidsReportPath,
       exportReportPath,
-      videoPath: hookVideoPath,
-      assetsHookVideoPath,
+      videoPath,
+      assetsHookVideoPath: assetsVideoPath,
       cachedScenePath: cached?.cachedPath || ""
     }
-  });
+  };
+  const result = await updateHookAvatarManifest(prepared, patch);
   await recordProfileAvatarUse(profile);
   await updateUiState((state) => {
-    state.settings = {
-      ...(state.settings || {}),
+    const settingsPatch = isCta ? {
+      lastCtaAvatarProfile: profile,
+      lastCtaAvatarVideo: videoPath,
+      lastCtaAvatarCachedScene: cached?.cachedPath || ""
+    } : {
       lastHookAvatarProfile: profile,
-      lastHookAvatarVideo: hookVideoPath,
+      lastHookAvatarVideo: videoPath,
       lastHookAvatarCachedScene: cached?.cachedPath || "",
       lastHookAvatarCharacter: prepared.googleVidsAvatar || "",
-      lastHookAvatarCharacterLabel: prepared.avatarChoice?.label || "",
+      lastHookAvatarCharacterLabel: prepared.avatarChoice?.label || ""
+    };
+    state.settings = {
+      ...(state.settings || {}),
+      ...settingsPatch,
       updatedAt: new Date().toISOString()
     };
   });
@@ -2693,22 +2868,70 @@ async function generateHookAvatarWithGoogleVids(prepared, body, run) {
     }
     try {
       addHookAvatarLog(run, `Trying profile ${index + 1}/${profiles.length}: ${profile}`);
-      const result = await generateHookAvatarForProfile(prepared, body, run, profile, index);
+      let result = await generateHookAvatarForProfile(prepared, body, run, profile, index, {
+        sceneKind: "hook",
+        sceneNumber: 1
+      });
+      let ctaWarning = "";
+      if (result.includeCtaAvatar !== false) {
+        for (let ctaIndex = index; ctaIndex < profiles.length; ctaIndex += 1) {
+          const ctaProfile = profiles[ctaIndex];
+          const ctaQuota = profileQuota(await loadUiState(), ctaProfile);
+          if (ctaQuota.quotaExhausted || ctaQuota.limitStatus === "limit_used") {
+            ctaWarning = `Google Vids profile limit used for CTA: ${ctaProfile}.`;
+            addHookAvatarLog(run, `Skipping limit-used CTA profile: ${ctaProfile}`, "stderr");
+            continue;
+          }
+          try {
+            addHookAvatarLog(run, `Hook complete. Generating CTA avatar for final scene ${result.ctaSceneNumber || "last"} using ${ctaProfile}.`);
+            result = await generateHookAvatarForProfile(result, body, run, ctaProfile, ctaIndex, {
+              sceneKind: "cta",
+              sceneNumber: result.ctaSceneNumber
+            });
+            ctaWarning = "";
+            break;
+          } catch (ctaError) {
+            const report = ctaError.report || null;
+            ctaWarning = ctaError.message;
+            if (Boolean(report?.quotaHit) || quotaHitFromText(ctaError.message)) {
+              await markProfileQuotaHit(ctaProfile, "Google Vids CTA avatar generation hit quota/credits limit.");
+            }
+            addHookAvatarLog(run, `CTA avatar failed with ${ctaProfile}: ${ctaError.message}`, "stderr");
+          }
+        }
+        if (ctaWarning && !result.ctaVideoPath && !result.ctaAvatar?.videoPath) {
+          addHookAvatarLog(run, `CTA avatar not generated, keeping hook clip: ${ctaWarning}`, "stderr");
+          result = await updateHookAvatarManifest(result, {
+            status: "partial_cta_failed",
+            ctaError: ctaWarning,
+            ctaAvatar: {
+              ...(result.ctaAvatar || {}),
+              status: "failed",
+              error: ctaWarning
+            }
+          });
+        }
+      }
       attempts.push({
         profile,
         ok: true,
-        status: "complete",
+        status: ctaWarning ? "partial_cta_failed" : "complete",
         videoPath: result.videoPath || "",
+        ctaVideoPath: result.ctaVideoPath || "",
         cachedScenePath: result.cachedScenePath || "",
-        vidsUrl: result.vidsUrl || ""
+        ctaCachedScenePath: result.ctaCachedScenePath || "",
+        vidsUrl: result.vidsUrl || "",
+        ctaVidsUrl: result.ctaVidsUrl || "",
+        warning: ctaWarning
       });
+      const successfulProfiles = [...new Set([profile, result.ctaActiveProfile].filter(Boolean))];
       return updateHookAvatarManifest(result, {
         activeProfile: profile,
-        profilesTried: profiles.slice(0, index + 1),
+        profilesTried: successfulProfiles.length ? successfulProfiles : profiles.slice(0, index + 1),
         attempts,
         hookAvatar: {
           activeProfile: profile,
-          profilesTried: profiles.slice(0, index + 1),
+          profilesTried: successfulProfiles.length ? successfulProfiles : profiles.slice(0, index + 1),
           attempts
         }
       });
@@ -2730,7 +2953,7 @@ async function generateHookAvatarWithGoogleVids(prepared, body, run) {
       });
       addHookAvatarLog(run, `Profile failed: ${profile} | ${error.message}`, "stderr");
       if (quotaHit) {
-        await markProfileQuotaHit(profile, "Google Vids hook avatar generation hit quota/credits limit.");
+        await markProfileQuotaHit(profile, "Google Vids avatar generation hit quota/credits limit.");
         addHookAvatarLog(run, `Marked profile limit used: ${profile}`, "stderr");
       }
       await updateHookAvatarManifest(prepared, {
@@ -2754,7 +2977,7 @@ async function generateHookAvatarWithGoogleVids(prepared, body, run) {
       }
     }
   }
-  throw lastError || new Error("Google Vids hook avatar generation failed for all selected profiles.");
+  throw lastError || new Error("Google Vids avatar generation failed for all selected profiles.");
 }
 
 async function startHookAvatarRun(body = {}) {
@@ -2772,7 +2995,7 @@ async function startHookAvatarRun(body = {}) {
     child: null
   };
   hookAvatarRuns.set(id, run);
-  addHookAvatarLog(run, "Starting hook avatar workflow.");
+  addHookAvatarLog(run, "Starting hook+CTA avatar workflow.");
 
   setTimeout(async () => {
     let prepared = null;
@@ -2785,7 +3008,7 @@ async function startHookAvatarRun(body = {}) {
         return;
       }
       const generated = await generateHookAvatarWithGoogleVids(prepared, body, run);
-      addHookAvatarLog(run, `Hook avatar ready: ${generated.videoPath || generated.hookDir}`, "stdout");
+      addHookAvatarLog(run, `Avatar clips ready: ${generated.ctaVideoPath || generated.videoPath || generated.hookDir}`, "stdout");
       finishHookAvatarRun(run, "complete", generated);
     } catch (error) {
       if (prepared?.hookManifestPath) {
@@ -3115,6 +3338,10 @@ async function prepareFinalReelPackage(body = {}, run) {
   const ctaSceneNumber = scenes.length;
   const ctaVideoPath = await firstExistingFile([
     body.ctaAvatarVideo,
+    hookAvatar.ctaVideoPath,
+    hookAvatar.ctaAvatar?.videoPath,
+    hookAvatar.ctaCachedScenePath,
+    hookAvatar.ctaAvatar?.cachedScenePath,
     assetsDir ? path.join(assetsDir, "cta_avatar.mp4") : "",
     hookFolder ? path.join(hookFolder, "cta_avatar.mp4") : ""
   ]);
@@ -3154,7 +3381,7 @@ async function prepareFinalReelPackage(body = {}, run) {
       toolDir: finalDir,
       sourcePath: ctaVideoPath,
       sceneNumber: ctaSceneNumber,
-      profile: hookAvatar.activeProfile || "",
+      profile: hookAvatar.ctaActiveProfile || hookAvatar.ctaAvatar?.activeProfile || hookAvatar.activeProfile || "",
       note: "CTA avatar clip reused by the Basic Final Reel render.",
       qualityStatus: "needs_human_review"
     });

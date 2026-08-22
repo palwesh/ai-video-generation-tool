@@ -8,7 +8,6 @@ export const ToolReel = ({ toolName, toolUrl, scenes, assets, sceneDurationSecon
   const sceneDuration = Math.max(1, Number(sceneDurationSeconds || 10)) * fps;
   const safeScenes = Array.isArray(scenes) && scenes.length ? scenes : [];
   const voiceovers = Array.isArray(assets?.voiceovers) ? assets.voiceovers : [];
-  const hasHookVideo = Boolean(assets?.vidsClips?.[0] || assets?.hookVideo);
   const hasBodySceneVoiceovers = voiceovers.slice(1).some(Boolean);
   const useBodyVoiceoverVideo = Boolean(assets?.bodyVoiceoverVideo && !hasBodySceneVoiceovers && safeScenes.length > 1);
 
@@ -47,7 +46,7 @@ export const ToolReel = ({ toolName, toolUrl, scenes, assets, sceneDurationSecon
           durationInFrames={sceneDuration}
           name={`Scene ${index + 1}`}
         >
-          {voiceovers[index] && !(index === 0 && hasHookVideo) && !(index > 0 && useBodyVoiceoverVideo) ? (
+          {voiceovers[index] && !((index === 0 || index === safeScenes.length - 1) && assets?.vidsClips?.[index]) && !(index > 0 && useBodyVoiceoverVideo) ? (
             <Audio src={staticFile(voiceovers[index])} volume={1} />
           ) : null}
           <ReelScene

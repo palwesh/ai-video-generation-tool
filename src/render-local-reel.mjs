@@ -746,8 +746,11 @@ assets.vidsClipCache = {
 const bodyVoiceoverVideoSource = await findBodyVoiceoverVideo(toolDir);
 assets.bodyVoiceoverVideo = await copyAsset(bodyVoiceoverVideoSource, assetDir, "body-voiceover-source");
 const bodySceneNumbers = (scenePlan.scenes || []).slice(1).map((_, index) => index + 2);
+const cachedAvatarAudioSceneNumbers = (vidsCacheAssets.sceneClips || [])
+  .map((clip, index) => (clip && (index === 0 || index === (scenePlan.scenes.length - 1)) ? index + 1 : null))
+  .filter(Number.isFinite);
 const audioAssets = await createAudioAssets(scenePlan.scenes, assetDir, outputRoot, totalDurationSeconds, {
-  skipSceneNumbers: vidsCacheAssets.sceneClips?.[0] ? [1] : [],
+  skipSceneNumbers: cachedAvatarAudioSceneNumbers,
   suppressFallbackSceneNumbers: bodyVoiceoverVideoSource ? bodySceneNumbers : []
 });
 assets.voiceovers = audioAssets.voiceovers;

@@ -212,7 +212,7 @@ export function buildReelScriptPackage(scenePlan, row, capture = {}, reelConfig 
     body,
     cta,
     final_script: scenes.map((scene) => `Scene ${scene.scene_number}: ${scene.voiceover}`).join("\n"),
-    engagement_cta: "Save this workflow, comment TOOL, share with someone who needs this.",
+    engagement_cta: "Save this workflow, comment TOOL, share with someone who needs this. AltFTool link is in the caption.",
     value_promise: viralBenefitLine(row),
     retention_notes: [
       "Open with a pattern interrupt or mistake-avoidance hook, not a greeting.",

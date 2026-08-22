@@ -103,7 +103,7 @@
               <span data-flow-step="select">Tool row</span>
               <span data-flow-step="asset">Assets</span>
               <span data-flow-step="script">Script</span>
-              <span data-flow-step="hook">Hook avatar</span>
+              <span data-flow-step="hook">Hook + CTA avatar</span>
               <span data-flow-step="final">Final reel</span>
               <span data-flow-step="profile">Profiles</span>
             </div>
@@ -128,7 +128,7 @@
               <div>
                 <p class="eyebrow">Google Vids Users</p>
                 <h2>Profile Manager</h2>
-                <p>Add multiple accounts, login, and track which profile can generate hook avatar clips.</p>
+                <p>Add multiple accounts, login, and track which profile can generate avatar clips.</p>
               </div>
               <span id="profileState" class="state-pill">Loading</span>
             </div>
@@ -304,12 +304,12 @@
               </div>
             </section>
 
-            <section id="hookAvatar" class="hook-panel workflow-section" aria-label="Hook avatar generator">
+            <section id="hookAvatar" class="hook-panel workflow-section" aria-label="Hook and CTA avatar generator">
               <div class="hook-head">
                 <div>
                   <p class="eyebrow">Step 3</p>
-                  <h2>Generate Hook Avatar</h2>
-                  <p>Only first hook clip: human avatar speaks the scroll-stopping line.</p>
+                  <h2>Generate Hook + CTA Avatar</h2>
+                  <p>First hook clip and final CTA clip with the same human avatar.</p>
                 </div>
                 <span id="hookState" class="state-pill">Ready</span>
               </div>
@@ -367,9 +367,9 @@
                   </select>
                 </label>
                 <button id="refreshHookProfilesBtn" class="secondary-action" type="button">Refresh Profiles</button>
-                <button id="prepareHookAvatarBtn" class="secondary-action" type="button" disabled>Prepare Hook</button>
-                <button id="generateHookAvatarBtn" class="primary-action build-main-action" type="button" disabled>Generate Avatar</button>
-                <button id="viewHookAvatarBtn" class="secondary-action" type="button" disabled>View Hook Folder</button>
+                <button id="prepareHookAvatarBtn" class="secondary-action" type="button" disabled>Prepare Hook+CTA</button>
+                <button id="generateHookAvatarBtn" class="primary-action build-main-action" type="button" disabled>Generate Hook+CTA</button>
+                <button id="viewHookAvatarBtn" class="secondary-action" type="button" disabled>View Avatar Folder</button>
               </div>
               <div id="hookProfileStatus" class="profile-status-strip" aria-live="polite">
                 <span>Profiles loading...</span>
@@ -378,19 +378,19 @@
               <div id="hookResult" class="hook-result is-hidden">
                 <div class="hook-result-head">
                   <div>
-                    <p class="eyebrow">Hook Clip</p>
-                    <h2 id="hookToolName">Hook avatar ready</h2>
+                    <p class="eyebrow">Hook + CTA Clips</p>
+                    <h2 id="hookToolName">Avatar clips ready</h2>
                   </div>
                   <strong id="hookStatusText">Prepared</strong>
                 </div>
                 <p id="hookFolderPath" class="path-text"></p>
                 <div class="hook-preview-grid">
                   <article class="script-part-card">
-                    <span>Hook Script</span>
+                    <span>Hook + CTA Script</span>
                     <p id="hookScriptText"></p>
                   </article>
                   <article class="script-part-card">
-                    <span>Google Vids Prompt</span>
+                    <span>Google Vids Prompts</span>
                     <p id="hookPromptText"></p>
                   </article>
                 </div>

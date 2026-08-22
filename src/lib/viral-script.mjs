@@ -66,6 +66,14 @@ export function viralToolLabel(row = {}) {
   return shortPhrase(raw, "ye tool", 4, 34);
 }
 
+function viralBrandToolLabel(row = {}, language = viralLanguage(row)) {
+  const label = viralToolLabel(row);
+  if (/^alt\s*f|^altftool/i.test(label)) {
+    return label;
+  }
+  return language === "English" ? `AltFTool's ${label}` : `AltFTool ka ${label}`;
+}
+
 export function viralTopic(row = {}) {
   return shortPhrase(row.topic || row.tool_name || row.name, viralToolLabel(row), 5, 42);
 }
@@ -392,6 +400,7 @@ export function viralVoiceoverForRole(roleId, row = {}, context = {}) {
   const toolUrl = clean(row.tool_url || row.url, "provided Tool URL");
   const hook = selectViralHook(row);
   const language = viralLanguage(row);
+  const brandedLabel = viralBrandToolLabel(row, language);
   const lines = language === "English" ? {
     hook: hook.voiceover,
     hook_intro: hook.voiceover,
@@ -401,7 +410,7 @@ export function viralVoiceoverForRole(roleId, row = {}, context = {}) {
     workflow: "Remember the three-step flow: input, run, review. This screen proof shows the value clearly.",
     workflow_output: "Do not use the output blindly. Check the summary, warnings, and next step; that is the save-worthy part.",
     proof_before_after: "Before: manual confusion. After: cleaner output, faster decision, and a safer review before sharing.",
-    review_cta: `Review it once before sharing. If useful, save this, comment TOOL, and try ${label}.`
+    review_cta: `Review it once before sharing. If useful, save this, comment TOOL, and try ${brandedLabel}. Link is in the caption.`
   } : language === "Hindi" ? {
     hook: hook.voiceover,
     hook_intro: hook.voiceover,
@@ -411,7 +420,7 @@ export function viralVoiceoverForRole(roleId, row = {}, context = {}) {
     workflow: "Three-step flow याद रखो: input, run, review. इसी screen proof से value clear दिखेगी.",
     workflow_output: "Output मिलते ही blindly use मत करो. Summary, warnings और next step check करो; यही save-worthy part है.",
     proof_before_after: "Before manual confusion. After clean output, faster decision, और share करने से पहले safer review.",
-    review_cta: `Human review के बाद ही share करो. Useful लगा तो save, comment TOOL, और ${label} try करो.`
+    review_cta: `Human review के बाद ही share करो. Useful लगा तो save, comment TOOL, और ${brandedLabel} try करो. Link caption में है.`
   } : {
     hook: hook.voiceover,
     hook_intro: hook.voiceover,
@@ -421,7 +430,7 @@ export function viralVoiceoverForRole(roleId, row = {}, context = {}) {
     workflow: "Teen-step flow yaad rakho: input, run, review. Isi screen footage se user ko proof dikhega.",
     workflow_output: "Output milte hi blindly use mat karo. Summary, warnings aur next step check karo; ye save-worthy part hai.",
     proof_before_after: "Before manual confusion. After clear output, faster decision, aur share karne se pehle safer review.",
-    review_cta: `Human review ke baad hi share karo. Useful laga to save, comment TOOL, aur ${label} try karo.`
+    review_cta: `Human review ke baad hi share karo. Useful laga to save, comment TOOL, aur ${brandedLabel} try karo. Link caption me hai.`
   };
   const fallback = context.fallback || lines.hook;
   return limitViralWords(lines[roleId] || fallback, 24);
@@ -446,26 +455,32 @@ export function buildViralSeoData(row = {}, plan = {}) {
   const benefit = viralBenefitLine(row);
   const hookOptions = buildViralHookOptions(row).slice(0, 5);
   const language = viralLanguage(row);
+  const toolUrl = clean(row.tool_url || row.url, "");
+  const brandedToolName = language === "English" ? `AltFTool's ${toolName}` : `AltFTool ka ${toolName}`;
   const caption = language === "English" ? [
-    `${toolName} real demo.`,
+    `${brandedToolName} real demo.`,
     `If ${topic} wastes your time, save this workflow.`,
     `Value: ${benefit}.`,
     "Test with fictional data, review the output, then use or share it.",
-    "Comment \"TOOL\" if you want the next micro-tool demo."
+    "Comment \"TOOL\" if you want the next micro-tool demo.",
+    toolUrl ? `Try ${brandedToolName}: ${toolUrl}` : ""
   ].join(" ") : language === "Hindi" ? [
-    `${toolName} ka real demo.`,
+    `${brandedToolName} real demo.`,
     `अगर ${topic} में time waste होता है, तो ये workflow save कर लो.`,
     `Value: ${benefit}.`,
     "Fictional data से test करो, output review करो, फिर use/share करो.",
-    "Comment \"TOOL\" अगर next micro-tool demo चाहिए."
+    "Comment \"TOOL\" अगर next micro-tool demo चाहिए.",
+    toolUrl ? `${brandedToolName} try करो: ${toolUrl}` : ""
   ].join(" ") : [
-    `${toolName} ka real demo.`,
+    `${brandedToolName} real demo.`,
     `Agar ${topic} me time waste hota hai, ye workflow save kar lo.`,
     `Value: ${benefit}.`,
     "Fictional data se test karo, output review karo, phir use/share karo.",
-    "Comment \"TOOL\" agar next micro-tool demo chahiye."
+    "Comment \"TOOL\" agar next micro-tool demo chahiye.",
+    toolUrl ? `${brandedToolName} try karo: ${toolUrl}` : ""
   ].join(" ");
   const baseHashtags = [
+    "#AltFTool",
     hashtagValue(toolName),
     hashtagValue(topic),
     "#AITools",
@@ -488,6 +503,8 @@ export function buildViralSeoData(row = {}, plan = {}) {
     hashtags: [...new Set(baseHashtags)].slice(0, 15),
     keywords: [
       toolName,
+      "AltFTool",
+      brandedToolName,
       topic,
       language,
       "real tool demo",
@@ -501,10 +518,10 @@ export function buildViralSeoData(row = {}, plan = {}) {
     ].filter(Boolean),
     hook_options: hookOptions,
     engagement_cta: language === "English"
-      ? "Save this workflow, comment TOOL, and share it with someone who needs this."
+      ? "Save this workflow, comment TOOL, and try it from the AltFTool caption link."
       : language === "Hindi"
-        ? "Is workflow ko save karo, comment TOOL, aur jisko need ho uske saath share karo."
-        : "Save this workflow, comment TOOL, share with someone who needs this.",
+        ? "Is workflow ko save karo, comment TOOL, aur AltFTool caption link se try karo."
+        : "Save this workflow, comment TOOL, aur AltFTool caption link se try karo.",
     onscreen_overlays: (plan.scenes || []).map((scene) => ({
       scene_number: scene.scene_number,
       text: scene.onscreen_text
