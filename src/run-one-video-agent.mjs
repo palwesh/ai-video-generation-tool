@@ -411,7 +411,7 @@ async function writePreparedWorkbook(table, normalizedRows, selectedRow, result,
     })
   ];
 
-  await writeSimpleXlsx(preparedWorkbookPath, outputRows, "Tool Reel Prep");
+  await writeSimpleXlsx(preparedWorkbookPath, outputRows, "AI Reel Prep");
   return preparedWorkbookPath;
 }
 

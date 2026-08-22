@@ -205,7 +205,7 @@ const outputRows = [
 ];
 
 const preparedWorkbookPath = path.join(batchDir, "prepared-tool-reel-workbook.xlsx");
-await writeSimpleXlsx(preparedWorkbookPath, outputRows, "Tool Reel Prep");
+await writeSimpleXlsx(preparedWorkbookPath, outputRows, "AI Reel Prep");
 
 const summary = {
   input: inputPath,

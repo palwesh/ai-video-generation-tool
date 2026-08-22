@@ -159,7 +159,7 @@ for (const [header, value] of Object.entries(updates)) {
   rows[targetRowIndex][index] = value;
 }
 
-await writeSimpleXlsx(outputPath, [headers, ...rows], "Tool Reel Prep");
+await writeSimpleXlsx(outputPath, [headers, ...rows], "AI Reel Prep");
 
 const report = {
   ok: true,

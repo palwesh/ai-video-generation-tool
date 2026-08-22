@@ -64,7 +64,7 @@ export async function writePostCopy(runDir, row, scenePlan) {
 export async function writeAssetBrief(runDir, row, capture = {}) {
   const files = Array.isArray(capture.files) ? capture.files : [];
   const lines = [
-    `# Asset Brief - ${row.tool_name || row.topic || "Tool Reel"}`,
+    `# Asset Brief - ${row.tool_name || row.topic || "AI Reel"}`,
     "",
     "## Tool",
     "",
@@ -99,7 +99,7 @@ export async function writeReelScriptPackage(runDir, scriptPackage = {}) {
   const mdPath = path.join(runDir, "reel-script.md");
   await writeJson(jsonPath, scriptPackage);
   const md = [
-    `# Reel Script - ${scriptPackage.tool_name || "Tool Reel"}`,
+    `# Reel Script - ${scriptPackage.tool_name || "AI Reel"}`,
     "",
     `Duration: ${scriptPackage.total_duration_seconds || ""} seconds`,
     `Scenes: ${scriptPackage.scene_count || ""}`,

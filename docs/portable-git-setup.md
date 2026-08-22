@@ -1,6 +1,6 @@
 # Portable Git Setup
 
-Use this when you want to run Tool Reel Factory on another laptop.
+Use this when you want to run AI Reel Creator by Prathak on another laptop.
 
 ## What Goes In Git
 
@@ -29,7 +29,7 @@ Create the git repo and commit:
 ```bash
 git init
 git add .
-git commit -m "Initial Tool Reel Factory automation"
+git commit -m "Initial AI Reel Creator automation"
 ```
 
 Then create an empty GitHub/GitLab repo and connect it:

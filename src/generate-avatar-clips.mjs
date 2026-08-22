@@ -113,7 +113,7 @@ async function createHeyGenPhotoAvatar(assetId) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       type: "photo",
-      name: args.name || `Tool Reel Avatar ${new Date().toISOString()}`,
+      name: args.name || `AI Reel Avatar ${new Date().toISOString()}`,
       file: {
         type: "asset_id",
         asset_id: assetId
@@ -140,7 +140,7 @@ async function createHeyGenVideo(avatarId, scene, voiceId) {
       avatar_id: avatarId,
       script,
       voice_id: voiceId,
-      title: `${args.title || "Tool Reel"} - Scene ${scene.scene_number}`,
+      title: `${args.title || "AI Reel"} - Scene ${scene.scene_number}`,
       resolution: args.resolution || "1080p",
       aspect_ratio: "9:16",
       remove_background: args["remove-background"] === "true",

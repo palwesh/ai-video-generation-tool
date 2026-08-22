@@ -1,4 +1,4 @@
-# Tool Reel Factory
+# AI Reel Creator by Prathak
 
 Local automation for turning tool data into Instagram Reel assets.
 
@@ -139,7 +139,7 @@ https://www.altftool.com/
 
 ## Prepare Enriched Workbook
 
-This creates a new workbook with extra Tool Reel Factory columns. It does not overwrite your source Excel file.
+This creates a new workbook with extra AI Reel Creator by Prathak columns. It does not overwrite your source Excel file.
 
 ```bash
 npm run prep:free:capture -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --limit 1
