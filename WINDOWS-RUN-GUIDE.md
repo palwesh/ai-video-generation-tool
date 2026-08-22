@@ -68,6 +68,17 @@ Ye path `.env` me save ho jayega. Baad me path change karna ho to:
 
 Dashboard open hone ke baad Excel input field me bhi path change kar sakte ho.
 
+## Render Final Reel Fix
+
+Agar Windows me `Render Final Reel` click karne par render start nahi hota ya terminal me `npx`/`Remotion` error aaye, project folder me PowerShell open karke ye run karo:
+
+```powershell
+.\setup-windows.bat -SkipStart
+.\run-windows.bat
+```
+
+Ye Node/npm dependencies repair karega. Final renderer Windows par `npx.cmd` use karta hai, isliye setup ke baad naya PowerShell window open karke dashboard run karna best hai.
+
 ## 5. Dashboard Use
 
 Dashboard URL:

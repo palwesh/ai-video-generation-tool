@@ -61,6 +61,44 @@ function hasAsset(value) {
   return Boolean(String(value || "").trim());
 }
 
+function resolveLocalCommand(command) {
+  const normalized = String(command || "").trim();
+  if (process.platform !== "win32") {
+    return normalized;
+  }
+  const lower = normalized.toLowerCase();
+  if (lower === "npx") return "npx.cmd";
+  if (lower === "npm") return "npm.cmd";
+  if (lower === "powershell") return "powershell.exe";
+  return normalized;
+}
+
+function commandNeedsShell(command) {
+  return process.platform === "win32" && /\.(cmd|bat)$/i.test(String(command || ""));
+}
+
+function spawnOptions(extra = {}) {
+  const command = extra.command || "";
+  const options = { ...extra };
+  delete options.command;
+  return {
+    ...options,
+    shell: options.shell ?? commandNeedsShell(command),
+    windowsHide: true
+  };
+}
+
+function commandInstallHint(command) {
+  const normalized = String(command || "").toLowerCase();
+  if (normalized.includes("npx")) {
+    return "npx was not found. Run setup-windows.bat, then open a new PowerShell window and run the dashboard again.";
+  }
+  if (normalized.includes("powershell")) {
+    return "PowerShell was not found. Use Windows PowerShell or install PowerShell, then retry.";
+  }
+  return `${command} was not found in PATH.`;
+}
+
 async function listFilesRecursive(rootDir, maxDepth = 5) {
   const files = [];
   async function walk(currentDir, depth) {
@@ -353,11 +391,13 @@ async function copyCachedVidsAssets(toolDir, assetDir, sceneCount = 6) {
 
 async function runCommand(label, command, commandArgs) {
   return await new Promise((resolve, reject) => {
-    const child = spawn(command, commandArgs, {
+    const executable = resolveLocalCommand(command);
+    const child = spawn(executable, commandArgs, spawnOptions({
+      command: executable,
       cwd: process.cwd(),
       env: process.env,
       stdio: ["ignore", "pipe", "pipe"]
-    });
+    }));
 
     let stdout = "";
     let stderr = "";
@@ -370,7 +410,13 @@ async function runCommand(label, command, commandArgs) {
       stderr += chunk.toString();
     });
 
-    child.on("error", reject);
+    child.on("error", (error) => {
+      if (error.code === "ENOENT") {
+        reject(new Error(`${label} failed: ${commandInstallHint(executable)}`));
+        return;
+      }
+      reject(error);
+    });
     child.on("close", (code) => {
       if (code === 0) {
         resolve({ code, stdout, stderr });
@@ -599,7 +645,9 @@ async function createAudioAssets(scenes, assetDir, outputDir, durationSeconds = 
 
 async function runRender(propsPath, outputPath) {
   return await new Promise((resolve, reject) => {
-    const child = spawn("npx", [
+    const executable = resolveLocalCommand("npx");
+    process.stdout.write(`Starting Remotion render via ${executable}\n`);
+    const child = spawn(executable, [
       "remotion",
       "render",
       "src/remotion/index.jsx",
@@ -608,11 +656,12 @@ async function runRender(propsPath, outputPath) {
       "--props",
       propsPath,
       "--overwrite"
-    ], {
+    ], spawnOptions({
+      command: executable,
       cwd: process.cwd(),
       env: process.env,
       stdio: ["ignore", "pipe", "pipe"]
-    });
+    }));
 
     let stdout = "";
     let stderr = "";
@@ -629,7 +678,13 @@ async function runRender(propsPath, outputPath) {
       process.stderr.write(text);
     });
 
-    child.on("error", reject);
+    child.on("error", (error) => {
+      if (error.code === "ENOENT") {
+        reject(new Error(`Remotion render could not start: ${commandInstallHint(executable)}`));
+        return;
+      }
+      reject(error);
+    });
     child.on("close", (code) => {
       if (code === 0) {
         resolve({ code, stdout, stderr });

@@ -144,6 +144,17 @@ vids-clips\scene-XX.mp4
 
 Then it merges the final Reel locally.
 
+## Render Final Reel Troubleshooting
+
+If the dashboard opens but `Render Final Reel` does not start on Windows, repair dependencies once:
+
+```powershell
+.\setup-windows.bat -SkipStart
+.\run-windows.bat
+```
+
+The local renderer uses Remotion through `npx.cmd` on Windows. If PowerShell was opened before Node/npm was installed, close it and open a new PowerShell window so the updated PATH is available.
+
 ## Free Provider Clips
 
 Without Google Vids quota, prepare prompt folders for free/free-trial tools:

@@ -4109,10 +4109,12 @@ async function startFinalReelRun(body = {}) {
           updatedAt: new Date().toISOString()
         };
       });
+      setFinalReelStep(run, "start", "Final Reel", "complete", `Completed row ${prepared.row}.`);
       setFinalReelStep(run, "done", "Final saved", "complete", rendered.outputPath);
       addFinalReelLog(run, `Final reel ready: ${rendered.outputPath}`, "stdout");
       finishFinalReelRun(run, "complete", result);
     } catch (error) {
+      setFinalReelStep(run, "start", "Final Reel", "failed", `Stopped at row ${Number(body.row || 2)}.`);
       setFinalReelStep(run, "failed", "Final failed", "failed", error.message);
       run.report = {
         mode: "basic-final-local",
