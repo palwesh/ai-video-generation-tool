@@ -98,12 +98,14 @@ function cachedVidsMedia(assets, sceneIndex, totalScenes = 6) {
   if (sceneClip) {
     const isHook = sceneIndex === 0;
     const isCta = sceneIndex === totalScenes - 1;
+    const audioScenes = new Set((assets.vidsClipAudioScenes || []).map(Number));
+    const hasOwnAudio = isHook || isCta || audioScenes.has(sceneNumber);
     return {
       src: sceneClip,
       kind: "cached_scene_clip",
-      badge: isHook ? "HOOK AVATAR VIDEO" : isCta ? "CTA AVATAR VIDEO" : "AI AVATAR CLIP",
-      loop: !(isHook || isCta),
-      muted: !(isHook || isCta),
+      badge: isHook ? "HOOK AVATAR VIDEO" : isCta ? "CTA AVATAR VIDEO" : hasOwnAudio ? "FOCUS AVATAR VIDEO" : "AI AVATAR CLIP",
+      loop: !hasOwnAudio,
+      muted: !hasOwnAudio,
       objectFit: "cover"
     };
   }
@@ -1583,9 +1585,7 @@ export const ReelScene = ({ scene, sceneIndex, totalScenes = 6, sceneDurationSec
   const sceneDurationFrames = Math.max(1, Number(sceneDurationSeconds || 10)) * fps;
   const accent = accents[sceneIndex] || Palette.blue;
   const rawAssets = assets || {};
-  const generatedClip = (sceneIndex === 0 || sceneIndex === totalScenes - 1)
-    ? cachedVidsMedia(rawAssets, sceneIndex, totalScenes)
-    : null;
+  const generatedClip = cachedVidsMedia(rawAssets, sceneIndex, totalScenes);
   const sceneAssets = sceneIndex === 0 ? rawAssets : { ...rawAssets, avatarHost: "" };
   const toolMedia = toolMediaForScene(sceneAssets, sceneIndex);
   const fade = interpolate(frame, [0, sceneDurationFrames - 18, sceneDurationFrames], [1, 1, 0.94], {

@@ -103,7 +103,7 @@
               <span data-flow-step="select">Tool row</span>
               <span data-flow-step="asset">Assets</span>
               <span data-flow-step="script">Script</span>
-              <span data-flow-step="hook">Hook + CTA avatar</span>
+              <span data-flow-step="hook">Avatar pack</span>
               <span data-flow-step="final">Final reel</span>
               <span data-flow-step="profile">Profiles</span>
             </div>
@@ -304,12 +304,12 @@
               </div>
             </section>
 
-            <section id="hookAvatar" class="hook-panel workflow-section" aria-label="Hook and CTA avatar generator">
+            <section id="hookAvatar" class="hook-panel workflow-section" aria-label="Hook focus and CTA avatar generator">
               <div class="hook-head">
                 <div>
                   <p class="eyebrow">Step 3</p>
-                  <h2>Generate Hook + CTA Avatar</h2>
-                  <p>First hook clip and final CTA clip with the same human avatar.</p>
+                  <h2>Generate Hook + Focus + CTA Avatar</h2>
+                  <p>Hook, mid-reel focus break, and final CTA with the same human avatar.</p>
                 </div>
                 <span id="hookState" class="state-pill">Ready</span>
               </div>
@@ -367,8 +367,8 @@
                   </select>
                 </label>
                 <button id="refreshHookProfilesBtn" class="secondary-action" type="button">Refresh Profiles</button>
-                <button id="prepareHookAvatarBtn" class="secondary-action" type="button" disabled>Prepare Hook+CTA</button>
-                <button id="generateHookAvatarBtn" class="primary-action build-main-action" type="button" disabled>Generate Hook+CTA</button>
+                <button id="prepareHookAvatarBtn" class="secondary-action" type="button" disabled>Prepare Avatar Pack</button>
+                <button id="generateHookAvatarBtn" class="primary-action build-main-action" type="button" disabled>Generate Avatar Pack</button>
                 <button id="viewHookAvatarBtn" class="secondary-action" type="button" disabled>View Avatar Folder</button>
               </div>
               <div id="hookProfileStatus" class="profile-status-strip" aria-live="polite">
@@ -378,7 +378,7 @@
               <div id="hookResult" class="hook-result is-hidden">
                 <div class="hook-result-head">
                   <div>
-                    <p class="eyebrow">Hook + CTA Clips</p>
+                    <p class="eyebrow">Hook + Focus + CTA Clips</p>
                     <h2 id="hookToolName">Avatar clips ready</h2>
                   </div>
                   <strong id="hookStatusText">Prepared</strong>
@@ -386,7 +386,7 @@
                 <p id="hookFolderPath" class="path-text"></p>
                 <div class="hook-preview-grid">
                   <article class="script-part-card">
-                    <span>Hook + CTA Script</span>
+                    <span>Avatar Scripts</span>
                     <p id="hookScriptText"></p>
                   </article>
                   <article class="script-part-card">

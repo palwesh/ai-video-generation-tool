@@ -736,6 +736,10 @@ const assets = {
 };
 const vidsCacheAssets = await copyCachedVidsAssets(toolDir, assetDir, scenePlan.scenes.length);
 assets.vidsClips = vidsCacheAssets.sceneClips;
+assets.vidsClipAudioScenes = vidsCacheAssets.copiedFiles
+  .filter((clip) => /avatar|hook|cta|focus/i.test(`${clip.file || ""} ${clip.note || ""} ${clip.sourcePath || ""}`))
+  .map((clip) => Number(clip.sceneNumber))
+  .filter(Number.isFinite);
 assets.vidsTimelines = vidsCacheAssets.timelineExports;
 assets.vidsClipCache = {
   cacheDir: vidsCacheAssets.cacheDir,
@@ -746,11 +750,8 @@ assets.vidsClipCache = {
 const bodyVoiceoverVideoSource = await findBodyVoiceoverVideo(toolDir);
 assets.bodyVoiceoverVideo = await copyAsset(bodyVoiceoverVideoSource, assetDir, "body-voiceover-source");
 const bodySceneNumbers = (scenePlan.scenes || []).slice(1).map((_, index) => index + 2);
-const cachedAvatarAudioSceneNumbers = (vidsCacheAssets.sceneClips || [])
-  .map((clip, index) => (clip && (index === 0 || index === (scenePlan.scenes.length - 1)) ? index + 1 : null))
-  .filter(Number.isFinite);
 const audioAssets = await createAudioAssets(scenePlan.scenes, assetDir, outputRoot, totalDurationSeconds, {
-  skipSceneNumbers: cachedAvatarAudioSceneNumbers,
+  skipSceneNumbers: assets.vidsClipAudioScenes,
   suppressFallbackSceneNumbers: bodyVoiceoverVideoSource ? bodySceneNumbers : []
 });
 assets.voiceovers = audioAssets.voiceovers;

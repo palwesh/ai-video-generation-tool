@@ -818,8 +818,8 @@ function setHookBusy(isBusy) {
   els.prepareHookAvatarBtn.disabled = isBusy || !hasRow;
   els.generateHookAvatarBtn.disabled = isBusy || !hasRow;
   els.viewHookAvatarBtn.disabled = isBusy || !state.lastHookAvatarFolder;
-  els.prepareHookAvatarBtn.textContent = isBusy ? "Preparing..." : "Prepare Hook+CTA";
-  els.generateHookAvatarBtn.textContent = isBusy ? "Generating..." : "Generate Hook+CTA";
+  els.prepareHookAvatarBtn.textContent = isBusy ? "Preparing..." : "Prepare Avatar Pack";
+  els.generateHookAvatarBtn.textContent = isBusy ? "Generating..." : "Generate Avatar Pack";
 }
 
 function setFinalBusy(isBusy) {
@@ -978,7 +978,7 @@ function renderArtifactNotice(artifacts) {
   if (!hasAsset && !hasScript && !hasHook) {
     setArtifactNotice(
       "No old work found",
-      "Fresh assets, script aur hook+CTA avatar generate kar sakte ho.",
+      "Fresh assets, script aur avatar pack generate kar sakte ho.",
       "missing",
       false
     );
@@ -1325,7 +1325,7 @@ function updateSelectedTool() {
     els.selectStepLink.classList.add("done");
     els.assetStepMeta.textContent = state.lastAssetFolder ? "Assets ready" : "Ready";
     els.scriptStepMeta.textContent = "Ready";
-    els.hookStepMeta.textContent = state.lastHookAvatarFolder ? "Hook+CTA ready" : "After script";
+    els.hookStepMeta.textContent = state.lastHookAvatarFolder ? "Avatar pack ready" : "After script";
     els.finalStepMeta.textContent = state.lastFinalReelFolder ? "Final ready" : "After hook";
     if (state.filteredTools.some((item) => Number(item.row || item.source_row_number) === selectedRow)) {
       els.toolSelect.value = String(selectedRow);
@@ -1472,6 +1472,9 @@ function hookAvatarPayload(extra = {}) {
     avatarLabel: hookCharacterLabel(els.hookCharacterSelect?.value || "auto_by_reel"),
     tone: els.hookToneSelect.value || "energetic",
     durationSeconds: Number(els.hookDurationSelect.value || 10),
+    includeMiddleAvatar: true,
+    middleAvatarScenes: "2",
+    focusDurationSeconds: Number(els.hookDurationSelect.value || 10),
     includeCtaAvatar: true,
     ctaDurationSeconds: Number(els.hookDurationSelect.value || 10),
     profile: primaryProfile,
@@ -1503,14 +1506,18 @@ function renderHookAvatarResult(hookAvatar = {}) {
   els.hookFolderPath.textContent = hookAvatar.hookDir || hookAvatar.folder || "";
   const hookScript = hookAvatar.hookScript || hookAvatar.hookAvatar?.hookScript || "";
   const ctaScript = hookAvatar.ctaScript || hookAvatar.ctaAvatar?.ctaScript || "";
+  const middleScripts = hookAvatar.middleAvatarScripts || {};
+  const middlePrompts = hookAvatar.googleVidsMiddlePrompts || {};
   els.hookScriptText.textContent = [
     hookScript ? `HOOK: ${hookScript}` : "",
+    ...Object.entries(middleScripts).map(([sceneNumber, script]) => `FOCUS S${sceneNumber}: ${script}`),
     ctaScript ? `CTA: ${ctaScript}` : ""
   ].filter(Boolean).join("\n\n");
   els.hookPromptText.textContent = [
     avatarText ? `Character: ${avatarText}` : "",
     avatarChoice.reason ? `Reason: ${avatarChoice.reason}` : "",
     hookAvatar.googleVidsPrompt ? `HOOK PROMPT:\n${hookAvatar.googleVidsPrompt}` : "",
+    ...Object.entries(middlePrompts).map(([sceneNumber, prompt]) => `FOCUS S${sceneNumber} PROMPT:\n${prompt}`),
     hookAvatar.googleVidsCtaPrompt ? `CTA PROMPT:\n${hookAvatar.googleVidsCtaPrompt}` : ""
   ].filter(Boolean).join("\n\n");
   const files = (hookAvatar.files || []).slice(0, 14);
@@ -1537,11 +1544,12 @@ function renderHookAvatarResult(hookAvatar = {}) {
     els.hookVideoPreview.removeAttribute("src");
   }
   const ctaVideoPath = hookAvatar.ctaVideoPath || hookAvatar.ctaAvatar?.videoPath || "";
-  const success = status === "complete" || Boolean(videoPath || ctaVideoPath);
-  setHookState(success ? (ctaVideoPath ? "Hook+CTA ready" : "Hook video ready") : "Hook+CTA prepared", "success");
-  setTask(success ? "Avatar clips ready" : "Avatar pack ready", ctaVideoPath || videoPath || hookAvatar.hookDir || "", "success");
-  setTerminalStatus(success ? "Avatar clip flow complete" : "Hook+CTA prompt pack prepared");
-  appendTerminal(`Hook+CTA avatar ${status}${avatarText ? ` | ${avatarText}` : ""}: ${hookAvatar.hookDir || ""}`, "stdout");
+  const middleVideoPaths = Object.values(hookAvatar.middleAvatarVideos || {});
+  const success = status === "complete" || Boolean(videoPath || ctaVideoPath || middleVideoPaths.length);
+  setHookState(success ? (middleVideoPaths.length || ctaVideoPath ? "Avatar pack ready" : "Hook video ready") : "Avatar pack prepared", "success");
+  setTask(success ? "Avatar clips ready" : "Avatar pack ready", ctaVideoPath || middleVideoPaths[0] || videoPath || hookAvatar.hookDir || "", "success");
+  setTerminalStatus(success ? "Avatar clip flow complete" : "Hook+Focus+CTA prompt pack prepared");
+  appendTerminal(`Hook+Focus+CTA avatar ${status}${avatarText ? ` | ${avatarText}` : ""}: ${hookAvatar.hookDir || ""}`, "stdout");
   loadHookProfiles({ primary: activeProfile || undefined }).catch((error) => {
     appendTerminal(error.message, "stderr");
   });
@@ -1554,8 +1562,8 @@ function renderHookAvatarResult(hookAvatar = {}) {
 async function prepareHookAvatar() {
   const payload = hookAvatarPayload();
   setHookState("Preparing", "busy");
-  setTask("Preparing hook+CTA avatar", `Row ${payload.row} | ${payload.presenter} | ${payload.avatarLabel} | ${payload.tone}`, "busy");
-  setTerminalStatus("Preparing hook+CTA avatar prompt pack");
+  setTask("Preparing avatar pack", `Row ${payload.row} | ${payload.presenter} | ${payload.avatarLabel} | ${payload.tone}`, "busy");
+  setTerminalStatus("Preparing hook+focus+CTA avatar prompt pack");
   appendTerminal(`POST /api/hook-avatar/prepare row=${payload.row}`);
   activeStep("hook");
   setHookBusy(true);
@@ -1581,13 +1589,13 @@ function connectHookAvatarRun(runId) {
   source.addEventListener("log", (event) => {
     const entry = JSON.parse(event.data);
     appendTerminal(entry.text, entry.stream);
-    setTask("Generating hook+CTA avatar", entry.text, entry.stream === "stderr" ? "error" : "busy");
+    setTask("Generating avatar pack", entry.text, entry.stream === "stderr" ? "error" : "busy");
     setTerminalStatus(entry.text);
   });
   source.addEventListener("status", (event) => {
     const run = JSON.parse(event.data);
     if (run.status === "running") {
-      setTask("Generating hook+CTA avatar", `Run ${run.id}`, "busy");
+      setTask("Generating avatar pack", `Run ${run.id}`, "busy");
       setTerminalStatus(`Running: ${run.id}`);
       return;
     }
@@ -1595,14 +1603,14 @@ function connectHookAvatarRun(runId) {
     state.hookAvatarEventSource = null;
     if (run.status === "complete") {
       renderHookAvatarResult(run.result || {});
-      appendTerminal(`Hook+CTA avatar run complete: ${run.id}`, "stdout");
+      appendTerminal(`Avatar pack run complete: ${run.id}`, "stdout");
       scheduleArtifactCheck(Number(run.result?.row || els.assetRowInput.value || 0));
       return;
     }
-    const message = run.error || "Hook+CTA avatar generation failed.";
+    const message = run.error || "Avatar pack generation failed.";
     setHookState("Failed", "error");
-    setTask("Hook+CTA avatar failed", message, "error");
-    setTerminalStatus("Hook+CTA avatar generation failed");
+    setTask("Avatar pack failed", message, "error");
+    setTerminalStatus("Avatar pack generation failed");
     appendTerminal(message, "stderr");
     if (run.result) {
       renderHookAvatarResult(run.result);
@@ -1611,15 +1619,15 @@ function connectHookAvatarRun(runId) {
     setHookBusy(false);
   });
   source.onerror = () => {
-    appendTerminal(`Hook+CTA avatar event stream interrupted for ${runId}.`, "stderr");
+    appendTerminal(`Avatar pack event stream interrupted for ${runId}.`, "stderr");
   };
 }
 
 async function generateHookAvatar() {
   const payload = hookAvatarPayload({ prepareOnly: false });
   setHookState("Generating", "busy");
-  setTask("Generating hook+CTA avatar", `Google Vids | Row ${payload.row} | ${payload.profiles.join(" -> ")}`, "busy");
-  setTerminalStatus("Starting Google Vids hook+CTA avatar run");
+  setTask("Generating avatar pack", `Google Vids | Row ${payload.row} | ${payload.profiles.join(" -> ")}`, "busy");
+  setTerminalStatus("Starting Google Vids hook+focus+CTA avatar run");
   appendTerminal(`POST /api/hook-avatar/runs row=${payload.row} profiles=${payload.profiles.join(", ")}`);
   activeStep("hook");
   setHookBusy(true);
@@ -1630,7 +1638,7 @@ async function generateHookAvatar() {
   });
   const data = await response.json();
   if (!response.ok || data.ok === false) {
-    throw new Error(data.error || `Hook+CTA avatar run failed: ${response.status}`);
+    throw new Error(data.error || `Avatar pack run failed: ${response.status}`);
   }
   state.lastHookAvatarRunId = data.run?.id || "";
   connectHookAvatarRun(state.lastHookAvatarRunId);
@@ -2315,8 +2323,8 @@ els.generateHookAvatarBtn.addEventListener("click", async () => {
     await generateHookAvatar();
   } catch (error) {
     setHookState("Failed", "error");
-    setTask("Hook+CTA avatar failed", error.message, "error");
-    setTerminalStatus("Hook+CTA avatar generation failed");
+    setTask("Avatar pack failed", error.message, "error");
+    setTerminalStatus("Avatar pack generation failed");
     appendTerminal(error.message, "stderr");
     els.hookResult.classList.remove("is-hidden");
     setHookBusy(false);

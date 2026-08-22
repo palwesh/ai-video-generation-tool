@@ -2167,6 +2167,44 @@ function buildCtaOnscreenText(tool, language = "Hinglish") {
   return shortScriptPhrase(base, "Link caption me", 7, 54);
 }
 
+function middleAvatarSceneNumbers(value, sceneCount = 6) {
+  const selected = parseSceneList(value || "2", sceneCount)
+    .filter((sceneNumber) => sceneNumber > 1 && sceneNumber < sceneCount);
+  if (selected.length) {
+    return selected.slice(0, 2);
+  }
+  return sceneCount >= 4 ? [2] : [];
+}
+
+function buildMiddleAvatarScript(tool, scriptBuild = {}, sceneNumber = 2, options = {}) {
+  const durationSeconds = clamp(asFiniteNumber(options.durationSeconds, 8), 6, 10);
+  const language = normalizeViralLanguage(options.scriptLanguage || scriptBuild.scriptLanguage || tool.language || "Hinglish");
+  const label = brandedToolLabel(tool, language);
+  const scenes = Array.isArray(scriptBuild.plan?.scenes) ? scriptBuild.plan.scenes : [];
+  const sourceScene = scenes.find((scene) => Number(scene.scene_number) === Number(sceneNumber));
+  const sourceText = scriptTextClean(sourceScene?.voiceover, "");
+  const base = language === "English"
+    ? `Quick focus: ${label} keeps the workflow simple. Use demo data, run the visible step, then review before sharing.`
+    : language === "Hindi"
+      ? `Quick focus: ${label} में workflow simple है. Demo data use करो, visible step run करो, फिर share से पहले review करो.`
+      : `Quick focus: ${label} me workflow simple hai. Demo data use karo, visible step run karo, phir share se pehle review karo.`;
+  const combined = sourceText && sourceText.length < 95
+    ? `${base} ${sourceText}`
+    : base;
+  return limitScriptWords(combined, hookWordLimit(durationSeconds));
+}
+
+function buildMiddleOnscreenText(tool, language = "Hinglish") {
+  const label = brandedToolLabel(tool, language);
+  const normalized = normalizeViralLanguage(language);
+  const base = normalized === "English"
+    ? `Focus: ${label}`
+    : normalized === "Hindi"
+      ? `Focus: ${label}`
+      : `Focus: ${label}`;
+  return shortScriptPhrase(base, "Focus karo", 7, 54);
+}
+
 function captureFilePathsFromArtifacts(...sources) {
   const files = [];
   for (const source of sources.filter(Boolean)) {
@@ -2185,9 +2223,25 @@ function captureFilePathsFromArtifacts(...sources) {
 }
 
 function hookAvatarReadme(result) {
+  const middleScenes = Array.isArray(result.middleAvatarScenes) ? result.middleAvatarScenes : [];
   const ctaLines = result.includeCtaAvatar === false ? [] : [
-    `5. Generate/download the CTA MP4 and keep/copy it as \`cta_avatar.mp4\` and \`../vids-clips/scene-${String(result.ctaSceneNumber || 6).padStart(2, "0")}.mp4\`.`
+    `${5 + middleScenes.length}. Generate/download the CTA MP4 and keep/copy it as \`cta_avatar.mp4\` and \`../vids-clips/scene-${String(result.ctaSceneNumber || 6).padStart(2, "0")}.mp4\`.`
   ];
+  const middleLines = middleScenes.map((sceneNumber, index) => (
+    `${5 + index}. Generate/download the mid-reel focus avatar MP4 for Scene ${sceneNumber} and keep/copy it as \`focus_avatar_scene_${String(sceneNumber).padStart(2, "0")}.mp4\` and \`../vids-clips/scene-${String(sceneNumber).padStart(2, "0")}.mp4\`.`
+  ));
+  const middleScriptLines = middleScenes.length ? [
+    "",
+    "Middle focus avatar scripts:",
+    "",
+    ...middleScenes.map((sceneNumber) => `Scene ${sceneNumber}: ${result.middleAvatarScripts?.[sceneNumber] || ""}`)
+  ] : [];
+  const middlePromptLines = middleScenes.length ? [
+    "",
+    "Google Vids middle focus prompts:",
+    "",
+    ...middleScenes.map((sceneNumber) => `Scene ${sceneNumber} prompt:\n${result.googleVidsMiddlePrompts?.[sceneNumber] || ""}`)
+  ] : [];
   const ctaScriptLines = result.includeCtaAvatar === false ? [] : [
     "",
     "CTA script:",
@@ -2201,9 +2255,9 @@ function hookAvatarReadme(result) {
     result.googleVidsCtaPrompt
   ];
   return [
-    `# Hook + CTA Avatar - ${result.tool?.tool_name || "Tool"}`,
+    `# Hook + Focus + CTA Avatar - ${result.tool?.tool_name || "Tool"}`,
     "",
-    "Purpose: generate the first hook clip and optional final CTA avatar clip for the Reel.",
+    "Purpose: generate the first hook clip, optional mid-reel focus avatar clip, and optional final CTA avatar clip for the Reel.",
     "",
     "Use this flow:",
     "",
@@ -2211,6 +2265,7 @@ function hookAvatarReadme(result) {
     "2. Use AI Avatar in portrait mode for the hook scene.",
     "3. Download the generated hook MP4.",
     "4. Keep/copy the hook MP4 as `hook_avatar.mp4` and `../vids-clips/scene-01.mp4`.",
+    ...middleLines,
     ...ctaLines,
     "",
     "Google Vids character:",
@@ -2221,11 +2276,13 @@ function hookAvatarReadme(result) {
     "Hook script:",
     "",
     result.hookScript,
+    ...middleScriptLines,
     ...ctaScriptLines,
     "",
     "Google Vids prompt:",
     "",
     result.googleVidsPrompt,
+    ...middlePromptLines,
     ...ctaPromptLines,
     "",
     "Safety: use fictional/demo data only and review the generated human/avatar clip before posting.",
@@ -2289,6 +2346,11 @@ async function prepareHookAvatar(body = {}) {
   );
   const ctaSceneNumber = reelSceneCount;
   const includeCtaAvatar = body.includeCtaAvatar !== false;
+  const includeMiddleAvatar = body.includeMiddleAvatar !== false && body.includeFocusAvatar !== false;
+  const focusDurationSeconds = clamp(asFiniteNumber(body.focusDurationSeconds || body.middleDurationSeconds || durationSeconds, 8), 6, 10);
+  const middleScenes = includeMiddleAvatar
+    ? middleAvatarSceneNumbers(body.middleAvatarScenes || body.focusAvatarScenes, reelSceneCount)
+    : [];
   const hookScript = buildHookAvatarScript(tool, scriptBuild, {
     durationSeconds,
     scriptLanguage: body.scriptLanguage || scriptBuild.scriptLanguage
@@ -2310,6 +2372,17 @@ async function prepareHookAvatar(body = {}) {
     : `Use/select the Google Vids AI avatar character "${avatarChoice.label}" if available.`;
   const onscreenText = buildHookOnscreenText(hookScript, tool);
   const ctaOnscreenText = buildCtaOnscreenText(tool, body.scriptLanguage || scriptBuild.scriptLanguage || tool.language || "Hinglish");
+  const middleAvatarScripts = Object.fromEntries(middleScenes.map((sceneNumber) => [
+    sceneNumber,
+    buildMiddleAvatarScript(tool, scriptBuild, sceneNumber, {
+      durationSeconds: focusDurationSeconds,
+      scriptLanguage: body.scriptLanguage || scriptBuild.scriptLanguage
+    })
+  ]));
+  const middleAvatarOnscreenText = Object.fromEntries(middleScenes.map((sceneNumber) => [
+    sceneNumber,
+    buildMiddleOnscreenText(tool, body.scriptLanguage || scriptBuild.scriptLanguage || tool.language || "Hinglish")
+  ]));
   const hookScene = {
     scene_number: 1,
     duration: durationSeconds,
@@ -2326,6 +2399,22 @@ async function prepareHookAvatar(body = {}) {
       "No fake UI, no personal information, no unrelated stock footage."
     ].join(" ")
   };
+  const middleAvatarScenePlan = middleScenes.map((sceneNumber) => ({
+    scene_number: sceneNumber,
+    duration: focusDurationSeconds,
+    voiceover: middleAvatarScripts[sceneNumber],
+    onscreen_text: middleAvatarOnscreenText[sceneNumber],
+    visual: `${characterDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection("professional")} Mid-reel human focus break beside a laptop showing the real tool demo; the avatar points at the useful workflow and keeps attention before the screen demo continues.`,
+    video_prompt: [
+      `Create a ${focusDurationSeconds}-second 9:16 vertical portrait AI avatar focus clip for Scene ${sceneNumber}.`,
+      characterDirection,
+      hookPresenterDirection(presenter),
+      "Professional but engaging mid-reel focus break, direct eye contact, short hand gesture toward the laptop screen.",
+      `The avatar speaks this exact line naturally: ${middleAvatarScripts[sceneNumber]}`,
+      "Keep the real tool page visible on a laptop or phone as context, but do not invent UI. This clip will be used between real screenshots and demo footage.",
+      "No fake UI, no personal information, no unrelated stock footage."
+    ].join(" ")
+  }));
   const ctaScene = {
     scene_number: ctaSceneNumber,
     duration: ctaDurationSeconds,
@@ -2343,13 +2432,19 @@ async function prepareHookAvatar(body = {}) {
     ].join(" ")
   };
   const scenePlan = {
-    scenes: includeCtaAvatar ? [hookScene, ctaScene] : [hookScene],
+    scenes: [
+      hookScene,
+      ...middleAvatarScenePlan,
+      ...(includeCtaAvatar ? [ctaScene] : [])
+    ].sort((a, b) => Number(a.scene_number) - Number(b.scene_number)),
     metadata: {
       generated_at: new Date().toISOString(),
       language: scriptBuild.scriptLanguage || tool.language || "Hinglish",
       script_type: scriptBuild.scriptLanguage || tool.language || "Hinglish",
-      hook_avatar_only: !includeCtaAvatar,
+      hook_avatar_only: !includeCtaAvatar && !middleScenes.length,
       hook_cta_avatar_pack: includeCtaAvatar,
+      hook_focus_cta_avatar_pack: Boolean(includeCtaAvatar || middleScenes.length),
+      middle_avatar_scenes: middleScenes,
       reel_scene_count: reelSceneCount,
       cta_scene_number: ctaSceneNumber,
       video_size: "portrait_9_16",
@@ -2383,6 +2478,20 @@ async function prepareHookAvatar(body = {}) {
       videoPath: "",
       cachedScenePath: ""
     },
+    middleAvatars: middleScenes.map((sceneNumber) => ({
+      presenter,
+      avatarChoice,
+      googleVidsAvatar,
+      portrait: true,
+      tone: "professional",
+      durationSeconds: focusDurationSeconds,
+      sceneNumber,
+      status: "prepared",
+      focusScript: middleAvatarScripts[sceneNumber],
+      onscreenText: middleAvatarOnscreenText[sceneNumber],
+      videoPath: "",
+      cachedScenePath: ""
+    })),
     ctaAvatar: includeCtaAvatar ? {
       presenter,
       avatarChoice,
@@ -2402,13 +2511,27 @@ async function prepareHookAvatar(body = {}) {
   const manifestPath = path.join(hookDir, "manifest.json");
   const hookScriptPath = path.join(hookDir, "hook-script.txt");
   const ctaScriptPath = path.join(hookDir, "cta-script.txt");
+  const middleScriptPaths = Object.fromEntries(middleScenes.map((sceneNumber) => [
+    sceneNumber,
+    path.join(hookDir, `focus-script-scene-${String(sceneNumber).padStart(2, "0")}.txt`)
+  ]));
   const promptPath = path.join(hookDir, "google-vids-hook-prompt.txt");
   const ctaPromptPath = path.join(hookDir, "google-vids-cta-prompt.txt");
+  const middlePromptPaths = Object.fromEntries(middleScenes.map((sceneNumber) => [
+    sceneNumber,
+    path.join(hookDir, `google-vids-focus-scene-${String(sceneNumber).padStart(2, "0")}-prompt.txt`)
+  ]));
   const saveAsPath = path.join(hookDir, "save-as.txt");
   const hookManifestPath = path.join(hookDir, "hook-avatar-manifest.json");
   const googleVidsPrompt = buildGoogleVidsClipPrompt(scenePlan, 1, manifest, {
     referenceFiles: manifest.capture.files
   });
+  const googleVidsMiddlePrompts = Object.fromEntries(middleScenes.map((sceneNumber) => [
+    sceneNumber,
+    buildGoogleVidsClipPrompt(scenePlan, sceneNumber, manifest, {
+      referenceFiles: manifest.capture.files
+    })
+  ]));
   const googleVidsCtaPrompt = includeCtaAvatar
     ? buildGoogleVidsClipPrompt(scenePlan, ctaSceneNumber, manifest, {
       referenceFiles: manifest.capture.files
@@ -2431,6 +2554,11 @@ async function prepareHookAvatar(body = {}) {
     portrait: true,
     tone,
     durationSeconds,
+    focusDurationSeconds,
+    includeMiddleAvatar: Boolean(middleScenes.length),
+    middleAvatarScenes: middleScenes,
+    middleAvatarScripts,
+    middleAvatarOnscreenText,
     ctaDurationSeconds,
     includeCtaAvatar,
     ctaSceneNumber,
@@ -2439,12 +2567,15 @@ async function prepareHookAvatar(body = {}) {
     ctaScript: includeCtaAvatar ? ctaScript : "",
     ctaOnscreenText: includeCtaAvatar ? ctaOnscreenText : "",
     googleVidsPrompt,
+    googleVidsMiddlePrompts,
     googleVidsCtaPrompt,
     scenePlanPath,
     manifestPath,
     hookScriptPath,
+    middleScriptPaths,
     ctaScriptPath: includeCtaAvatar ? ctaScriptPath : "",
     promptPath,
+    middlePromptPaths,
     ctaPromptPath: includeCtaAvatar ? ctaPromptPath : "",
     saveAsPath,
     hookManifestPath,
@@ -2456,6 +2587,10 @@ async function prepareHookAvatar(body = {}) {
   };
   manifest.hookAvatar.id = result.id;
   manifest.hookAvatar.generatedAt = result.generatedAt;
+  for (const middleAvatar of manifest.middleAvatars || []) {
+    middleAvatar.id = result.id;
+    middleAvatar.generatedAt = result.generatedAt;
+  }
   if (manifest.ctaAvatar) {
     manifest.ctaAvatar.id = result.id;
     manifest.ctaAvatar.generatedAt = result.generatedAt;
@@ -2464,6 +2599,10 @@ async function prepareHookAvatar(body = {}) {
   await writeJson(manifestPath, manifest);
   await fs.writeFile(hookScriptPath, `${hookScript}\n`, "utf8");
   await fs.writeFile(promptPath, `${googleVidsPrompt}\n`, "utf8");
+  for (const sceneNumber of middleScenes) {
+    await fs.writeFile(middleScriptPaths[sceneNumber], `${middleAvatarScripts[sceneNumber]}\n`, "utf8");
+    await fs.writeFile(middlePromptPaths[sceneNumber], `${googleVidsMiddlePrompts[sceneNumber]}\n`, "utf8");
+  }
   if (includeCtaAvatar) {
     await fs.writeFile(ctaScriptPath, `${ctaScript}\n`, "utf8");
     await fs.writeFile(ctaPromptPath, `${googleVidsCtaPrompt}\n`, "utf8");
@@ -2472,6 +2611,11 @@ async function prepareHookAvatar(body = {}) {
     path.join(hookDir, "hook_avatar.mp4"),
     path.join(assetsDir, "hook_avatar.mp4"),
     path.join(vidsClipCacheFolder, "scene-01.mp4"),
+    ...middleScenes.flatMap((sceneNumber) => [
+      path.join(hookDir, `focus_avatar_scene_${String(sceneNumber).padStart(2, "0")}.mp4`),
+      path.join(assetsDir, `focus_avatar_scene_${String(sceneNumber).padStart(2, "0")}.mp4`),
+      path.join(vidsClipCacheFolder, `scene-${String(sceneNumber).padStart(2, "0")}.mp4`)
+    ]),
     ...(includeCtaAvatar ? [
       path.join(hookDir, "cta_avatar.mp4"),
       path.join(assetsDir, "cta_avatar.mp4"),
@@ -2483,8 +2627,10 @@ async function prepareHookAvatar(body = {}) {
     scenePlanPath,
     manifestPath,
     hookScriptPath,
+    ...Object.values(middleScriptPaths),
     includeCtaAvatar ? ctaScriptPath : "",
     promptPath,
+    ...Object.values(middlePromptPaths),
     includeCtaAvatar ? ctaPromptPath : "",
     saveAsPath,
     path.join(hookDir, "README.md")
@@ -2532,13 +2678,17 @@ async function updateHookAvatarManifest(prepared, patch = {}) {
     next.scenePlanPath,
     next.manifestPath,
     next.hookScriptPath,
+    ...Object.values(next.middleScriptPaths || {}),
     next.ctaScriptPath,
     next.promptPath,
+    ...Object.values(next.middlePromptPaths || {}),
     next.ctaPromptPath,
     next.saveAsPath,
     path.join(next.hookDir, "README.md"),
     next.videoPath,
     next.cachedScenePath,
+    ...Object.values(next.middleAvatarVideos || {}),
+    ...Object.values(next.middleAvatarCachedScenes || {}),
     next.ctaVideoPath,
     next.ctaCachedScenePath,
     next.hookManifestPath
@@ -2649,14 +2799,16 @@ function hookProfilesFromBody(body = {}) {
 }
 
 async function generateHookAvatarForProfile(prepared, body, run, profile, profileIndex = 0, options = {}) {
-  const sceneKind = options.sceneKind === "cta" ? "cta" : "hook";
+  const sceneKind = options.sceneKind === "cta" ? "cta" : options.sceneKind === "focus" ? "focus" : "hook";
   const isCta = sceneKind === "cta";
-  const sceneNumber = Number(options.sceneNumber || (isCta ? prepared.ctaSceneNumber : 1) || 1);
-  const fileName = isCta ? "cta_avatar.mp4" : "hook_avatar.mp4";
-  const sceneLabel = isCta ? "CTA avatar" : "hook avatar";
-  const reportLabel = isCta ? "cta" : "hook";
+  const isFocus = sceneKind === "focus";
+  const sceneNumber = Number(options.sceneNumber || (isCta ? prepared.ctaSceneNumber : isFocus ? prepared.middleAvatarScenes?.[0] : 1) || 1);
+  const sceneToken = String(sceneNumber).padStart(2, "0");
+  const fileName = isCta ? "cta_avatar.mp4" : isFocus ? `focus_avatar_scene_${sceneToken}.mp4` : "hook_avatar.mp4";
+  const sceneLabel = isCta ? "CTA avatar" : isFocus ? `focus avatar Scene ${sceneNumber}` : "hook avatar";
+  const reportLabel = isCta ? "cta" : isFocus ? `focus-${sceneToken}` : "hook";
   const profileLabel = safeHookProfileLabel(profile, profileIndex);
-  const outputLabel = isCta ? `${profileLabel}-cta` : profileLabel;
+  const outputLabel = isCta ? `${profileLabel}-cta` : isFocus ? `${profileLabel}-focus-${sceneToken}` : profileLabel;
   const operateDir = path.join(prepared.hookDir, "google-vids", outputLabel);
   const exportDir = path.join(prepared.hookDir, "google-vids-export", outputLabel);
   await ensureDir(operateDir);
@@ -2704,12 +2856,13 @@ async function generateHookAvatarForProfile(prepared, body, run, profile, profil
   const vidsUrl = vidsReport.currentUrl || "";
   const noExport = Boolean(body.noExport || body.prepareOnly);
   if (noExport) {
+    const avatarPatchKey = isCta ? "ctaAvatar" : isFocus ? "focusAvatar" : "hookAvatar";
     return updateHookAvatarManifest(prepared, {
-      status: isCta ? "cta_generated_in_vids_export_skipped" : "generated_in_vids_export_skipped",
-      [isCta ? "ctaVidsUrl" : "vidsUrl"]: vidsUrl,
-      [isCta ? "ctaVidsReportPath" : "vidsReportPath"]: vidsReportPath,
-      [isCta ? "ctaOperateDir" : "operateDir"]: operateDir,
-      [isCta ? "ctaAvatar" : "hookAvatar"]: {
+      status: isCta ? "cta_generated_in_vids_export_skipped" : isFocus ? "focus_generated_in_vids_export_skipped" : "generated_in_vids_export_skipped",
+      [isCta ? "ctaVidsUrl" : isFocus ? "focusVidsUrl" : "vidsUrl"]: vidsUrl,
+      [isCta ? "ctaVidsReportPath" : isFocus ? "focusVidsReportPath" : "vidsReportPath"]: vidsReportPath,
+      [isCta ? "ctaOperateDir" : isFocus ? "focusOperateDir" : "operateDir"]: operateDir,
+      [avatarPatchKey]: {
         status: "generated_in_vids_export_skipped",
         vidsUrl,
         vidsReportPath
@@ -2751,7 +2904,7 @@ async function generateHookAvatarForProfile(prepared, body, run, profile, profil
     sourcePath: videoPath,
     sceneNumber,
     profile,
-    note: `${isCta ? "CTA" : "Hook"} avatar generated via Google Vids from the dashboard avatar flow.`,
+    note: `${isCta ? "CTA" : isFocus ? "Focus" : "Hook"} avatar generated via Google Vids from the dashboard avatar flow.`,
     qualityStatus: "needs_human_review"
   });
   const patch = isCta ? {
@@ -2775,6 +2928,35 @@ async function generateHookAvatarForProfile(prepared, body, run, profile, profil
       videoPath,
       assetsCtaVideoPath: assetsVideoPath,
       cachedScenePath: cached?.cachedPath || ""
+    }
+  } : isFocus ? {
+    status: prepared.ctaVideoPath || prepared.videoPath ? "complete" : "focus_complete",
+    activeProfile: prepared.activeProfile || profile,
+    middleAvatarProfiles: {
+      ...(prepared.middleAvatarProfiles || {}),
+      [sceneNumber]: profile
+    },
+    middleAvatarVideos: {
+      ...(prepared.middleAvatarVideos || {}),
+      [sceneNumber]: videoPath
+    },
+    middleAvatarAssetVideos: {
+      ...(prepared.middleAvatarAssetVideos || {}),
+      [sceneNumber]: assetsVideoPath
+    },
+    middleAvatarCachedScenes: {
+      ...(prepared.middleAvatarCachedScenes || {}),
+      [sceneNumber]: cached?.cachedPath || ""
+    },
+    middleAvatarReports: {
+      ...(prepared.middleAvatarReports || {}),
+      [sceneNumber]: {
+        vidsUrl,
+        vidsReportPath,
+        exportReportPath,
+        operateDir,
+        exportDir
+      }
     }
   } : {
     status: "complete",
@@ -2806,6 +2988,11 @@ async function generateHookAvatarForProfile(prepared, body, run, profile, profil
       lastCtaAvatarProfile: profile,
       lastCtaAvatarVideo: videoPath,
       lastCtaAvatarCachedScene: cached?.cachedPath || ""
+    } : isFocus ? {
+      lastMiddleAvatarProfile: profile,
+      lastMiddleAvatarVideo: videoPath,
+      lastMiddleAvatarCachedScene: cached?.cachedPath || "",
+      lastMiddleAvatarScene: sceneNumber
     } : {
       lastHookAvatarProfile: profile,
       lastHookAvatarVideo: videoPath,
@@ -2872,6 +3059,45 @@ async function generateHookAvatarWithGoogleVids(prepared, body, run) {
         sceneKind: "hook",
         sceneNumber: 1
       });
+      const middleWarnings = [];
+      for (const middleSceneNumber of result.middleAvatarScenes || []) {
+        let focusWarning = "";
+        for (let focusIndex = index; focusIndex < profiles.length; focusIndex += 1) {
+          const focusProfile = profiles[focusIndex];
+          const focusQuota = profileQuota(await loadUiState(), focusProfile);
+          if (focusQuota.quotaExhausted || focusQuota.limitStatus === "limit_used") {
+            focusWarning = `Google Vids profile limit used for focus Scene ${middleSceneNumber}: ${focusProfile}.`;
+            addHookAvatarLog(run, `Skipping limit-used focus profile: ${focusProfile}`, "stderr");
+            continue;
+          }
+          try {
+            addHookAvatarLog(run, `Hook complete. Generating mid-reel focus avatar for Scene ${middleSceneNumber} using ${focusProfile}.`);
+            result = await generateHookAvatarForProfile(result, body, run, focusProfile, focusIndex, {
+              sceneKind: "focus",
+              sceneNumber: middleSceneNumber
+            });
+            focusWarning = "";
+            break;
+          } catch (focusError) {
+            const report = focusError.report || null;
+            focusWarning = focusError.message;
+            if (Boolean(report?.quotaHit) || quotaHitFromText(focusError.message)) {
+              await markProfileQuotaHit(focusProfile, "Google Vids focus avatar generation hit quota/credits limit.");
+            }
+            addHookAvatarLog(run, `Focus avatar Scene ${middleSceneNumber} failed with ${focusProfile}: ${focusError.message}`, "stderr");
+          }
+        }
+        if (focusWarning && !result.middleAvatarVideos?.[middleSceneNumber]) {
+          middleWarnings.push(`Scene ${middleSceneNumber}: ${focusWarning}`);
+          result = await updateHookAvatarManifest(result, {
+            status: "partial_focus_failed",
+            middleAvatarWarnings: [
+              ...(result.middleAvatarWarnings || []),
+              `Scene ${middleSceneNumber}: ${focusWarning}`
+            ]
+          });
+        }
+      }
       let ctaWarning = "";
       if (result.includeCtaAvatar !== false) {
         for (let ctaIndex = index; ctaIndex < profiles.length; ctaIndex += 1) {
@@ -2915,17 +3141,24 @@ async function generateHookAvatarWithGoogleVids(prepared, body, run) {
       attempts.push({
         profile,
         ok: true,
-        status: ctaWarning ? "partial_cta_failed" : "complete",
+        status: ctaWarning || middleWarnings.length ? "partial_avatar_failed" : "complete",
         videoPath: result.videoPath || "",
+        middleAvatarVideos: result.middleAvatarVideos || {},
         ctaVideoPath: result.ctaVideoPath || "",
         cachedScenePath: result.cachedScenePath || "",
+        middleAvatarCachedScenes: result.middleAvatarCachedScenes || {},
         ctaCachedScenePath: result.ctaCachedScenePath || "",
         vidsUrl: result.vidsUrl || "",
         ctaVidsUrl: result.ctaVidsUrl || "",
-        warning: ctaWarning
+        warning: [ctaWarning, ...middleWarnings].filter(Boolean).join(" | ")
       });
-      const successfulProfiles = [...new Set([profile, result.ctaActiveProfile].filter(Boolean))];
+      const successfulProfiles = [...new Set([
+        profile,
+        ...Object.values(result.middleAvatarProfiles || {}),
+        result.ctaActiveProfile
+      ].filter(Boolean))];
       return updateHookAvatarManifest(result, {
+        status: ctaWarning || middleWarnings.length ? "partial_avatar_failed" : "complete",
         activeProfile: profile,
         profilesTried: successfulProfiles.length ? successfulProfiles : profiles.slice(0, index + 1),
         attempts,
@@ -2995,7 +3228,7 @@ async function startHookAvatarRun(body = {}) {
     child: null
   };
   hookAvatarRuns.set(id, run);
-  addHookAvatarLog(run, "Starting hook+CTA avatar workflow.");
+  addHookAvatarLog(run, "Starting hook+focus+CTA avatar workflow.");
 
   setTimeout(async () => {
     let prepared = null;

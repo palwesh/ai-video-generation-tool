@@ -349,6 +349,26 @@ export async function findCachedVidsAssets(toolDir, options = {}) {
   }
 
   const manifest = await readCacheManifest(cacheDir);
+  const manifestSceneClips = Array.isArray(manifest.sceneClips) ? manifest.sceneClips : [];
+  for (const [index, clip] of result.sceneClips.entries()) {
+    if (!clip) {
+      continue;
+    }
+    const metadata = manifestSceneClips.find((item) => (
+      Number(item.sceneNumber) === Number(clip.sceneNumber) ||
+      (item.file && item.file === clip.file)
+    ));
+    if (metadata) {
+      result.sceneClips[index] = {
+        ...metadata,
+        ...clip,
+        note: metadata.note || "",
+        profile: metadata.profile || "",
+        qualityStatus: metadata.qualityStatus || "",
+        sourcePath: metadata.sourcePath || ""
+      };
+    }
+  }
   const manifestTimelines = Array.isArray(manifest.timelineExports) ? manifest.timelineExports : [];
   for (const item of manifestTimelines) {
     if (isRejectedCacheEntry(item)) {
