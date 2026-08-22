@@ -19,6 +19,9 @@ const els = {
   taskNotice: document.getElementById("taskNotice"),
   taskName: document.getElementById("taskName"),
   taskDetail: document.getElementById("taskDetail"),
+  themeToggleBtn: document.getElementById("themeToggleBtn"),
+  themeToggleIcon: document.getElementById("themeToggleIcon"),
+  themeToggleText: document.getElementById("themeToggleText"),
   workspace: document.querySelector(".clean-workspace"),
   flowSteps: [...document.querySelectorAll("[data-flow-step]")],
   workspaceResizer: document.getElementById("workspaceResizer"),
@@ -158,6 +161,7 @@ const state = {
 };
 
 const TERMINAL_LAYOUT_KEY = "toolReelFactory.terminalWidth.v2";
+const THEME_KEY = "toolReelFactory.theme.v2";
 const DEFAULT_TERMINAL_WIDTH = 340;
 const MIN_TERMINAL_WIDTH = 280;
 const MAX_TERMINAL_WIDTH = 720;
@@ -184,6 +188,43 @@ function timeLabel(date = new Date()) {
 
 function clampNumber(value, min, max) {
   return Math.min(Math.max(value, min), max);
+}
+
+function readSavedTheme() {
+  try {
+    return localStorage.getItem(THEME_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function saveTheme(theme) {
+  try {
+    localStorage.setItem(THEME_KEY, theme);
+  } catch {
+    // Ignore storage failures; the live theme still updates.
+  }
+}
+
+function currentTheme() {
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+}
+
+function applyTheme(theme) {
+  const nextTheme = theme === "dark" ? "dark" : "light";
+  const isDark = nextTheme === "dark";
+  document.documentElement.dataset.theme = nextTheme;
+  document.documentElement.style.colorScheme = nextTheme;
+  if (els.themeToggleBtn) {
+    els.themeToggleBtn.setAttribute("aria-pressed", String(isDark));
+    els.themeToggleBtn.setAttribute("aria-label", isDark ? "Switch to light theme" : "Switch to dark theme");
+  }
+  if (els.themeToggleIcon) {
+    els.themeToggleIcon.textContent = isDark ? "L" : "D";
+  }
+  if (els.themeToggleText) {
+    els.themeToggleText.textContent = isDark ? "Light" : "Dark";
+  }
 }
 
 function hookCharacterLabel(value) {
@@ -413,6 +454,7 @@ function renderProfileManager() {
           <button class="secondary-action" data-profile-action="primary" data-profile="${escapeHtml(profile.path)}" type="button">Primary</button>
           <button class="secondary-action" data-profile-action="fallback" data-profile="${escapeHtml(profile.path)}" type="button">Fallback</button>
           <button class="secondary-action" data-profile-action="login" data-profile="${escapeHtml(profile.path)}" type="button">Login</button>
+          <button class="secondary-action danger-action" data-profile-action="remove" data-profile="${escapeHtml(profile.path)}" type="button">Remove</button>
         </div>
       </article>
     `;
@@ -463,6 +505,48 @@ async function addHookProfile(options = {}) {
   setTerminalStatus("Profile added");
   activeStep("profile");
   return data.profile;
+}
+
+async function removeHookProfile(profilePath = "") {
+  const profile = String(profilePath || "").trim();
+  if (!profile) {
+    throw new Error("Profile path missing.");
+  }
+  const confirmed = window.confirm(
+    `Remove this Google Vids profile?\n\n${profile}\n\nThis deletes local browser login/profile data for this project.`
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  setTask("Removing Vids profile", profile, "busy");
+  setTerminalStatus("Removing Google Vids profile");
+  setProfileState("Removing", "busy");
+  appendTerminal(`POST /api/profiles/remove ${profile}`);
+  const response = await fetch("/api/profiles/remove", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ profile })
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.error || `Profile remove failed: ${response.status}`);
+  }
+
+  state.hookProfiles = data.profiles || [];
+  const currentPrimary = els.hookPrimaryProfileSelect?.value || "";
+  const currentFallback = els.hookFallbackProfileSelect?.value || "";
+  const primary = currentPrimary === profile
+    ? (state.hookProfiles.find(isHookProfileReady)?.path || state.hookProfiles[0]?.path || "")
+    : currentPrimary;
+  const fallback = currentFallback === profile ? "" : currentFallback;
+  renderHookProfileOptions({ primary, fallback });
+  renderHookProfileStatus();
+  renderProfileManager();
+  appendTerminal(`Profile removed: ${data.profile || profile}${data.deletedFolder ? " | folder deleted" : ""}`, "stdout");
+  setTask("Profile removed", data.profile || profile, "success");
+  setTerminalStatus("Profile removed");
+  activeStep("profile");
 }
 
 async function loginHookProfile(profilePath = "") {
@@ -2100,6 +2184,10 @@ els.profileManagerList?.addEventListener("click", async (event) => {
     }
     if (action === "login") {
       await loginHookProfile(profile);
+      return;
+    }
+    if (action === "remove") {
+      await removeHookProfile(profile);
     }
   } catch (error) {
     setProfileState("Action failed", "error");
@@ -2225,6 +2313,15 @@ els.terminalFullscreenBtn.addEventListener("click", () => {
   els.terminalFullscreenBtn.textContent = document.body.classList.contains("terminal-fullscreen") ? "Exit" : "Full";
 });
 
+els.themeToggleBtn?.addEventListener("click", () => {
+  const nextTheme = currentTheme() === "dark" ? "light" : "dark";
+  saveTheme(nextTheme);
+  applyTheme(nextTheme);
+  setTask(`${nextTheme === "dark" ? "Dark" : "Light"} theme`, "Dashboard theme updated", "success");
+  setTerminalStatus(`Theme: ${nextTheme}`);
+  appendTerminal(`Theme changed: ${nextTheme}`);
+});
+
 els.viewAssetsBtn.addEventListener("click", async () => {
   try {
     await openLatestAssets();
@@ -2266,6 +2363,7 @@ els.viewFinalFolderBtn?.addEventListener("click", async () => {
 });
 
 activeStep("load");
+applyTheme(readSavedTheme());
 renderFinalPipeline([]);
 renderHookCharacterOptions([{ label: "Google Vids auto", value: "auto" }], "auto_by_reel");
 initWorkspaceResizer();

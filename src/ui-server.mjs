@@ -251,6 +251,14 @@ function normalizeProfilePath(value) {
   return path.relative(projectRoot, resolved);
 }
 
+function normalizeProfilePathOrNull(value) {
+  try {
+    return normalizeProfilePath(value);
+  } catch {
+    return "";
+  }
+}
+
 function safeProfileName(value) {
   return String(value || "")
     .trim()
@@ -461,10 +469,11 @@ async function loadUiState() {
       history: Array.isArray(loaded.history) ? loaded.history : [],
       quotas: loaded.quotas && typeof loaded.quotas === "object" ? loaded.quotas : {},
       profiles: Array.isArray(loaded.profiles) ? loaded.profiles : [],
+      removedProfiles: Array.isArray(loaded.removedProfiles) ? loaded.removedProfiles : [],
       settings: loaded.settings && typeof loaded.settings === "object" ? loaded.settings : {}
     };
   } catch {
-    return { version: 1, history: [], quotas: {}, profiles: [], settings: {} };
+    return { version: 1, history: [], quotas: {}, profiles: [], removedProfiles: [], settings: {} };
   }
 }
 
@@ -474,6 +483,7 @@ async function saveUiState(state) {
     history: (state.history || []).slice(0, 200),
     quotas: state.quotas || {},
     profiles: (state.profiles || []).slice(0, 50),
+    removedProfiles: [...new Set((state.removedProfiles || []).map(normalizeProfilePathOrNull).filter(Boolean))].slice(0, 100),
     settings: state.settings && typeof state.settings === "object" ? state.settings : {}
   };
   stateWrite = stateWrite.then(() => writeJson(uiStatePath, trimmed));
@@ -900,6 +910,7 @@ async function readDoc(docPath) {
 
 async function listProfiles() {
   const state = await loadUiState();
+  const removedProfiles = new Set((state.removedProfiles || []).map(normalizeProfilePathOrNull).filter(Boolean));
   const workDir = path.join(projectRoot, "work");
   const found = [];
   try {
@@ -908,7 +919,10 @@ async function listProfiles() {
       if (!entry.isDirectory() || !entry.name.startsWith("google-vids-profile")) {
         continue;
       }
-      found.push(path.join("work", entry.name));
+      const profilePath = normalizeProfilePath(path.join("work", entry.name));
+      if (!removedProfiles.has(profilePath)) {
+        found.push(profilePath);
+      }
     }
   } catch {
     // The work directory is optional; defaults below keep the UI usable.
@@ -917,7 +931,7 @@ async function listProfiles() {
   for (const saved of state.profiles || []) {
     try {
       const profile = normalizeProfilePath(saved.path || saved);
-      if (!found.includes(profile)) {
+      if (!removedProfiles.has(profile) && !found.includes(profile)) {
         found.push(profile);
       }
     } catch {
@@ -926,8 +940,9 @@ async function listProfiles() {
   }
 
   for (const profile of defaultProfiles) {
-    if (!found.includes(profile)) {
-      found.push(profile);
+    const normalizedProfile = normalizeProfilePath(profile);
+    if (!removedProfiles.has(normalizedProfile) && !found.includes(normalizedProfile)) {
+      found.push(normalizedProfile);
     }
   }
 
@@ -968,6 +983,9 @@ async function addProfile(body) {
   await ensureDir(path.resolve(projectRoot, profilePath));
   await updateUiState((state) => {
     const existing = new Set((state.profiles || []).map((item) => normalizeProfilePath(item.path || item)));
+    state.removedProfiles = (state.removedProfiles || [])
+      .map(normalizeProfilePathOrNull)
+      .filter((item) => item !== profilePath);
     if (!existing.has(profilePath)) {
       state.profiles.push({
         path: profilePath,
@@ -980,6 +998,47 @@ async function addProfile(body) {
   return {
     profile: profiles.find((item) => item.path === profilePath) || { path: profilePath },
     profiles
+  };
+}
+
+async function removeProfile(body) {
+  const profilePath = normalizeProfilePath(body.profile || body.path || "");
+  if (!profilePath) {
+    throw new Error("Profile path is required.");
+  }
+
+  const absoluteProfilePath = path.resolve(projectRoot, profilePath);
+  const workRoot = path.resolve(projectRoot, "work");
+  if (absoluteProfilePath === workRoot || !absoluteProfilePath.startsWith(`${workRoot}${path.sep}`)) {
+    throw new Error("Profile path must stay inside the project work folder.");
+  }
+
+  const existed = fsSync.existsSync(absoluteProfilePath);
+  if (existed) {
+    await fs.rm(absoluteProfilePath, { recursive: true, force: true });
+  }
+
+  await updateUiState((state) => {
+    state.profiles = (state.profiles || []).filter((item) => {
+      try {
+        return normalizeProfilePath(item.path || item) !== profilePath;
+      } catch {
+        return false;
+      }
+    });
+    state.removedProfiles = [...new Set([
+      ...(state.removedProfiles || []).map(normalizeProfilePathOrNull).filter(Boolean),
+      profilePath
+    ])];
+    if (state.quotas && typeof state.quotas === "object") {
+      delete state.quotas[profilePath];
+    }
+  });
+
+  return {
+    profile: profilePath,
+    deletedFolder: existed,
+    profiles: await listProfiles()
   };
 }
 
@@ -5466,6 +5525,14 @@ async function handleApi(req, res, pathname, searchParams) {
       const state = await loadUiState();
       const profiles = added.profiles.map((profile) => publicProfileWithQuota(profile, state));
       json(res, 201, { ok: true, profile: profiles.find((item) => item.path === added.profile.path), profiles });
+      return;
+    }
+
+    if (req.method === "POST" && pathname === "/api/profiles/remove") {
+      const removed = await removeProfile(await readBody(req));
+      const state = await loadUiState();
+      const profiles = removed.profiles.map((profile) => publicProfileWithQuota(profile, state));
+      json(res, 200, { ok: true, profile: removed.profile, deletedFolder: removed.deletedFolder, profiles });
       return;
     }
 
