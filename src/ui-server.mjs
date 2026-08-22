@@ -268,6 +268,10 @@ function safeProfileName(value) {
     .toLowerCase();
 }
 
+function profileBasename(profilePath) {
+  return String(profilePath || "").replace(/[\\]+/g, "/").split("/").filter(Boolean).pop() || "";
+}
+
 function asFiniteNumber(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -1039,6 +1043,107 @@ async function removeProfile(body) {
     profile: profilePath,
     deletedFolder: existed,
     profiles: await listProfiles()
+  };
+}
+
+async function renameProfile(body) {
+  const fromProfile = normalizeProfilePath(body.profile || body.from || body.path || "");
+  const rawName = String(body.name || body.to || body.newName || "").trim();
+  if (!fromProfile) {
+    throw new Error("Profile path is required.");
+  }
+  if (!rawName) {
+    throw new Error("New profile name is required.");
+  }
+
+  const baseName = profileBasename(rawName.includes("/") ? rawName : safeProfileName(rawName));
+  if (!baseName) {
+    throw new Error("New profile name is invalid.");
+  }
+  const toProfile = normalizeProfilePath(path.posix.join("work", baseName));
+  if (fromProfile === toProfile) {
+    return {
+      fromProfile,
+      profile: toProfile,
+      renamed: false,
+      profiles: await listProfiles()
+    };
+  }
+
+  const fromAbsolute = path.resolve(projectRoot, fromProfile);
+  const toAbsolute = path.resolve(projectRoot, toProfile);
+  const workRoot = path.resolve(projectRoot, "work");
+  if (!fromAbsolute.startsWith(`${workRoot}${path.sep}`) || !toAbsolute.startsWith(`${workRoot}${path.sep}`)) {
+    throw new Error("Profile path must stay inside the project work folder.");
+  }
+  if (!fsSync.existsSync(fromAbsolute)) {
+    throw new Error(`Profile folder not found: ${fromProfile}`);
+  }
+  if (fsSync.existsSync(toAbsolute)) {
+    throw new Error(`Profile already exists: ${toProfile}`);
+  }
+
+  await ensureDir(path.dirname(toAbsolute));
+  await fs.rename(fromAbsolute, toAbsolute);
+
+  await updateUiState((state) => {
+    let hadSavedProfile = false;
+    state.profiles = (state.profiles || []).map((item) => {
+      try {
+        const itemPath = normalizeProfilePath(item.path || item);
+        if (itemPath !== fromProfile) {
+          return item;
+        }
+        hadSavedProfile = true;
+        return {
+          ...(typeof item === "object" && item ? item : {}),
+          path: toProfile,
+          renamedFrom: fromProfile,
+          renamedAt: new Date().toISOString()
+        };
+      } catch {
+        return item;
+      }
+    });
+    if (!hadSavedProfile) {
+      state.profiles.push({
+        path: toProfile,
+        createdAt: new Date().toISOString(),
+        renamedFrom: fromProfile,
+        renamedAt: new Date().toISOString()
+      });
+    }
+    state.removedProfiles = [...new Set([
+      ...(state.removedProfiles || [])
+        .map(normalizeProfilePathOrNull)
+        .filter((item) => item && item !== toProfile),
+      fromProfile
+    ])];
+    if (state.quotas && Object.prototype.hasOwnProperty.call(state.quotas, fromProfile)) {
+      state.quotas[toProfile] = {
+        ...state.quotas[fromProfile],
+        profile: toProfile,
+        renamedFrom: fromProfile,
+        updatedAt: new Date().toISOString()
+      };
+      delete state.quotas[fromProfile];
+    }
+    if (state.settings && typeof state.settings === "object") {
+      for (const key of ["lastHookAvatarProfile", "hookPrimaryProfile", "hookFallbackProfile"]) {
+        if (state.settings[key] === fromProfile) {
+          state.settings[key] = toProfile;
+        }
+      }
+      state.settings.updatedAt = new Date().toISOString();
+    }
+  });
+
+  const profiles = await listProfiles();
+  return {
+    fromProfile,
+    profile: toProfile,
+    renamed: true,
+    profiles
   };
 }
 
@@ -5533,6 +5638,14 @@ async function handleApi(req, res, pathname, searchParams) {
       const state = await loadUiState();
       const profiles = removed.profiles.map((profile) => publicProfileWithQuota(profile, state));
       json(res, 200, { ok: true, profile: removed.profile, deletedFolder: removed.deletedFolder, profiles });
+      return;
+    }
+
+    if (req.method === "POST" && pathname === "/api/profiles/rename") {
+      const renamed = await renameProfile(await readBody(req));
+      const state = await loadUiState();
+      const profiles = renamed.profiles.map((profile) => publicProfileWithQuota(profile, state));
+      json(res, 200, { ok: true, fromProfile: renamed.fromProfile, profile: renamed.profile, renamed: renamed.renamed, profiles });
       return;
     }
 

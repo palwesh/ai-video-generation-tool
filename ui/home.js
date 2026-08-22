@@ -307,6 +307,10 @@ function hookProfileUsage(profile = {}) {
   return `${avatarText} | ${aiText}`;
 }
 
+function profileNameFromPath(profilePath = "") {
+  return String(profilePath || "").split(/[\\/]+/).filter(Boolean).pop() || "";
+}
+
 function setProfileState(label, tone = "idle") {
   if (els.profileState) {
     els.profileState.textContent = label;
@@ -454,6 +458,7 @@ function renderProfileManager() {
           <button class="secondary-action" data-profile-action="primary" data-profile="${escapeHtml(profile.path)}" type="button">Primary</button>
           <button class="secondary-action" data-profile-action="fallback" data-profile="${escapeHtml(profile.path)}" type="button">Fallback</button>
           <button class="secondary-action" data-profile-action="login" data-profile="${escapeHtml(profile.path)}" type="button">Login</button>
+          <button class="secondary-action" data-profile-action="rename" data-profile="${escapeHtml(profile.path)}" type="button">Rename</button>
           <button class="secondary-action danger-action" data-profile-action="remove" data-profile="${escapeHtml(profile.path)}" type="button">Remove</button>
         </div>
       </article>
@@ -505,6 +510,53 @@ async function addHookProfile(options = {}) {
   setTerminalStatus("Profile added");
   activeStep("profile");
   return data.profile;
+}
+
+async function renameHookProfile(profilePath = "") {
+  const profile = String(profilePath || "").trim();
+  if (!profile) {
+    throw new Error("Profile path missing.");
+  }
+  const currentName = profileNameFromPath(profile);
+  const newName = window.prompt(
+    "New profile name likho. Example: prathak-google-vids",
+    currentName
+  );
+  if (newName === null) {
+    return;
+  }
+  const cleanName = String(newName || "").trim();
+  if (!cleanName) {
+    throw new Error("New profile name empty nahi ho sakta.");
+  }
+
+  const currentPrimary = els.hookPrimaryProfileSelect?.value || "";
+  const currentFallback = els.hookFallbackProfileSelect?.value || "";
+  setTask("Renaming Vids profile", `${profile} -> ${cleanName}`, "busy");
+  setTerminalStatus("Renaming Google Vids profile");
+  setProfileState("Renaming", "busy");
+  appendTerminal(`POST /api/profiles/rename ${profile} -> ${cleanName}`);
+  const response = await fetch("/api/profiles/rename", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ profile, name: cleanName })
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.error || `Profile rename failed: ${response.status}`);
+  }
+
+  const renamedPath = data.profile || profile;
+  state.hookProfiles = data.profiles || [];
+  const primary = currentPrimary === profile ? renamedPath : currentPrimary;
+  const fallback = currentFallback === profile ? renamedPath : currentFallback;
+  renderHookProfileOptions({ primary, fallback });
+  renderHookProfileStatus();
+  renderProfileManager();
+  appendTerminal(`Profile renamed: ${profile} -> ${renamedPath}`, "stdout");
+  setTask("Profile renamed", renamedPath, "success");
+  setTerminalStatus("Profile renamed");
+  activeStep("profile");
 }
 
 async function removeHookProfile(profilePath = "") {
@@ -2184,6 +2236,10 @@ els.profileManagerList?.addEventListener("click", async (event) => {
     }
     if (action === "login") {
       await loginHookProfile(profile);
+      return;
+    }
+    if (action === "rename") {
+      await renameHookProfile(profile);
       return;
     }
     if (action === "remove") {
