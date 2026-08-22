@@ -170,6 +170,7 @@ Then run Local MP4 mode; it will use cached provider clips first.
 
 - `setup-windows.bat` is for first-time setup or dependency repair.
 - `run-windows.bat` is for normal daily use.
+- ALTF logo is included in the repo at `public/brand/altf-logo.png` and `ui/assets/altf-logo.png`, so dashboard branding and final Reel end cards work on Windows too.
 - Windows local voiceover uses PowerShell speech synthesis when available.
 - For a free neural Hindi/Hinglish voice, install Edge TTS with `py -m pip install edge-tts`, then run `npm run voiceover:generate -- --tool-dir path\to\tool-folder --provider edge --voice hi-IN-SwaraNeural`.
 - For a more natural final voice, run `npm run voiceover:pack -- --tool-dir path\to\tool-folder`, record `scene-01.mp3`, `scene-02.mp3`, etc. in the created `voiceovers` folder, then render with `--voiceover-dir path\to\tool-folder\voiceovers`.

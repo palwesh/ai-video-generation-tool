@@ -19,6 +19,19 @@ Output per tool:
 - `vids-generated-scenes/` scene folders for Google Vids prompts and generated clip organization
 - screenshots, fictional demo input files, a desktop demo recording, and a short mobile scroll recording when capture is enabled
 
+## Branding
+
+The project includes the real ALTF logo from `altftool.com`.
+
+Logo files:
+
+```text
+public/brand/altf-logo.png
+ui/assets/altf-logo.png
+```
+
+The dashboard header uses `ui/assets/altf-logo.png`. Final Remotion reels use `public/brand/altf-logo.png` on the final brand card, so the last seconds show the actual `Alt F` logo instead of an auto-generated initials badge.
+
 ## Setup
 
 ```bash

@@ -1,6 +1,32 @@
 # Tool Reel Factory - Master Automation Doc
 
-Last updated: 2026-08-20
+Last updated: 2026-08-22
+
+## Latest Brand And Windows Portability Update
+
+The project now includes the real ALTF logo and Windows-first run scripts.
+
+Brand assets:
+
+```text
+public/brand/altf-logo.png
+ui/assets/altf-logo.png
+```
+
+Where the logo appears:
+
+1. Dashboard top-left brand mark.
+2. Final Reel end card.
+3. Remotion default props for preview/testing.
+
+Windows commands:
+
+```powershell
+.\setup-windows.bat
+.\run-windows.bat
+```
+
+`setup-windows.bat` is for first-time setup or dependency repair. `run-windows.bat` is for normal daily dashboard use. The scripts save port, Excel path, and Drive sync folder into `.env` when provided.
 
 ## Latest Pipeline Update - 30 to 60 Second Reels
 

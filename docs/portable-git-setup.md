@@ -87,6 +87,12 @@ After cloning on Windows, open PowerShell in the project folder and run:
 .\setup-windows.bat
 ```
 
+After setup, daily run:
+
+```powershell
+.\run-windows.bat
+```
+
 With your Excel path:
 
 ```powershell

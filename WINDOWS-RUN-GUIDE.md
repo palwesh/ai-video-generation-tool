@@ -183,7 +183,18 @@ If setup script block ho:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\setup-windows.ps1
 ```
 
-## 10. Best Workflow
+## 10. Logo Aur Branding
+
+ALTF logo project ke andar included hai:
+
+```text
+public\brand\altf-logo.png
+ui\assets\altf-logo.png
+```
+
+Dashboard me top-left logo show hoga. Final Reel ke end card me bhi actual `Alt F` logo show hoga, initials badge nahi.
+
+## 11. Best Workflow
 
 Start simple:
 
