@@ -64,19 +64,19 @@ button {
 .fresh-shell {
   width: 100%;
   height: 100vh;
-  padding: 10px;
+  padding: 8px;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 10px;
+  gap: 8px;
 }
 
 .fresh-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  min-height: 52px;
-  padding: 8px 10px;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 8px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel);
@@ -84,10 +84,10 @@ button {
 }
 
 .task-notice {
-  min-width: 220px;
-  max-width: min(460px, 40vw);
-  min-height: 36px;
-  padding: 7px 10px;
+  min-width: 210px;
+  max-width: min(430px, 38vw);
+  min-height: 32px;
+  padding: 5px 8px;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -177,7 +177,7 @@ button {
 .fresh-brand strong,
 .sidebar-head strong {
   color: var(--ink);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.1;
 }
 
@@ -201,10 +201,10 @@ button {
 }
 
 .fresh-brand-icon {
-  width: 68px;
-  height: 32px;
+  width: 62px;
+  height: 28px;
   background: #050a14;
-  padding: 4px 7px;
+  padding: 4px 6px;
   box-shadow: 0 10px 22px rgba(5, 10, 20, 0.16);
 }
 
@@ -222,8 +222,8 @@ button {
 .icon-link,
 .version-link {
   gap: 8px;
-  min-height: 34px;
-  padding: 0 10px;
+  min-height: 30px;
+  padding: 0 9px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: #ffffff;
@@ -233,20 +233,20 @@ button {
 }
 
 .mini-icon {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   background: #eaf1ff;
   color: var(--blue);
   font-size: 10px;
 }
 
 .clean-workspace {
-  --terminal-width: 340px;
+  --terminal-width: 324px;
   min-height: 0;
   display: grid;
-  grid-template-columns: clamp(198px, 14vw, 230px) minmax(0, 1fr) 8px minmax(300px, var(--terminal-width));
+  grid-template-columns: clamp(178px, 13vw, 210px) minmax(0, 1fr) 7px minmax(292px, var(--terminal-width));
   grid-template-areas: "sidebar main resizer terminal";
-  gap: 10px;
+  gap: 8px;
 }
 
 .step-sidebar,
@@ -265,16 +265,16 @@ button {
 .step-sidebar {
   grid-area: sidebar;
   min-height: 0;
-  padding: 10px;
+  padding: 8px;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 8px;
+  gap: 7px;
   box-shadow: var(--shadow);
 }
 
 .sidebar-head {
-  gap: 8px;
-  padding: 2px 2px 8px;
+  gap: 7px;
+  padding: 1px 1px 7px;
   border-bottom: 1px solid #edf1f5;
 }
 
@@ -283,15 +283,15 @@ button {
   overflow: auto;
   display: grid;
   align-content: start;
-  gap: 6px;
+  gap: 5px;
 }
 
 .step-link {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
-  gap: 7px;
-  min-height: 54px;
-  padding: 8px;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 6px;
+  min-height: 44px;
+  padding: 6px;
   border: 1px solid #e5ecf4;
   border-radius: var(--radius);
   background: #f8fafc;
@@ -301,8 +301,8 @@ button {
 
 .step-link span {
   grid-row: span 2;
-  width: 26px;
-  height: 26px;
+  width: 23px;
+  height: 23px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -319,12 +319,12 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .step-link small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 750;
 }
 
@@ -356,10 +356,10 @@ button {
   min-width: 0;
   min-height: 0;
   overflow: auto;
-  padding: 10px;
+  padding: 8px;
   display: grid;
   align-content: start;
-  gap: 10px;
+  gap: 8px;
   scroll-padding-top: 96px;
 }
 
@@ -380,7 +380,7 @@ button {
 
 .workspace-resizer span {
   width: 2px;
-  margin: 10px 0;
+  margin: 8px 0;
   border-radius: 999px;
   background: #bcc9d8;
 }
@@ -415,10 +415,10 @@ body.resizing-terminal select {
   grid-area: terminal;
   min-width: 0;
   min-height: 0;
-  padding: 10px;
+  padding: 8px;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
-  gap: 8px;
+  gap: 6px;
   background: #111827;
   color: #d1d5db;
   box-shadow: var(--shadow-strong);
@@ -433,7 +433,7 @@ body.resizing-terminal select {
 
 .terminal-head h2 {
   color: #ffffff;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .terminal-actions {
@@ -442,8 +442,8 @@ body.resizing-terminal select {
 }
 
 .icon-button {
-  min-height: 30px;
-  padding: 0 9px;
+  min-height: 28px;
+  padding: 0 8px;
   border: 1px solid #374151;
   border-radius: 8px;
   background: #1f2937;
@@ -454,8 +454,8 @@ body.resizing-terminal select {
 }
 
 .terminal-status {
-  min-height: 26px;
-  padding: 6px 8px;
+  min-height: 24px;
+  padding: 5px 7px;
   border: 1px solid #263244;
   border-radius: 8px;
   background: #0b1220;
@@ -470,15 +470,15 @@ body.resizing-terminal select {
 .terminal-output {
   min-height: 0;
   margin: 0;
-  padding: 10px;
+  padding: 8px;
   overflow: auto;
   border: 1px solid #263244;
   border-radius: var(--radius);
   background: #020617;
   color: #d1d5db;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 11px;
-  line-height: 1.55;
+  font-size: 10.5px;
+  line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -503,7 +503,7 @@ body.terminal-fullscreen .workspace-resizer {
 }
 
 .workflow-section {
-  padding: 12px;
+  padding: 9px;
   box-shadow: var(--shadow);
 }
 
@@ -511,7 +511,7 @@ body.terminal-fullscreen .workspace-resizer {
 .profile-manager-panel,
 .analysis-results {
   display: grid;
-  gap: 8px;
+  gap: 7px;
 }
 
 .import-panel {
@@ -556,7 +556,7 @@ body.terminal-fullscreen .workspace-resizer {
 .hook-result-head,
 .final-result-head {
   justify-content: space-between;
-  gap: 16px;
+  gap: 10px;
 }
 
 .eyebrow {
@@ -576,12 +576,12 @@ h2 {
 }
 
 h1 {
-  font-size: clamp(19px, 2vw, 25px);
+  font-size: 20px;
   line-height: 1.05;
 }
 
 h2 {
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.15;
 }
 
@@ -601,22 +601,22 @@ h2 {
 
 .flow-strip {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
 }
 
 .flow-strip span {
   min-width: 0;
-  min-height: 26px;
+  min-height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 8px;
+  padding: 0 6px;
   border: 1px solid #dce7f7;
   border-radius: 8px;
   background: #f7faff;
   color: #30445d;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 900;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -639,9 +639,9 @@ h2 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 26px;
+  min-height: 24px;
   flex: 0 0 auto;
-  padding: 0 9px;
+  padding: 0 8px;
   border-radius: 999px;
   background: #eef3f8;
   color: #46576d;
@@ -666,25 +666,27 @@ h2 {
 }
 
 .upload-box {
-  flex-wrap: wrap;
-  gap: 9px;
-  padding: 10px;
+  display: grid;
+  grid-template-columns: minmax(180px, 215px) minmax(160px, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  padding: 8px;
   border: 1px solid #edf1f5;
   border-radius: var(--radius);
   background: var(--soft);
 }
 
 .file-input {
-  width: min(300px, 100%);
+  width: 100%;
   color: #334155;
   font-size: 12px;
   font-weight: 750;
 }
 
 .file-input::file-selector-button {
-  min-height: 32px;
-  margin-right: 10px;
-  padding: 0 10px;
+  min-height: 30px;
+  margin-right: 8px;
+  padding: 0 9px;
   border: 1px solid #cfd9e5;
   border-radius: 8px;
   background: #ffffff;
@@ -696,7 +698,7 @@ h2 {
 
 .upload-copy {
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   display: grid;
   gap: 2px;
 }
@@ -711,12 +713,12 @@ h2 {
 
 .upload-copy strong {
   color: var(--ink);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .upload-copy span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
 }
 
@@ -735,15 +737,15 @@ h2 {
 .profile-manager-actions {
   flex-wrap: wrap;
   justify-content: flex-start;
-  padding: 8px;
+  padding: 7px;
   border: 1px solid #edf1f5;
   border-radius: var(--radius);
   background: var(--soft);
 }
 
 .profile-name-field {
-  min-width: 190px;
-  flex: 1 1 240px;
+  min-width: 170px;
+  flex: 1 1 210px;
 }
 
 .upload-actions {
@@ -754,12 +756,12 @@ h2 {
 
 .primary-action,
 .secondary-action {
-  min-height: 36px;
+  min-height: 32px;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 11px;
+  padding: 0 10px;
   border-radius: var(--radius);
   font: inherit;
   font-size: 11px;
@@ -813,7 +815,7 @@ h2 {
 }
 
 .build-main-action {
-  min-width: 132px;
+  min-width: 124px;
 }
 
 .primary-action:disabled,
@@ -828,7 +830,7 @@ h2 {
 
 .tool-select-panel {
   display: grid;
-  gap: 7px;
+  gap: 6px;
   background: #ffffff;
 }
 
@@ -846,8 +848,8 @@ h2 {
 
 .tool-select-grid {
   display: grid;
-  grid-template-columns: minmax(150px, 0.85fr) minmax(220px, 1.55fr) 78px;
-  gap: 7px;
+  grid-template-columns: minmax(150px, 0.85fr) minmax(220px, 1.55fr) 74px;
+  gap: 6px;
   align-items: end;
 }
 
@@ -864,7 +866,7 @@ h2 {
 .field-label input,
 .field-label select {
   width: 100%;
-  min-height: 36px;
+  min-height: 32px;
   border: 1px solid #cfd9e5;
   border-radius: var(--radius);
   background: #ffffff;
@@ -884,8 +886,8 @@ h2 {
 }
 
 .selected-tool {
-  min-height: 30px;
-  padding: 7px 9px;
+  min-height: 28px;
+  padding: 6px 8px;
   border: 1px solid #cdddf8;
   border-left: 4px solid var(--blue);
   border-radius: 8px;
@@ -899,7 +901,7 @@ h2 {
 
 .artifact-notice {
   min-width: 0;
-  padding: 7px;
+  padding: 6px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -958,8 +960,8 @@ h2 {
 
 .artifact-actions .primary-action,
 .artifact-actions .secondary-action {
-  min-height: 30px;
-  padding: 0 9px;
+  min-height: 28px;
+  padding: 0 8px;
   font-size: 10px;
 }
 
@@ -971,8 +973,8 @@ h2 {
 
 .stat-card {
   min-width: 0;
-  min-height: 36px;
-  padding: 7px 9px;
+  min-height: 32px;
+  padding: 6px 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -987,7 +989,7 @@ h2 {
 
 .stat-card strong {
   color: var(--ink);
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1;
 }
 
@@ -999,12 +1001,12 @@ h2 {
 .summary-card {
   min-width: 0;
   flex: 1 1 0;
-  padding: 8px;
+  padding: 7px;
 }
 
 .chip-list,
 .warning-list {
-  max-height: 46px;
+  max-height: 40px;
   overflow: auto;
   display: flex;
   flex-wrap: wrap;
@@ -1063,7 +1065,7 @@ h2 {
 .hook-controls,
 .final-controls {
   justify-content: flex-start;
-  padding: 9px;
+  padding: 7px;
   border: 1px solid #edf1f5;
   border-radius: var(--radius);
   background: var(--soft);
@@ -1085,48 +1087,48 @@ h2 {
 }
 
 .script-language {
-  width: 132px;
+  width: 126px;
   flex: 0 0 auto;
 }
 
 .script-duration {
-  width: 118px;
+  width: 108px;
   flex: 0 0 auto;
 }
 
 .hook-presenter {
-  width: 136px;
+  width: 126px;
   flex: 0 0 auto;
 }
 
 .hook-character {
-  width: 168px;
+  width: 154px;
   flex: 0 0 auto;
 }
 
 .hook-tone,
 .hook-duration {
-  width: 118px;
+  width: 108px;
   flex: 0 0 auto;
 }
 
 .hook-profile {
-  min-width: 190px;
-  flex: 1 1 220px;
+  min-width: 170px;
+  flex: 1 1 200px;
 }
 
 .final-voice {
-  width: 158px;
+  width: 145px;
   flex: 0 0 auto;
 }
 
 .hook-fallback-toggle {
-  width: 132px;
+  width: 126px;
   flex: 0 0 auto;
 }
 
 .check-row {
-  min-height: 34px;
+  min-height: 32px;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -1145,18 +1147,18 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 7px;
+  padding: 6px;
   border: 1px solid #edf1f5;
   border-radius: 8px;
   background: #ffffff;
 }
 
 .profile-status-strip span {
-  min-height: 26px;
+  min-height: 24px;
   display: inline-flex;
   align-items: center;
   max-width: 100%;
-  padding: 0 8px;
+  padding: 0 7px;
   border: 1px solid #d8e1ec;
   border-radius: 999px;
   background: #f8fafc;
@@ -1187,15 +1189,15 @@ h2 {
 .profile-manager-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
+  gap: 5px;
 }
 
 .profile-manager-summary span {
-  min-height: 32px;
+  min-height: 30px;
   display: grid;
   gap: 2px;
   align-content: center;
-  padding: 5px 8px;
+  padding: 5px 7px;
   border: 1px solid #e5ecf4;
   border-radius: 8px;
   background: #ffffff;
@@ -1211,7 +1213,7 @@ h2 {
 }
 
 .profile-manager-list {
-  max-height: 300px;
+  max-height: 240px;
   overflow: auto;
   display: grid;
   gap: 4px;
@@ -1220,10 +1222,10 @@ h2 {
 .profile-card {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(210px, 1.15fr) minmax(190px, 0.9fr) auto;
+  grid-template-columns: minmax(190px, 1.1fr) minmax(170px, 0.9fr) auto;
   align-items: center;
-  gap: 8px;
-  min-height: 42px;
+  gap: 6px;
+  min-height: 38px;
   padding: 5px 6px;
   border: 1px solid #dce5ef;
   border-radius: 8px;
@@ -1244,8 +1246,8 @@ h2 {
 }
 
 .profile-index {
-  width: 28px;
-  height: 26px;
+  width: 25px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1266,7 +1268,7 @@ h2 {
 .profile-card h3 {
   margin: 0;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.15;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1295,10 +1297,10 @@ h2 {
 }
 
 .profile-card-badges span {
-  min-height: 22px;
+  min-height: 20px;
   display: inline-flex;
   align-items: center;
-  padding: 0 7px;
+  padding: 0 6px;
   border: 1px solid #d8e1ec;
   border-radius: 999px;
   background: #f8fafc;
@@ -1358,15 +1360,15 @@ h2 {
 }
 
 .profile-card-actions .secondary-action {
-  min-height: 26px;
-  padding: 0 7px;
+  min-height: 24px;
+  padding: 0 6px;
   font-size: 10px;
 }
 
 .asset-result {
   display: grid;
-  gap: 7px;
-  padding: 8px;
+  gap: 6px;
+  padding: 7px;
   border: 1px solid #c9e6d7;
   border-radius: 8px;
   background: #f2fbf6;
@@ -1374,8 +1376,8 @@ h2 {
 
 .script-result {
   display: grid;
-  gap: 7px;
-  padding: 8px;
+  gap: 6px;
+  padding: 7px;
   border: 1px solid #cdddf8;
   border-radius: 8px;
   background: #f7faff;
@@ -1383,8 +1385,8 @@ h2 {
 
 .hook-result {
   display: grid;
-  gap: 7px;
-  padding: 8px;
+  gap: 6px;
+  padding: 7px;
   border: 1px solid #f3d8a7;
   border-radius: 8px;
   background: #fffaf0;
@@ -1392,8 +1394,8 @@ h2 {
 
 .final-result {
   display: grid;
-  gap: 7px;
-  padding: 8px;
+  gap: 6px;
+  padding: 7px;
   border: 1px solid #cdddf8;
   border-radius: 8px;
   background: #f7faff;
@@ -1423,21 +1425,21 @@ h2 {
 .pipeline-mini {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  padding: 7px;
+  gap: 5px;
+  padding: 6px;
   border: 1px solid #edf1f5;
   border-radius: 8px;
   background: #ffffff;
 }
 
 .pipeline-mini span {
-  min-height: 30px;
+  min-height: 28px;
   display: grid;
   gap: 1px;
   align-content: center;
-  min-width: 118px;
+  min-width: 108px;
   max-width: 260px;
-  padding: 5px 8px;
+  padding: 4px 7px;
   border: 1px solid #d8e1ec;
   border-radius: 8px;
   background: #f8fafc;
@@ -1485,13 +1487,13 @@ h2 {
 
 .final-preview-grid {
   display: grid;
-  grid-template-columns: minmax(160px, 230px) minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: minmax(150px, 205px) minmax(0, 1fr);
+  gap: 8px;
   align-items: start;
 }
 
 .final-video-preview {
-  width: min(230px, 100%);
+  width: min(205px, 100%);
   aspect-ratio: 9 / 16;
   border: 1px solid #cdddf8;
   border-radius: 8px;
@@ -1500,9 +1502,9 @@ h2 {
 
 .voiceover-preview {
   display: grid;
-  gap: 6px;
-  margin-bottom: 10px;
-  padding: 8px;
+  gap: 5px;
+  margin-bottom: 8px;
+  padding: 7px;
   border: 1px solid #dbe6f7;
   border-radius: 8px;
   background: #f8fbff;
@@ -1533,17 +1535,17 @@ h2 {
 .script-parts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: 5px;
 }
 
 .hook-preview-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-  gap: 6px;
+  gap: 5px;
 }
 
 .hook-video-preview {
-  width: min(220px, 100%);
+  width: min(200px, 100%);
   aspect-ratio: 9 / 16;
   border: 1px solid #e7d4a5;
   border-radius: 8px;
@@ -1552,7 +1554,7 @@ h2 {
 
 .script-part-card {
   min-width: 0;
-  padding: 8px;
+  padding: 7px;
   border: 1px solid #dce7f7;
   border-radius: 8px;
   background: #ffffff;
@@ -1584,8 +1586,8 @@ h2 {
 }
 
 .scene-drawer summary {
-  min-height: 34px;
-  padding: 7px 9px;
+  min-height: 32px;
+  padding: 6px 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1599,17 +1601,17 @@ h2 {
 }
 
 .script-scene-list {
-  max-height: 220px;
+  max-height: 190px;
   overflow: auto;
   display: grid;
-  gap: 6px;
-  padding: 7px;
+  gap: 5px;
+  padding: 6px;
   border-top: 1px solid #edf1f5;
 }
 
 .script-scene-item {
   min-width: 0;
-  padding: 7px;
+  padding: 6px;
   border: 1px solid #edf1f5;
   border-radius: 8px;
   background: #f8fafc;
@@ -1643,7 +1645,7 @@ h2 {
 
 .asset-summary {
   margin: 0;
-  max-height: 66px;
+  max-height: 58px;
   overflow: auto;
   color: #2e4a3c;
   font-size: 11px;
@@ -1654,15 +1656,15 @@ h2 {
 .asset-file-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
 }
 
 .asset-file-list a {
   display: inline-flex;
   align-items: center;
   max-width: 100%;
-  min-height: 25px;
-  padding: 0 8px;
+  min-height: 23px;
+  padding: 0 7px;
   border: 1px solid #b9dbc8;
   border-radius: 999px;
   background: #ffffff;
@@ -1679,8 +1681,8 @@ h2 {
 }
 
 .preview-drawer summary {
-  min-height: 36px;
-  padding: 8px 10px;
+  min-height: 32px;
+  padding: 7px 9px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1703,7 +1705,7 @@ h2 {
 }
 
 .table-wrap {
-  max-height: 210px;
+  max-height: 190px;
   overflow: auto;
   border-top: 1px solid var(--line);
 }
@@ -1715,7 +1717,7 @@ table {
 
 th,
 td {
-  padding: 7px 9px;
+  padding: 6px 8px;
   border-bottom: 1px solid #edf1f5;
   text-align: left;
   vertical-align: top;
@@ -1746,7 +1748,7 @@ td a {
 
 .row-pick {
   min-width: 42px;
-  min-height: 26px;
+  min-height: 24px;
   border: 1px solid #cfd9e5;
   border-radius: 8px;
   background: #ffffff;
@@ -1763,7 +1765,7 @@ td a {
 
 @media (max-width: 1120px) {
   .clean-workspace {
-    grid-template-columns: 208px minmax(0, 1fr);
+    grid-template-columns: 190px minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) minmax(240px, 34vh);
     grid-template-areas:
       "sidebar main"
@@ -1783,10 +1785,19 @@ td a {
   }
 
   .profile-card {
-    grid-template-columns: minmax(190px, 1fr) minmax(180px, 1fr);
+    grid-template-columns: minmax(180px, 1fr) minmax(170px, 1fr);
   }
 
   .profile-card-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .upload-box {
+    grid-template-columns: minmax(170px, 200px) minmax(150px, 1fr);
+  }
+
+  .upload-actions {
     grid-column: 1 / -1;
     justify-content: flex-start;
   }
@@ -1835,11 +1846,12 @@ td a {
   }
 
   .upload-box {
+    grid-template-columns: 1fr;
     align-items: stretch;
-    flex-wrap: nowrap;
   }
 
   .upload-actions {
+    grid-column: auto;
     flex: 1 1 100%;
     justify-content: flex-start;
   }
@@ -1849,7 +1861,7 @@ td a {
   }
 
   .flow-strip {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .script-parts {
@@ -1867,13 +1879,13 @@ td a {
 
 @media (max-width: 620px) {
   .fresh-shell {
-    padding: 8px;
-    gap: 8px;
+    padding: 6px;
+    gap: 6px;
   }
 
   .fresh-topbar {
     position: sticky;
-    top: 8px;
+    top: 6px;
     z-index: 30;
     align-items: flex-start;
     flex-wrap: wrap;
@@ -1892,31 +1904,31 @@ td a {
   .workflow-main,
   .workflow-section,
   .step-sidebar {
-    padding: 10px;
+    padding: 8px;
   }
 
   .import-head,
   .upload-box,
-    .upload-actions,
-    .profile-manager-head,
-    .profile-manager-actions,
-    .asset-head,
-    .asset-controls,
-    .script-head,
-    .script-controls,
-    .hook-head,
-    .hook-controls,
-    .final-head,
-    .final-controls,
-    .asset-result-head,
-    .script-result-head,
-    .hook-result-head,
-    .final-result-head,
-    .artifact-notice,
-    .artifact-actions,
-    .result-row,
-    .section-title-row,
-    .preview-drawer summary {
+  .upload-actions,
+  .profile-manager-head,
+  .profile-manager-actions,
+  .asset-head,
+  .asset-controls,
+  .script-head,
+  .script-controls,
+  .hook-head,
+  .hook-controls,
+  .final-head,
+  .final-controls,
+  .asset-result-head,
+  .script-result-head,
+  .hook-result-head,
+  .final-result-head,
+  .artifact-notice,
+  .artifact-actions,
+  .result-row,
+  .section-title-row,
+  .preview-drawer summary {
     align-items: stretch;
     flex-direction: column;
   }
@@ -1943,6 +1955,12 @@ td a {
     width: 100%;
   }
 
+  .upload-copy,
+  .upload-actions {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
   .profile-name-field,
   .script-language,
   .script-duration,
@@ -1964,8 +1982,16 @@ td a {
 
   .upload-actions {
     width: 100%;
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .upload-actions .secondary-action,
+  .upload-actions .primary-action {
+    width: auto;
+    flex: 1 1 145px;
+    min-height: 32px;
   }
 
   .stats-grid {
@@ -2012,7 +2038,7 @@ td a {
 
 @media (max-width: 430px) {
   .fresh-shell {
-    padding: 6px;
+    padding: 5px;
   }
 
   .flow-strip {
