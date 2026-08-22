@@ -14,6 +14,17 @@
 10. Render or merge the final Reel, then create `reel-quality-report.json` with avatar hook, real demo proof, voiceover, captions, CTA, and duration checks.
 11. Create an enriched workbook copy with output columns for asset paths, reel script files, Vids status, Drive sync status, Drive video/folder links, final MP4 path, QA status, quality score, and quality report.
 
+## Basic Dashboard Flow
+
+Use `http://127.0.0.1:4317` for the simplest one-video workflow.
+
+- The dashboard opens in `Basic` mode and remembers the last Excel path, row, mode, avatar style, duration, Drive folder, and active tab.
+- `Prepare Assets` runs the quota-free preparation stage: real website capture, asset brief, improved Hook-Body-CTA script, 3-6 scene plan, Google Vids prompts, free provider prompts, and workbook links.
+- `Create Quality Reel` runs the recommended production path. If the mode is not a final-render mode, it switches to `Hook Vids + Local` automatically.
+- `Hook Vids + Local` tries to generate and download only Scene 1 as a Google Vids/avatar hook, caches it under `vids-clips/scene-01.mp4`, then merges the final MP4 locally with real tool screenshots/recordings, voiceover, captions, music, and CTA.
+- `Local MP4 Free` skips Google Vids quota entirely and creates the Reel locally from real assets and local generated presenter-style visuals.
+- The Basic terminal is scrollable and mirrors the Advanced terminal logs.
+
 ## Google Vids Reality
 
 Google Vids supports prompt-based AI clips and MP4 download, but a stable public API for creating a full Vid from prompts is not clearly available. The current reliable plan is:

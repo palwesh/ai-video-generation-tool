@@ -16,6 +16,8 @@
   --red: #d73a31;
   --terminal: #06080c;
   --terminal-line: #1d2733;
+  --soft-panel: #f8fafc;
+  --shadow-soft: 0 14px 34px rgb(15 23 42 / 7%);
 }
 
 * {
@@ -29,7 +31,7 @@ body {
 }
 
 body {
-  background: #f4f7fa;
+  background: #eef3f8;
 }
 
 button,
@@ -39,7 +41,7 @@ select {
 }
 
 button {
-  min-height: 34px;
+  min-height: 38px;
   border: 0;
   border-radius: 8px;
   cursor: pointer;
@@ -51,16 +53,16 @@ button:disabled {
 }
 
 .app-shell {
-  width: min(1500px, 100%);
+  width: min(1580px, 100%);
   margin: 0 auto;
-  padding: 10px;
+  padding: clamp(8px, 1.2vw, 14px);
 }
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(286px, 326px) minmax(0, 1fr);
-  gap: 10px;
-  min-height: calc(100vh - 20px);
+  grid-template-columns: minmax(318px, 370px) minmax(0, 1fr);
+  gap: 12px;
+  min-height: calc(100vh - 24px);
 }
 
 .panel,
@@ -68,18 +70,18 @@ button:disabled {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
-  box-shadow: 0 18px 40px rgb(15 23 42 / 7%);
+  box-shadow: var(--shadow-soft);
 }
 
 .controls-panel {
   align-self: start;
-  padding: 12px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   position: sticky;
-  top: 10px;
-  max-height: calc(100vh - 20px);
+  top: 12px;
+  max-height: calc(100vh - 24px);
   overflow: auto;
   overscroll-behavior: contain;
 }
@@ -104,6 +106,34 @@ button:disabled {
 .config-head,
 .docs-head {
   justify-content: space-between;
+}
+
+.header-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.landing-link {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.landing-link:hover {
+  border-color: #b9c6d4;
+  color: #17202a;
 }
 
 .summary-hint {
@@ -201,24 +231,147 @@ h2 {
   gap: 10px;
 }
 
-.basic-placeholder {
+.basic-card {
   display: grid;
-  gap: 5px;
+  gap: 7px;
   padding: 12px;
-  border: 1px solid #dde5ee;
+  border: 1px solid #cfd9e5;
   border-radius: 8px;
-  background: #f9fbfd;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgb(15 23 42 / 5%);
+}
+
+.basic-card-head,
+.basic-summary-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.basic-summary-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.basic-summary-actions button {
+  min-width: 108px;
 }
 
 .basic-workspace {
-  min-height: calc(100vh - 20px);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  min-height: calc(100vh - 24px);
 }
 
 .basic-main-panel {
   align-self: start;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border-color: #cfd9e5;
+}
+
+.basic-action-row {
   display: grid;
-  gap: 8px;
-  padding: 18px;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+  gap: 7px;
+}
+
+.basic-action-row .danger-button {
+  flex: 0 0 auto;
+  min-height: 32px;
+}
+
+.basic-action-row .danger-button:disabled {
+  display: none;
+}
+
+.basic-controls .field-grid {
+  grid-template-columns: 1fr;
+}
+
+.full-button {
+  width: 100%;
+}
+
+#basicOpenAdvancedBtn {
+  display: none;
+}
+
+.basic-pipeline-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+  gap: 10px;
+}
+
+.pipeline-card {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  padding: 11px;
+  border: 1px solid #dbe4ee;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgb(15 23 42 / 5%);
+}
+
+.pipeline-card strong,
+.pipeline-card span {
+  display: block;
+  min-width: 0;
+}
+
+.pipeline-card strong {
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.pipeline-card span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.basic-insight-grid {
+  grid-template-columns: minmax(260px, 1.35fr) repeat(3, minmax(170px, 1fr));
+}
+
+.basic-insight-grid .insight-card strong,
+.basic-insight-grid .insight-card span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.basic-insight-grid .insight-card span {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.basic-work-area {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: 10px;
+  min-height: 0;
+}
+
+.basic-terminal-panel {
+  height: min(50vh, 560px);
+  min-height: 330px;
+}
+
+.basic-result-panel {
+  min-height: 330px;
+  height: min(50vh, 560px);
+  grid-template-columns: 1fr;
+  align-content: start;
+  overflow: auto;
 }
 
 .field {
@@ -237,7 +390,7 @@ h2 {
 input,
 select {
   width: 100%;
-  min-height: 34px;
+  min-height: 38px;
   border: 1px solid #cbd5df;
   border-radius: 8px;
   background: #fff;
@@ -438,8 +591,11 @@ select:focus {
 .secondary-button,
 .danger-button {
   padding: 0 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-weight: 850;
   white-space: nowrap;
+  line-height: 1.1;
 }
 
 .primary-button {
@@ -495,7 +651,7 @@ select:focus {
 .output-stack {
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr);
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -516,7 +672,7 @@ select:focus {
 
 .insight-card {
   min-width: 0;
-  padding: 10px;
+  padding: 11px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
@@ -637,9 +793,12 @@ select:focus {
   margin: 5px 0 0;
   color: var(--muted);
   font-weight: 650;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
-#videoPreview {
+#videoPreview,
+#basicVideoPreview {
   display: none;
   width: 100%;
   aspect-ratio: 9 / 16;
@@ -647,6 +806,11 @@ select:focus {
   justify-self: end;
   border-radius: 8px;
   background: #0b1020;
+}
+
+#basicVideoPreview {
+  max-height: 410px;
+  justify-self: stretch;
 }
 
 .status-panel {
@@ -1084,6 +1248,27 @@ select:focus {
   height: 5px;
 }
 
+@media (max-width: 1220px) {
+  .workspace {
+    grid-template-columns: minmax(300px, 350px) minmax(0, 1fr);
+  }
+
+  .basic-work-area {
+    grid-template-columns: 1fr;
+  }
+
+  .basic-result-panel {
+    height: auto;
+    min-height: 160px;
+    grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
+    align-items: center;
+  }
+
+  #basicVideoPreview {
+    max-height: 280px;
+  }
+}
+
 @media (max-width: 980px) {
   .workspace {
     grid-template-columns: 1fr;
@@ -1095,6 +1280,10 @@ select:focus {
     overflow: visible;
   }
 
+  .basic-workspace {
+    min-height: auto;
+  }
+
   .result-panel {
     grid-template-columns: 1fr;
   }
@@ -1104,6 +1293,7 @@ select:focus {
   }
 
   .insight-grid,
+  .basic-pipeline-grid,
   .profile-limit-summary,
   .quota-lines {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1116,6 +1306,9 @@ select:focus {
   .docs-head,
   .docs-actions,
   .docs-search-row,
+  .basic-main-panel,
+  .basic-card-head,
+  .basic-summary-actions,
   .profile-center-head,
   .profile-limit-top {
     align-items: stretch;
@@ -1138,7 +1331,8 @@ select:focus {
     max-height: 180px;
   }
 
-  #videoPreview {
+  #videoPreview,
+  #basicVideoPreview {
     justify-self: start;
     max-height: 440px;
   }
@@ -1146,12 +1340,34 @@ select:focus {
 
 @media (max-width: 620px) {
   .app-shell {
+    padding: 8px;
+  }
+
+  .workspace {
+    gap: 8px;
+  }
+
+  .controls-panel,
+  .basic-main-panel,
+  .docs-panel,
+  .profile-center-panel,
+  .status-panel,
+  .result-panel {
     padding: 10px;
+  }
+
+  h1 {
+    font-size: 19px;
+  }
+
+  h2 {
+    font-size: 15px;
   }
 
   .field-grid,
   .segmented,
   .google-config,
+  .basic-pipeline-grid,
   .insight-grid,
   .profile-limit-summary,
   .quota-lines,
@@ -1161,13 +1377,21 @@ select:focus {
 
   .brand-row,
   .run-summary,
+  .basic-card-head,
+  .basic-summary-actions,
   .profile-login,
   .button-row,
   .tool-row,
+  .path-picker,
   .config-head,
   .tab-bar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .brand-row .status-dot,
+  .basic-card-head .status-dot {
+    align-self: flex-start;
   }
 
   .summary-actions {
@@ -1175,6 +1399,8 @@ select:focus {
   }
 
   .summary-actions button,
+  .basic-summary-actions button,
+  .path-picker button,
   .button-row button,
   .profile-login button,
   .tool-row button,
@@ -1183,7 +1409,25 @@ select:focus {
   }
 
   .terminal-panel {
-    height: 58vh;
-    min-height: 360px;
+    height: 52vh;
+    min-height: 280px;
+  }
+
+  .basic-terminal-panel {
+    height: 48vh;
+    min-height: 260px;
+  }
+
+  .terminal-output {
+    font-size: 11px;
+  }
+
+  .basic-result-panel {
+    height: auto;
+    min-height: 140px;
+  }
+
+  .insight-card strong {
+    font-size: 13px;
   }
 }

@@ -1,4 +1,11 @@
 import { resolveReelConfig, roleForScene } from "./reel-planner.mjs";
+import {
+  buildViralHookOptions,
+  normalizeViralLanguage,
+  viralBenefitLine,
+  viralOnscreenTextForRole,
+  viralVoiceoverForRole
+} from "./viral-script.mjs";
 
 function clean(value, fallback = "") {
   const text = String(value || "").replace(/\s+/g, " ").trim();
@@ -14,12 +21,13 @@ function limitWords(value, maxWords) {
   if (words.length <= maxWords) {
     return words.join(" ");
   }
-  return `${words.slice(0, maxWords).join(" ")}.`;
+  const clipped = words.slice(0, maxWords).join(" ").replace(/[,;:]+$/g, "");
+  return `${clipped}.`;
 }
 
 function shortPhrase(value, fallback, maxChars = 42) {
   const text = clean(value, fallback)
-    .replace(/[^\w\s&/+>?.-]/g, "")
+    .replace(/[^\p{L}\p{N}\s&/+>?.-]/gu, "")
     .replace(/\s+/g, " ")
     .trim();
   if (text.length <= maxChars) {
@@ -59,6 +67,10 @@ function safeBenefit(row) {
     .toLowerCase();
 }
 
+function scriptLanguage(row = {}) {
+  return normalizeViralLanguage(row.script_language || row.scriptLanguage || row.language || "Hinglish");
+}
+
 function shouldKeepVoiceover(sceneNumber, value, row) {
   const text = clean(value);
   const count = wordCount(text);
@@ -85,16 +97,17 @@ function shouldKeepVoiceover(sceneNumber, value, row) {
 function sceneCaption(sceneNumber, sceneCount, row, existing) {
   const toolName = safeToolName(row);
   const role = roleForScene(sceneNumber, sceneCount);
+  const viralText = viralOnscreenTextForRole(role.id, row);
   const defaults = {
-    hook: "Manual work? Stop.",
-    hook_intro: "Watch this quick fix",
+    hook: viralText,
+    hook_intro: viralText,
     intro: shortPhrase(toolName, "Micro tool", 30),
-    demo: "Real tool demo",
-    demo_workflow: "Demo -> result",
-    workflow: "Input -> Run -> Review",
-    workflow_output: "Run -> Review",
-    proof_before_after: "Messy to clear",
-    review_cta: "Save this workflow"
+    demo: viralText,
+    demo_workflow: viralText,
+    workflow: viralText,
+    workflow_output: viralText,
+    proof_before_after: viralText,
+    review_cta: viralText
   };
   const current = shortPhrase(existing, defaults[role.id] || role.caption || "Tool workflow", 34);
   const tooLong = wordCount(current) > 7 || current.length > 34;
@@ -108,18 +121,22 @@ function sceneVoiceover(sceneNumber, sceneCount, row, existing) {
   const benefit = safeBenefit(row);
   const toolUrl = safeToolUrl(row.tool_url);
   const role = roleForScene(sceneNumber, sceneCount);
+  const viralDefault = viralVoiceoverForRole(role.id, row);
   const defaults = {
-    hook: `Agar ${topic} abhi manual kar rahe ho, aap time aur accuracy dono lose kar rahe ho. Dekho ye quick fix.`,
-    hook_intro: `Agar ${topic} manual kar rahe ho, ${toolName} isko faster aur cleaner banata hai. Chalo real demo dekhte hain.`,
-    intro: `${toolName} ek focused micro tool hai. ${targetUser} ke liye: ${benefit}. Heavy setup nahi, quick review.`,
-    demo: `Ab real demo: ${toolUrl} open hai. Fictional data add karo, visible action run karo, aur result review karo.`,
-    demo_workflow: `Ab demo dekho: ${toolUrl} open karo, fictional input add karo, run karo, aur output review karo.`,
-    workflow: "Workflow simple rakho: input add, tool run, result check. Ye repeatable flow daily ka manual effort reduce karta hai.",
-    workflow_output: "Run ke baad output blindly use mat karo. Summary, warning points, aur next step check karo.",
-    proof_before_after: "Before: scattered manual checks. After: clean output aur faster decision. Value comparison me clearly dikhti hai.",
-    review_cta: "Publish se pehle human review mandatory. Useful laga to save karo, share karo, aur next micro tool ke liye follow karo."
+    hook: viralDefault,
+    hook_intro: viralDefault,
+    intro: viralDefault || `${toolName} ek focused micro tool hai. ${targetUser} ke liye: ${benefit}. Heavy setup nahi, quick review.`,
+    demo: viralDefault || `Ab real demo: ${toolUrl} open hai. Fictional data add karo, visible action run karo, aur result review karo.`,
+    demo_workflow: viralDefault || `Ab demo dekho: ${toolUrl} open karo, fictional input add karo, run karo, aur output review karo.`,
+    workflow: viralDefault || "Workflow simple rakho: input add, tool run, result check. Ye repeatable flow daily ka manual effort reduce karta hai.",
+    workflow_output: viralDefault || "Run ke baad output blindly use mat karo. Summary, warning points, aur next step check karo.",
+    proof_before_after: viralDefault || "Before: scattered manual checks. After: clean output aur faster decision. Value comparison me clearly dikhti hai.",
+    review_cta: viralDefault
   };
 
+  if (["hook", "hook_intro", "review_cta"].includes(role.id)) {
+    return limitWords(defaults[role.id], 24);
+  }
   if (shouldKeepVoiceover(sceneNumber, existing, row)) {
     return clean(existing);
   }
@@ -152,6 +169,7 @@ function videoPrompt(scene, sceneCount, row, hasCaptureAssets) {
   const toolName = safeToolName(row);
   const toolUrl = safeToolUrl(row.tool_url);
   const role = roleForScene(sceneNumber, sceneCount);
+  const language = scriptLanguage(row);
   const proofLine = hasCaptureAssets && /demo|workflow|output|proof|before/i.test(role.id)
     ? "Use the available real tool screenshots or screen recording as the main laptop/phone screen content."
     : "Show the actual tool page on a laptop or phone when relevant.";
@@ -162,11 +180,13 @@ function videoPrompt(scene, sceneCount, row, hasCaptureAssets) {
   const prompt = [
     `Create a 10-second 9:16 vertical video for ${toolName}.`,
     `Scene ${sceneNumber}/${sceneCount} should ${role.promptRole || "promote the tool clearly"}.`,
+    /hook/.test(role.id) ? "Start with a strong scroll-stopping avatar line in the first 2 seconds, then reveal the real tool screen." : "",
     /demo/.test(role.id) ? `The actual Tool URL is ${toolUrl}; use fictional/demo data only.` : "",
     `Visual: ${scene.visual}`,
     proofLine,
     "Use fast but readable SaaS/UGC editing: cursor highlights, tight zooms on important UI areas, clean captions, and realistic desk lighting.",
-    "Include clear Hinglish voiceover matching the script and subtle upbeat background music if available.",
+    "Prioritize watch-time: quick pattern interrupt, clear proof, then one simple takeaway.",
+    `Include clear ${language} voiceover matching the script and subtle upbeat background music if available.`,
     "Avoid fake UI, unsupported features, real personal information, and unrelated stock-looking filler.",
     normalizedBase && normalizedBase.length < 260 ? normalizedBase : ""
   ];
@@ -178,21 +198,28 @@ export function buildReelScriptPackage(scenePlan, row, capture = {}, reelConfig 
   const hook = scenes[0]?.voiceover || "";
   const cta = scenes.at(-1)?.voiceover || "";
   const body = scenes.slice(1, -1).map((scene) => scene.voiceover).join(" ");
+  const hookOptions = buildViralHookOptions(row).slice(0, 5);
   return {
     tool_name: safeToolName(row),
     tool_url: safeToolUrl(row.tool_url),
+    script_language: scriptLanguage(row),
     scene_count: reelConfig.sceneCount || scenes.length,
     scene_duration_seconds: reelConfig.sceneDurationSeconds || 10,
     total_duration_seconds: reelConfig.totalDurationSeconds || scenes.length * 10,
+    script_angle: `${scriptLanguage(row)} Instagram retention-first tool promo`,
     hook,
+    hook_options: hookOptions,
     body,
     cta,
     final_script: scenes.map((scene) => `Scene ${scene.scene_number}: ${scene.voiceover}`).join("\n"),
+    engagement_cta: "Save this workflow, comment TOOL, share with someone who needs this.",
+    value_promise: viralBenefitLine(row),
     retention_notes: [
-      "Start with pain/risk, not greeting.",
+      "Open with a pattern interrupt or mistake-avoidance hook, not a greeting.",
       "Show real tool proof before abstract benefits.",
-      "Keep captions short and high contrast.",
-      "End with human review plus save/share/follow CTA."
+      "Keep captions 3-7 words, high contrast, and easy to read on mobile.",
+      "Give a useful takeaway so viewers have a reason to save.",
+      "End with human review plus comment/save/share/follow CTA."
     ],
     asset_strategy: {
       capture_first: true,

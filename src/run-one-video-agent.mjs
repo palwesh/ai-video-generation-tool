@@ -21,9 +21,20 @@ import { writeAvatarReferencePack } from "./lib/avatar-reference-pack.mjs";
 dotenv.config({ quiet: true });
 
 const args = parseArgs(process.argv.slice(2));
-const defaultInput = "/Users/palsahu/workplace/projects/n learn/Book1.xlsx";
-const inputPath = path.resolve(args.input || defaultInput);
 const config = await readJson("config/default.json");
+function resolveDefaultInput(value, fallback = "") {
+  const raw = String(value || fallback || "").trim();
+  if (!raw) {
+    return "";
+  }
+  return path.isAbsolute(raw) ? raw : path.resolve(raw);
+}
+const defaultInput = resolveDefaultInput(
+  process.env.TRF_DEFAULT_INPUT || config.defaultInput,
+  "/Users/palsahu/workplace/projects/n learn/Book1.xlsx"
+);
+const inputPath = path.resolve(args.input || defaultInput);
+const largeXlsxThresholdBytes = Number(process.env.TRF_LARGE_XLSX_THRESHOLD_BYTES || 20 * 1024 * 1024);
 const toolBaseUrl = args["base-url"] || config.toolBaseUrl || "";
 const requestedLimit = Number(args.limit || 1);
 const reelConfig = resolveReelConfig(config, {
@@ -55,6 +66,49 @@ const batchStamp = new Date().toISOString().replace(/[:.]/g, "-");
 const batchDir = path.resolve(args.out || path.join("outputs", "runs", `one-video-agent-${batchStamp}`));
 const preparedWorkbookPath = path.join(batchDir, "prepared-tool-reel-workbook.xlsx");
 const reportPath = path.join(batchDir, "one-video-agent-report.json");
+
+async function shouldUseLargeXlsxReader(filePath) {
+  if (path.extname(filePath).toLowerCase() !== ".xlsx") {
+    return false;
+  }
+  try {
+    const stats = await fs.stat(filePath);
+    return stats.size >= largeXlsxThresholdBytes;
+  } catch {
+    return false;
+  }
+}
+
+function runLargeXlsxAnalyzer(filePath, baseUrl = "") {
+  return new Promise((resolve, reject) => {
+    const scriptPath = path.resolve("scripts/analyze-xlsx-light.py");
+    const child = spawn("python3", [scriptPath, filePath, "--base-url", baseUrl || "", "--full-tools"], {
+      cwd: process.cwd(),
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(stderr.trim() || `Large XLSX analyzer failed with exit code ${code}`));
+        return;
+      }
+      try {
+        resolve(JSON.parse(stdout));
+      } catch (error) {
+        reject(new Error(`Large XLSX analyzer returned invalid JSON: ${error.message}`));
+      }
+    });
+  });
+}
 
 const extraHeaders = [
   "TRF Full Tool URL",
@@ -171,6 +225,69 @@ function selectedRowFrom(normalizedRows) {
     throw new Error("No usable tool row found in the workbook.");
   }
   return row;
+}
+
+async function readAgentWorkbook(input) {
+  if (!(await shouldUseLargeXlsxReader(input))) {
+    const table = await readWorkbookTable(input);
+    return {
+      table,
+      normalizedRows: normalizeWorkbookObjects(table.objects, { toolBaseUrl }),
+      largeFileMode: false
+    };
+  }
+
+  const analyzed = await runLargeXlsxAnalyzer(input, toolBaseUrl);
+  const normalizedRows = (analyzed.tools || []).map((tool) => ({
+    source_row_number: Number(tool.source_row_number || tool.row),
+    tool_name: tool.tool_name || tool.name || `Tool Row ${tool.row}`,
+    tool_url: tool.tool_url || tool.url || "",
+    tool_route: tool.tool_route || tool.url || "",
+    topic: tool.topic || tool.tool_name || tool.name || "",
+    description: tool.description || "",
+    script: tool.script || "",
+    target_user: tool.target_user || "",
+    main_benefit: tool.main_benefit || "",
+    language: tool.language || "",
+    category: tool.category || "",
+    priority: tool.priority || "",
+    status: tool.status || "",
+    source_file: tool.source_file || path.basename(input)
+  }));
+  const headers = [
+    "Tool Name",
+    "Tool URL",
+    "Description",
+    "Script",
+    "Target User",
+    "Main Benefit",
+    "Language",
+    "Category",
+    "Priority",
+    "Status"
+  ];
+  const dataRows = normalizedRows.map((row) => [
+    row.tool_name,
+    row.tool_url,
+    row.description,
+    row.script,
+    row.target_user,
+    row.main_benefit,
+    row.language,
+    row.category,
+    row.priority,
+    row.status
+  ]);
+  return {
+    table: {
+      headers,
+      dataRows,
+      objects: dataRows.map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] || ""])))
+    },
+    normalizedRows,
+    largeFileMode: true,
+    analysis: analyzed.analysis
+  };
 }
 
 function enrichmentFor(normalized, result, final = {}) {
@@ -1044,8 +1161,9 @@ async function main() {
     console.warn("agent:one-video always creates one video from one selected row. Use --limit 1 here, or use npm run batch for multi-row prep.");
   }
 
-  const table = await readWorkbookTable(inputPath);
-  const normalizedRows = normalizeWorkbookObjects(table.objects, { toolBaseUrl });
+  const workbook = await readAgentWorkbook(inputPath);
+  const table = workbook.table;
+  const normalizedRows = workbook.normalizedRows;
   const selectedRow = selectedRowFrom(normalizedRows);
   const steps = [];
 
@@ -1054,6 +1172,9 @@ async function main() {
   console.log(`Tool: ${selectedRow.tool_name}`);
   console.log(`Tool URL: ${selectedRow.tool_url}`);
   console.log(`Output: ${batchDir}`);
+  if (workbook.largeFileMode) {
+    console.log(`Large workbook mode: ${workbook.analysis?.detectedToolRows || normalizedRows.length} tool rows analyzed safely`);
+  }
   console.log("Video limit: 1 selected Excel row");
   console.log(`Mode: ${prepOnly ? "script/assets prep only" : localOnly ? "local-only render" : generateInVids ? "Google Vids generate/export" : "dry-run prep + prompt fill"}`);
   console.log(`Reel structure: ${reelConfig.sceneCount} scenes, ${reelConfig.totalDurationSeconds}s total`);

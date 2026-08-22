@@ -193,6 +193,16 @@ http://127.0.0.1:4317
 
 The dashboard now opens in `Basic` mode. The existing full control set is under `Advanced Features`, including Excel row selection, modes, Google Vids profiles, queue/history, docs, terminal, and MP4 preview.
 
+Basic mode is the recommended one-video workflow:
+
+- `Excel file`: choose an `.xlsx`, `.xls`, or `.csv`, or paste the saved workbook path. The last selected path is remembered.
+- `Tool row`: select the exact Excel row to process; Basic and Advanced row fields stay synced.
+- `Video mode`: keep `Hook Vids + Local` for the best balance: Google Vids tries only the first 10-second avatar hook, then local rendering uses real screenshots/recordings for the body and CTA.
+- `Duration`: choose 30, 40, 50, or 60 seconds. Each scene is 10 seconds.
+- `Prepare Assets`: builds script, scene plan, screenshots, recordings, prompts, provider packs, and workbook links without final rendering or Google Vids quota.
+- `Create Quality Reel`: applies the recommended production preset, saves settings, runs one video, streams logs in the black terminal, and previews the final MP4 in the Basic page.
+- `Drive sync folder` and `Update selected Excel after run`: optional, for saving final video/folder links back into your workbook.
+
 Dashboard production controls:
 
 - `Choose Excel`: select an `.xlsx`, `.xls`, or `.csv` file from your laptop. The dashboard copies it into `work/uploads/`, sets the input path, and loads tool rows automatically. To update the original workbook file itself, paste its full path manually and click `Load`.

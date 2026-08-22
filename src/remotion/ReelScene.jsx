@@ -43,12 +43,13 @@ function cachedVidsMedia(assets, sceneIndex) {
   const sceneNumber = sceneIndex + 1;
   const sceneClip = assets.vidsClips?.[sceneIndex];
   if (sceneClip) {
+    const isHook = sceneIndex === 0;
     return {
       src: sceneClip,
       kind: "cached_scene_clip",
-      badge: "AI AVATAR CLIP",
-      loop: true,
-      muted: true,
+      badge: isHook ? "HOOK AVATAR VIDEO" : "AI AVATAR CLIP",
+      loop: !isHook,
+      muted: !isHook,
       objectFit: "cover"
     };
   }
@@ -77,6 +78,16 @@ function cachedVidsMedia(assets, sceneIndex) {
 }
 
 function toolMediaForScene(assets, sceneIndex) {
+  if (sceneIndex > 0) {
+    return assets.demoVideo
+      || assets.mobileScroll
+      || assets.demoAfter
+      || assets.desktopFull
+      || assets.desktop
+      || assets.demoBefore
+      || assets.mobile
+      || "";
+  }
   if (sceneIndex === 2) {
     return assets.demoVideo || assets.demoAfter || assets.desktopFull || assets.desktop || assets.mobileScroll || "";
   }
@@ -489,6 +500,8 @@ function ReelCaption({ text, frame, fps, accent, compact = false }) {
   if (!chunk) {
     return null;
   }
+  const powerWords = /^(stop|save|comment|tool|real|demo|review|privacy|risk|output|before|after|fast|free|mask|safe|watch|try|human|clear|check)$/i;
+  const words = chunk.split(/\s+/).filter(Boolean);
 
   return (
     <div
@@ -510,15 +523,24 @@ function ReelCaption({ text, frame, fps, accent, compact = false }) {
     >
       <div
         style={{
-          color: "#ffffff",
           fontSize: compact ? 42 : 50,
           lineHeight: 1.08,
           fontWeight: 950,
           textAlign: "center",
-          textWrap: "balance"
+          textWrap: "balance",
+          textShadow: "0 4px 0 #000000, 0 0 18px rgba(0,0,0,0.65)"
         }}
       >
-        {chunk}
+        {words.map((word, index) => {
+          const normalized = word.replace(/[^\p{L}\p{N}]/gu, "");
+          const highlighted = index === 0 || powerWords.test(normalized);
+          return (
+            <React.Fragment key={`${word}-${index}`}>
+              <span style={{ color: highlighted ? "#FFD700" : "#ffffff" }}>{word}</span>
+              {index < words.length - 1 ? " " : ""}
+            </React.Fragment>
+          );
+        })}
       </div>
     </div>
   );
@@ -749,6 +771,103 @@ function HookScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, 
           fontWeight: 650
         }}
       >
+        {clampText(toolUrl || toolName, 74)}
+      </div>
+    </AbsoluteFill>
+  );
+}
+
+function HookVideoLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, generatedClip, frame, fps, accent, sceneDurationFrames, fade }) {
+  const headline = firstStrongLine(scene, toolName, sceneIndex);
+  const titleY = interpolate(frame, [0, 24], [36, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.16, 1, 0.3, 1)
+  });
+  const badgeScale = interpolate(frame % 50, [0, 25, 50], [1, 1.035, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp"
+  });
+
+  return (
+    <AbsoluteFill style={{ opacity: fade, overflow: "hidden", backgroundColor: "#020617" }}>
+      <div style={{ ...fullBleed }}>
+        <MediaLayer
+          media={{ ...generatedClip, muted: false, loop: false, objectFit: "cover" }}
+          fit="cover"
+          fps={fps}
+          style={{ ...fullBleed }}
+        />
+      </div>
+      <div style={{ ...fullBleed, background: "linear-gradient(180deg, rgba(2,6,23,0.18) 0%, rgba(2,6,23,0.05) 42%, rgba(2,6,23,0.78) 100%)" }} />
+      <div style={{ ...fullBleed, border: `18px solid ${accent}` , opacity: 0.82 }} />
+
+      <div
+        style={{
+          position: "absolute",
+          left: 68,
+          right: 68,
+          top: 58,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          color: "#ffffff",
+          fontSize: 24,
+          fontWeight: 880,
+          textShadow: "0 3px 14px rgba(0,0,0,0.45)"
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 14, height: 14, borderRadius: 999, backgroundColor: "#FFD700", boxShadow: "0 0 24px rgba(255,215,0,0.65)" }} />
+          <div>{clampText(toolName, 34)}</div>
+        </div>
+        <div>{String(scene.scene_number || sceneIndex + 1).padStart(2, "0")} / {String(totalScenes).padStart(2, "0")}</div>
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          left: 72,
+          right: 72,
+          bottom: 395,
+          translate: `0px ${titleY}px`
+        }}
+      >
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "14px 20px",
+            borderRadius: 999,
+            backgroundColor: "rgba(255, 215, 0, 0.94)",
+            color: "#111827",
+            fontSize: 28,
+            lineHeight: 1,
+            fontWeight: 980,
+            scale: badgeScale,
+            boxShadow: "0 20px 48px rgba(0,0,0,0.28)"
+          }}
+        >
+          Stop scrolling
+        </div>
+        <div
+          style={{
+            marginTop: 22,
+            color: "#ffffff",
+            fontSize: 84,
+            lineHeight: 0.98,
+            fontWeight: 980,
+            textWrap: "balance",
+            textShadow: "0 5px 0 #000000, 0 18px 42px rgba(0,0,0,0.42)"
+          }}
+        >
+          {clampText(headline, 42)}
+        </div>
+      </div>
+
+      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent="#FFD700" compact />
+      <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent="#FFD700" />
+      <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: "rgba(255,255,255,0.82)", fontSize: 22, fontWeight: 700 }}>
         {clampText(toolUrl || toolName, 74)}
       </div>
     </AbsoluteFill>
@@ -1164,8 +1283,10 @@ export const ReelScene = ({ scene, sceneIndex, totalScenes = 6, sceneDurationSec
   const { fps } = useVideoConfig();
   const sceneDurationFrames = Math.max(1, Number(sceneDurationSeconds || 10)) * fps;
   const accent = accents[sceneIndex] || Palette.blue;
-  const generatedClip = cachedVidsMedia(assets || {}, sceneIndex);
-  const toolMedia = toolMediaForScene(assets || {}, sceneIndex);
+  const rawAssets = assets || {};
+  const generatedClip = sceneIndex === 0 ? cachedVidsMedia(rawAssets, sceneIndex) : null;
+  const sceneAssets = sceneIndex === 0 ? rawAssets : { ...rawAssets, avatarHost: "" };
+  const toolMedia = toolMediaForScene(sceneAssets, sceneIndex);
   const fade = interpolate(frame, [0, sceneDurationFrames - 18, sceneDurationFrames], [1, 1, 0.94], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -1177,7 +1298,7 @@ export const ReelScene = ({ scene, sceneIndex, totalScenes = 6, sceneDurationSec
     totalScenes,
     toolName,
     toolUrl,
-    assets: assets || {},
+    assets: sceneAssets,
     toolMedia,
     generatedClip,
     frame,
@@ -1188,10 +1309,10 @@ export const ReelScene = ({ scene, sceneIndex, totalScenes = 6, sceneDurationSec
   };
 
   let body;
-  if (sceneIndex === 0) {
+  if (sceneIndex === 0 && generatedClip) {
+    body = <HookVideoLeadScene {...common} />;
+  } else if (sceneIndex === 0) {
     body = <HookScene {...common} />;
-  } else if (sceneIndex === 1 && sceneIndex !== totalScenes - 1) {
-    body = <IntroScene {...common} />;
   } else if (sceneIndex === totalScenes - 1) {
     body = <CtaScene {...common} />;
   } else if (sceneIndex === totalScenes - 2) {

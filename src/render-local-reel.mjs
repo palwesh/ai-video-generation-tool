@@ -61,6 +61,31 @@ function hasAsset(value) {
   return Boolean(String(value || "").trim());
 }
 
+async function listFilesRecursive(rootDir, maxDepth = 5) {
+  const files = [];
+  async function walk(currentDir, depth) {
+    if (depth > maxDepth) {
+      return;
+    }
+    let entries = [];
+    try {
+      entries = await fs.readdir(currentDir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const entryPath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(entryPath, depth + 1);
+      } else if (entry.isFile()) {
+        files.push(entryPath);
+      }
+    }
+  }
+  await walk(rootDir, 0);
+  return files.sort();
+}
+
 function addQualityCheck(checks, id, label, ok, points, note = "") {
   checks.push({
     id,
@@ -138,7 +163,8 @@ function buildQualityReport({ props, assets, audioAssets, outputPath, sizeBytes,
   );
 
   const voiceoverCount = Array.isArray(audioAssets.voiceovers) ? audioAssets.voiceovers.filter(Boolean).length : 0;
-  const voiceoverReady = voiceoverCount >= Math.max(1, Math.min(3, scenes.length));
+  const hasBodyVoiceoverSource = hasAsset(assets.bodyVoiceoverVideo);
+  const voiceoverReady = voiceoverCount >= Math.max(1, Math.min(3, scenes.length)) || hasBodyVoiceoverSource;
   addQualityCheck(
     checks,
     "voiceover",
@@ -146,7 +172,7 @@ function buildQualityReport({ props, assets, audioAssets, outputPath, sizeBytes,
     voiceoverReady,
     14,
     voiceoverReady
-      ? `${voiceoverCount} scene voiceover file(s) found.`
+      ? `${voiceoverCount} scene voiceover file(s) found${hasBodyVoiceoverSource ? " plus body voiceover source video" : ""}.`
       : "Generate natural voiceover files or add manual voice files in the voiceovers folder."
   );
 
@@ -247,6 +273,35 @@ async function firstExisting(paths) {
     const existing = await accessOrNull(filePath);
     if (existing) {
       return existing;
+    }
+  }
+  return null;
+}
+
+async function findBodyVoiceoverVideo(toolDir) {
+  const direct = await firstExisting([
+    path.join(toolDir, "voiceovers", "voiceover-source.mp4"),
+    path.join(toolDir, "voiceovers", "voiceover-source.webm"),
+    path.join(toolDir, "voiceovers", "voiceover-source.mov"),
+    path.join(toolDir, "generated", "google-vids-voiceover", "voiceover-source.mp4"),
+    path.join(toolDir, "generated", "google-vids-voiceover", "voiceover-source.webm"),
+    path.join(toolDir, "generated", "google-vids-voiceover", "voiceover-source.mov")
+  ]);
+  if (direct) {
+    return direct;
+  }
+
+  const roots = [
+    path.join(toolDir, "voiceovers"),
+    path.join(toolDir, "generated", "google-vids-voiceover"),
+    path.join(toolDir, "google-vids-voiceover")
+  ];
+  for (const root of roots) {
+    const files = await listFilesRecursive(root, 6);
+    const source = files.find((filePath) => /voiceover[-_ ]?source\.(mp4|webm|mov)$/i.test(path.basename(filePath)))
+      || files.find((filePath) => /google.*vids.*voiceover.*\.(mp4|webm|mov)$/i.test(path.basename(filePath)));
+    if (source) {
+      return source;
     }
   }
   return null;
@@ -454,13 +509,15 @@ async function createWindowsVoiceoverWav(text, outputPath, tempDir) {
   return path.relative(path.resolve("public"), outputPath).split(path.sep).join("/");
 }
 
-async function createAudioAssets(scenes, assetDir, outputDir, durationSeconds = 60) {
+async function createAudioAssets(scenes, assetDir, outputDir, durationSeconds = 60, options = {}) {
   if (!audioEnabled) {
     return { enabled: false, voiceovers: [], music: "" };
   }
 
   const tempDir = path.join(outputDir, "audio-temp");
   await ensureDir(tempDir);
+  const skipSceneNumbers = new Set((options.skipSceneNumbers || []).map(Number).filter(Number.isFinite));
+  const suppressFallbackSceneNumbers = new Set((options.suppressFallbackSceneNumbers || []).map(Number).filter(Number.isFinite));
 
   let voiceoverMode = "";
   const warnings = [];
@@ -481,6 +538,10 @@ async function createAudioAssets(scenes, assetDir, outputDir, durationSeconds = 
   const voiceovers = [];
   for (const [index, scene] of scenes.entries()) {
     const sceneNumber = index + 1;
+    if (skipSceneNumbers.has(sceneNumber)) {
+      voiceovers.push("");
+      continue;
+    }
     const customVoiceover = await firstExisting([
       path.join(customVoiceoverDir, `scene-${String(sceneNumber).padStart(2, "0")}.wav`),
       path.join(customVoiceoverDir, `scene-${String(sceneNumber).padStart(2, "0")}.mp3`),
@@ -491,6 +552,11 @@ async function createAudioAssets(scenes, assetDir, outputDir, durationSeconds = 
     ]);
     if (customVoiceover) {
       voiceovers.push(await copyAsset(customVoiceover, assetDir, `voiceover-scene-${sceneNumber}`));
+      continue;
+    }
+
+    if (suppressFallbackSceneNumbers.has(sceneNumber)) {
+      voiceovers.push("");
       continue;
     }
 
@@ -621,7 +687,13 @@ assets.vidsClipCache = {
   copiedFiles: vidsCacheAssets.copiedFiles,
   sourceFiles: vidsCacheAssets.sourceFiles
 };
-const audioAssets = await createAudioAssets(scenePlan.scenes, assetDir, outputRoot, totalDurationSeconds);
+const bodyVoiceoverVideoSource = await findBodyVoiceoverVideo(toolDir);
+assets.bodyVoiceoverVideo = await copyAsset(bodyVoiceoverVideoSource, assetDir, "body-voiceover-source");
+const bodySceneNumbers = (scenePlan.scenes || []).slice(1).map((_, index) => index + 2);
+const audioAssets = await createAudioAssets(scenePlan.scenes, assetDir, outputRoot, totalDurationSeconds, {
+  skipSceneNumbers: vidsCacheAssets.sceneClips?.[0] ? [1] : [],
+  suppressFallbackSceneNumbers: bodyVoiceoverVideoSource ? bodySceneNumbers : []
+});
 assets.voiceovers = audioAssets.voiceovers;
 assets.music = audioAssets.music;
 

@@ -29,6 +29,7 @@ export async function writeGoogleVidsPrompts(runDir, scenePlan) {
 
 export async function writePostCopy(runDir, row, scenePlan) {
   const toolName = row.tool_name || row.topic || "Ye tool";
+  const hookOptions = scenePlan.metadata?.script_package?.hook_options || [];
   const caption = [
     `# ${toolName} Reel Post Copy`,
     "",
@@ -38,9 +39,13 @@ export async function writePostCopy(runDir, row, scenePlan) {
     "",
     "## Hook Options",
     "",
-    `1. ${scenePlan.scenes[0].onscreen_text}`,
-    `2. Stop wasting time on this tiny manual task.`,
-    `3. Ye micro tool daily workflow me real time save kar sakta hai.`,
+    ...(hookOptions.length
+      ? hookOptions.slice(0, 5).map((hook, index) => `${index + 1}. ${hook.voiceover}`)
+      : [
+        `1. ${scenePlan.scenes[0].voiceover}`,
+        "2. Stop wasting time on this tiny manual task.",
+        "3. Ye micro tool daily workflow me real time save kar sakta hai."
+      ]),
     "",
     "## Hashtags",
     "",
@@ -110,6 +115,16 @@ export async function writeReelScriptPackage(runDir, scriptPackage = {}) {
     "## CTA",
     "",
     scriptPackage.cta || "",
+    "",
+    "## Hook Options",
+    "",
+    ...((scriptPackage.hook_options || []).length
+      ? scriptPackage.hook_options.map((hook, index) => `${index + 1}. ${hook.voiceover} (${hook.framework})`)
+      : ["No alternate hooks generated."]),
+    "",
+    "## Engagement CTA",
+    "",
+    scriptPackage.engagement_cta || "Save this workflow, comment TOOL, and share with someone who needs this.",
     "",
     "## Scene Script",
     "",

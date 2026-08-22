@@ -4,6 +4,39 @@ const els = {
   advancedControls: document.getElementById("advancedControls"),
   basicWorkspace: document.getElementById("basicWorkspace"),
   advancedWorkspace: document.getElementById("advancedWorkspace"),
+  basicInputPath: document.getElementById("basicInputPath"),
+  basicChooseExcelBtn: document.getElementById("basicChooseExcelBtn"),
+  basicExcelFileInput: document.getElementById("basicExcelFileInput"),
+  basicExcelFileStatus: document.getElementById("basicExcelFileStatus"),
+  basicToolSelect: document.getElementById("basicToolSelect"),
+  basicLoadToolsBtn: document.getElementById("basicLoadToolsBtn"),
+  basicRowNumber: document.getElementById("basicRowNumber"),
+  basicWorkflowMode: document.getElementById("basicWorkflowMode"),
+  basicHookAvatarStyle: document.getElementById("basicHookAvatarStyle"),
+  basicSceneCount: document.getElementById("basicSceneCount"),
+  basicDriveSyncDir: document.getElementById("basicDriveSyncDir"),
+  basicUpdateSourceWorkbook: document.getElementById("basicUpdateSourceWorkbook"),
+  basicPrepareBtn: document.getElementById("basicPrepareBtn"),
+  basicCreateReelBtn: document.getElementById("basicCreateReelBtn"),
+  basicStopBtn: document.getElementById("basicStopBtn"),
+  basicOpenAdvancedBtn: document.getElementById("basicOpenAdvancedBtn"),
+  basicPreviewAdvancedDocsBtn: document.getElementById("basicPreviewAdvancedDocsBtn"),
+  basicOpenResultFolderBtn: document.getElementById("basicOpenResultFolderBtn"),
+  basicRunState: document.getElementById("basicRunState"),
+  basicTerminalState: document.getElementById("basicTerminalState"),
+  basicProcessMeta: document.getElementById("basicProcessMeta"),
+  basicSelectedToolName: document.getElementById("basicSelectedToolName"),
+  basicSelectedToolMeta: document.getElementById("basicSelectedToolMeta"),
+  basicModeInfo: document.getElementById("basicModeInfo"),
+  basicModeMeta: document.getElementById("basicModeMeta"),
+  basicScriptInfo: document.getElementById("basicScriptInfo"),
+  basicScriptMeta: document.getElementById("basicScriptMeta"),
+  basicOutputInfo: document.getElementById("basicOutputInfo"),
+  basicOutputMeta: document.getElementById("basicOutputMeta"),
+  basicTerminal: document.getElementById("basicTerminal"),
+  basicResultTitle: document.getElementById("basicResultTitle"),
+  basicResultMeta: document.getElementById("basicResultMeta"),
+  basicVideoPreview: document.getElementById("basicVideoPreview"),
   inputPath: document.getElementById("inputPath"),
   chooseExcelBtn: document.getElementById("chooseExcelBtn"),
   excelFileInput: document.getElementById("excelFileInput"),
@@ -119,6 +152,7 @@ const state = {
   aiDefaults: {},
   voiceoverDefaults: {},
   avatarGenerationDefaults: {},
+  savedSettings: {},
   docCache: new Map(),
   tools: [],
   history: [],
@@ -149,6 +183,56 @@ async function api(path, options = {}) {
   return data;
 }
 
+async function saveUiSettings(patch = {}) {
+  state.savedSettings = {
+    ...(state.savedSettings || {}),
+    ...patch
+  };
+  try {
+    const data = await api("/api/settings", {
+      method: "POST",
+      body: JSON.stringify(patch)
+    });
+    state.savedSettings = data.settings || state.savedSettings;
+  } catch (error) {
+    appendTerminal(`Settings save skipped: ${error.message}\n`, "stderr");
+  }
+}
+
+function setExcelPathEverywhere(inputPath) {
+  const value = String(inputPath || "");
+  if (els.inputPath) {
+    els.inputPath.value = value;
+  }
+  if (els.basicInputPath) {
+    els.basicInputPath.value = value;
+  }
+}
+
+function setExcelStatus(text) {
+  if (els.excelFileStatus) {
+    els.excelFileStatus.textContent = text;
+  }
+  if (els.basicExcelFileStatus) {
+    els.basicExcelFileStatus.textContent = text;
+  }
+}
+
+function syncDriveFields(source = "") {
+  if (source !== "advanced" && els.basicDriveSyncDir && els.driveSyncDir) {
+    els.driveSyncDir.value = els.basicDriveSyncDir.value;
+  }
+  if (source !== "basic" && els.basicDriveSyncDir && els.driveSyncDir) {
+    els.basicDriveSyncDir.value = els.driveSyncDir.value;
+  }
+  if (source !== "advanced" && els.basicUpdateSourceWorkbook && els.updateSourceWorkbook) {
+    els.updateSourceWorkbook.checked = els.basicUpdateSourceWorkbook.checked;
+  }
+  if (source !== "basic" && els.basicUpdateSourceWorkbook && els.updateSourceWorkbook) {
+    els.basicUpdateSourceWorkbook.checked = els.updateSourceWorkbook.checked;
+  }
+}
+
 async function uploadExcelFile(file) {
   if (!file) {
     return;
@@ -159,7 +243,8 @@ async function uploadExcelFile(file) {
 
   setStatus("Uploading", "busy");
   els.chooseExcelBtn.disabled = true;
-  els.excelFileStatus.textContent = `Uploading ${file.name}...`;
+  els.basicChooseExcelBtn.disabled = true;
+  setExcelStatus(`Uploading ${file.name}...`);
   const response = await fetch("/api/input-upload", {
     method: "POST",
     headers: {
@@ -174,9 +259,13 @@ async function uploadExcelFile(file) {
   }
 
   const upload = data.upload || {};
-  els.inputPath.value = upload.input || "";
-  els.excelFileStatus.textContent = `${upload.originalName || file.name} copied to work/uploads | ${formatBytes(upload.bytes || file.size)} | ${upload.tools?.length || 0} tool row(s) loaded`;
+  setExcelPathEverywhere(upload.input || "");
+  setExcelStatus(`${upload.originalName || file.name} copied to work/uploads | ${formatBytes(upload.bytes || file.size)} | ${upload.tools?.length || 0} tool row(s) loaded`);
   renderToolOptions(upload.tools || []);
+  await saveUiSettings({
+    inputPath: upload.input || "",
+    row: upload.tools?.[0]?.row || Number(els.basicRowNumber.value || els.rowNumber.value || 2)
+  });
   setStatus("Ready");
   appendTerminal(`Excel selected: ${upload.input || file.name}\n`, "system");
 }
@@ -188,15 +277,19 @@ function setStatus(text, tone = "ready") {
 }
 
 function appendTerminal(text, stream = "stdout") {
-  const span = document.createElement("span");
-  span.className = stream;
-  span.textContent = text;
-  els.terminal.appendChild(span);
-  els.terminal.scrollTop = els.terminal.scrollHeight;
+  for (const terminal of [els.terminal, els.basicTerminal].filter(Boolean)) {
+    const span = document.createElement("span");
+    span.className = stream;
+    span.textContent = text;
+    terminal.appendChild(span);
+    terminal.scrollTop = terminal.scrollHeight;
+  }
 }
 
 function resetTerminal(text = "") {
-  els.terminal.textContent = text || "";
+  for (const terminal of [els.terminal, els.basicTerminal].filter(Boolean)) {
+    terminal.textContent = text || "";
+  }
 }
 
 function setFeatureTab(tab) {
@@ -208,10 +301,14 @@ function setFeatureTab(tab) {
   els.advancedControls.classList.toggle("is-hidden", state.featureTab !== "advanced");
   els.basicWorkspace.classList.toggle("is-hidden", state.featureTab !== "basic");
   els.advancedWorkspace.classList.toggle("is-hidden", state.featureTab !== "advanced");
+  saveUiSettings({ featureTab: state.featureTab }).catch(() => {});
 }
 
 function setMode(mode) {
   state.mode = mode;
+  if (els.basicWorkflowMode && els.basicWorkflowMode.value !== mode && ["google-hook", "local", "prep", "free-providers"].includes(mode)) {
+    els.basicWorkflowMode.value = mode;
+  }
   document.querySelectorAll(".segment").forEach((button) => {
     button.classList.toggle("active", button.dataset.mode === mode);
   });
@@ -703,6 +800,51 @@ function buildRunBody(rowOverride = null) {
   };
 }
 
+function buildBasicRunBody(modeOverride = "") {
+  const selectedMode = modeOverride || els.basicWorkflowMode.value || "google-hook";
+  const sceneCount = Math.max(3, Math.min(6, Number(els.basicSceneCount.value || 6)));
+  const row = Number(els.basicRowNumber.value || els.basicToolSelect.value || els.rowNumber.value || 2);
+  const ai = state.aiDefaults || {};
+  const voice = state.voiceoverDefaults || {};
+  const aiChoice = preferredAiProvider();
+  const input = (els.basicInputPath.value || els.inputPath.value || "").trim();
+  syncDriveFields("basic");
+  syncRowEverywhere(row);
+  setExcelPathEverywhere(input);
+  els.basicWorkflowMode.value = selectedMode;
+  applyBasicRecommendedControls();
+
+  return {
+    input,
+    driveSyncDir: els.basicDriveSyncDir.value.trim(),
+    updateSourceWorkbook: els.basicUpdateSourceWorkbook.checked,
+    row,
+    mode: selectedMode,
+    maxScenes: sceneCount,
+    freeVideoProviders: "capcut,pika,runway,canva,did,shotstack",
+    useAiScript: Boolean(ai.hasOpenAiKey || ai.hasGeminiKey),
+    aiProvider: aiChoice.provider,
+    aiModel: aiChoice.model,
+    ttsProvider: "edge",
+    ttsVoice: voice.edgeVoice || "hi-IN-SwaraNeural",
+    ttsModel: "edge-tts",
+    hookAvatarStyle: els.basicHookAvatarStyle.value || "female",
+    avatarReferenceImages: els.avatarReferenceImages.value.trim(),
+    avatarClipProvider: els.avatarClipProvider.value,
+    heygenVoiceId: els.heygenVoiceId.value.trim(),
+    generateAvatarClips: els.generateAvatarClips.checked,
+    profiles: selectedProfiles(),
+    useAvatar: true,
+    avatar: els.avatarChoice.value || "auto",
+    avatarScenes: selectedMode === "google-hook" ? "1" : "1,2,6",
+    useIngredients: true,
+    ingredients: "auto",
+    ingredientScenes: "3,4,5",
+    reuseUrlOnFallback: true,
+    noLocalFallback: false
+  };
+}
+
 function updateAiMediaStatus() {
   if (!els.aiMediaStatus) return;
   const ai = state.aiDefaults || {};
@@ -875,13 +1017,78 @@ function selectedToolRecord() {
   return state.tools.find((tool) => Number(tool.row) === selectedRow) || null;
 }
 
+function selectedBasicToolRecord() {
+  const selectedRow = Number(els.basicRowNumber.value || els.basicToolSelect.value || els.rowNumber.value || 0);
+  return state.tools.find((tool) => Number(tool.row) === selectedRow) || null;
+}
+
+function syncRowEverywhere(row) {
+  const value = String(row || 2);
+  for (const input of [els.rowNumber, els.queueStartRow, els.basicRowNumber].filter(Boolean)) {
+    input.value = value;
+  }
+  for (const select of [els.toolSelect, els.basicToolSelect].filter(Boolean)) {
+    const match = Array.from(select.options).find((option) => option.value === value);
+    if (match) {
+      select.value = value;
+    }
+  }
+}
+
+function preferredAiProvider() {
+  const ai = state.aiDefaults || {};
+  if (ai.hasGeminiKey && !ai.hasOpenAiKey) {
+    return {
+      provider: "gemini",
+      model: ai.defaultGeminiModel || "gemini-2.5-pro"
+    };
+  }
+  return {
+    provider: "openai",
+    model: ai.defaultModel || "gpt-5-mini"
+  };
+}
+
+function applyBasicRecommendedControls() {
+  const voice = state.voiceoverDefaults || {};
+  const sceneCount = String(els.basicSceneCount?.value || "6");
+  const avatarStyle = els.basicHookAvatarStyle?.value || "female";
+  const mode = els.basicWorkflowMode?.value || "google-hook";
+  els.maxScenes.value = sceneCount;
+  els.hookAvatarStyle.value = avatarStyle;
+  els.ttsProvider.value = "edge";
+  els.ttsVoice.value = voice.edgeVoice || "hi-IN-SwaraNeural";
+  els.ttsModel.value = "edge-tts";
+  els.useIngredients.checked = true;
+  els.ingredientScenes.value = "3,4,5";
+  els.useAvatar.checked = true;
+  els.avatarScenes.value = mode === "google-hook" ? "1" : "1,2,6";
+  els.reuseUrl.checked = true;
+  els.noLocalFallback.checked = false;
+  els.freeVideoProviders.value = "capcut,pika,runway,canva,did,shotstack";
+  const ai = state.aiDefaults || {};
+  const aiChoice = preferredAiProvider();
+  els.useAiScript.checked = Boolean(ai.hasOpenAiKey || ai.hasGeminiKey);
+  els.aiProvider.value = aiChoice.provider;
+  els.aiModel.value = aiChoice.model;
+  syncDriveFields("basic");
+  setMode(mode);
+  syncAiMediaModels();
+  updateQuotaEstimate();
+}
+
 function updateInfoCards() {
   if (!els.selectedToolInfo) return;
   const row = Number(els.rowNumber.value || els.toolSelect.value || 2);
   const scenes = Math.max(3, Math.min(6, Number(els.maxScenes.value || 6)));
   const tool = selectedToolRecord();
+  const basicRow = Number(els.basicRowNumber?.value || row || 2);
+  const basicScenes = Math.max(3, Math.min(6, Number(els.basicSceneCount?.value || scenes || 6)));
+  const basicTool = selectedBasicToolRecord() || tool;
   const selectedOption = els.toolSelect.selectedOptions?.[0]?.textContent || "";
   const toolTitle = tool?.name || selectedOption.replace(/^Row\s+\d+\s+-\s+/, "").replace(/\s+\[[^\]]+\]$/, "") || "No tool loaded";
+  const basicOption = els.basicToolSelect?.selectedOptions?.[0]?.textContent || "";
+  const basicToolTitle = basicTool?.name || basicOption.replace(/^Row\s+\d+\s+-\s+/, "").replace(/\s+\[[^\]]+\]$/, "") || "No tool loaded";
   const toolMeta = [
     Number.isFinite(row) ? `Row ${row}` : "",
     tool?.category ? `Category: ${tool.category}` : "",
@@ -911,6 +1118,32 @@ function updateInfoCards() {
 
   els.selectedToolInfo.textContent = toolTitle;
   els.selectedToolMeta.textContent = toolMeta || "Load Excel tools first.";
+  if (els.basicSelectedToolName) {
+    const basicToolMeta = [
+      Number.isFinite(basicRow) ? `Row ${basicRow}` : "",
+      basicTool?.url ? basicTool.url : "",
+      basicTool?.category ? `Category: ${basicTool.category}` : "",
+      basicTool?.status ? `Status: ${basicTool.status}` : "",
+      basicTool?.lastQualityScore ? `Last quality: ${basicTool.lastQualityScore}/100` : "",
+      basicTool?.lastError ? `Issue: ${basicTool.lastError}` : ""
+    ].filter(Boolean).join(" | ");
+    const basicMode = els.basicWorkflowMode?.value || state.mode;
+    els.basicSelectedToolName.textContent = basicToolTitle;
+    els.basicSelectedToolMeta.textContent = basicToolMeta || "Choose or load an Excel file first.";
+    els.basicModeInfo.textContent = modeLabel(basicMode);
+    els.basicModeMeta.textContent = basicMode === "google-hook"
+      ? `${basicScenes * 10} sec | 10 sec avatar hook from Vids + local real demo edit`
+      : basicMode === "local"
+        ? `${basicScenes * 10} sec | fully free local MP4 with screenshots and voiceover`
+        : basicMode === "prep"
+          ? "Script, assets, prompts, workbook links only"
+          : "Prompt pack for free AI/video tools";
+    els.basicScriptInfo.textContent = "Viral Hook-Body-CTA";
+    els.basicScriptMeta.textContent = "Best hook, short body, clean CTA, SEO caption, hashtags, and on-screen captions.";
+    els.basicProcessMeta.textContent = basicTool
+      ? `Ready: ${basicToolTitle} | Row ${basicRow} | ${modeLabel(basicMode)}`
+      : "Load Excel, choose one tool row, then create a Reel with avatar hook, real tool demo, captions, voiceover, and final MP4 output.";
+  }
   els.modeInfo.textContent = modeLabel(state.mode);
   els.modeMeta.textContent = state.mode === "google-hook"
     ? `${scenes} scenes | 1 Vids hook + local edit`
@@ -928,6 +1161,10 @@ function updateInfoCards() {
   ].filter(Boolean).join(" | ");
   els.outputInfo.textContent = outputParts[0] || (latestHistory ? "Recent output" : "Waiting");
   els.outputMeta.textContent = outputParts.length ? outputParts.join(" | ") : (latestOutputParts.join(" | ") || "Generated folders will appear after a run.");
+  if (els.basicOutputInfo) {
+    els.basicOutputInfo.textContent = outputParts[0] || (latestHistory ? "Recent output" : "Waiting");
+    els.basicOutputMeta.textContent = outputParts.length ? outputParts.join(" | ") : (latestOutputParts.join(" | ") || "Final video preview appears after run.");
+  }
   updateAiMediaStatus();
   els.runHint.textContent = state.activeRunId
     ? `Running ${modeLabel(state.mode)} for row ${row}. Watch terminal logs below.`
@@ -952,22 +1189,52 @@ function setOutputButtons(report, run) {
   els.openProviderFolderBtn.disabled = !state.output.providerFolder;
   els.openCacheFolderBtn.disabled = !state.output.cacheFolder;
   els.openRunFolderBtn.disabled = !state.output.runFolder;
+  if (els.basicOpenResultFolderBtn) {
+    els.basicOpenResultFolderBtn.disabled = !state.output.videoFolder && !state.output.runFolder;
+  }
 
   if (mp4Path) {
     els.videoPreview.style.display = "block";
     els.videoPreview.src = `/file?path=${encodeURIComponent(mp4Path)}`;
+    if (els.basicVideoPreview) {
+      els.basicVideoPreview.style.display = "block";
+      els.basicVideoPreview.src = `/file?path=${encodeURIComponent(mp4Path)}`;
+    }
   } else {
     els.videoPreview.pause();
     els.videoPreview.removeAttribute("src");
     els.videoPreview.style.display = "none";
+    if (els.basicVideoPreview) {
+      els.basicVideoPreview.pause();
+      els.basicVideoPreview.removeAttribute("src");
+      els.basicVideoPreview.style.display = "none";
+    }
   }
   updateInfoCards();
 }
 
+function setResultCopy(title, meta) {
+  els.resultTitle.textContent = title;
+  els.resultMeta.textContent = meta;
+  if (els.basicResultTitle) {
+    els.basicResultTitle.textContent = title;
+  }
+  if (els.basicResultMeta) {
+    els.basicResultMeta.textContent = meta;
+  }
+}
+
 async function loadDefaults() {
   const data = await api("/api/defaults");
-  els.inputPath.value = data.input;
+  state.savedSettings = data.settings || {};
+  const savedInput = data.settings?.inputPath || data.input;
+  setExcelPathEverywhere(savedInput);
   els.driveSyncDir.value = data.driveSync?.rootDir || "";
+  els.basicDriveSyncDir.value = data.settings?.driveSyncDir || data.driveSync?.rootDir || "";
+  els.updateSourceWorkbook.checked = Boolean(data.settings?.updateSourceWorkbook);
+  els.basicUpdateSourceWorkbook.checked = Boolean(data.settings?.updateSourceWorkbook);
+  els.basicWorkflowMode.value = data.settings?.basicWorkflowMode || "google-hook";
+  els.basicSceneCount.value = String(data.settings?.sceneCount || "6");
   renderProfiles(data.profiles || []);
   syncProfileSelects(data.profiles || []);
   els.avatarChoice.innerHTML = avatarOptions(data.googleVids?.avatarOptions || [{ label: "Auto Realistic", value: "auto" }]);
@@ -989,6 +1256,7 @@ async function loadDefaults() {
     ? "edge-tts"
     : data.voiceover?.openaiModel || "gpt-4o-mini-tts";
   els.hookAvatarStyle.value = data.voiceover?.hookAvatarStyle || "female";
+  els.basicHookAvatarStyle.value = data.settings?.hookAvatarStyle || data.voiceover?.hookAvatarStyle || "female";
   els.avatarReferenceImages.value = data.avatarGeneration?.referenceImages || "";
   els.avatarClipProvider.value = data.avatarGeneration?.defaultProvider || "manual";
   els.heygenVoiceId.value = data.avatarGeneration?.heygenVoiceId || "";
@@ -999,9 +1267,14 @@ async function loadDefaults() {
 
   applyQuotaToFields(els.primaryProfile.value);
   await loadTools();
+  if (data.settings?.row) {
+    syncRowEverywhere(data.settings.row);
+  }
+  applyBasicRecommendedControls();
   await refreshHistory();
   await refreshQueues();
   await loadDocs();
+  setFeatureTab(data.settings?.featureTab || state.featureTab);
 }
 
 async function refreshProfiles(preferred = {}) {
@@ -1132,24 +1405,36 @@ async function renderDocView() {
 
 function renderToolOptions(tools) {
   state.tools = tools || [];
-  els.toolSelect.innerHTML = state.tools.map((tool) => {
+  const previousRow = state.savedSettings?.row || els.basicRowNumber?.value || els.rowNumber?.value || "";
+  const options = state.tools.map((tool) => {
     const status = tool.status ? ` [${tool.status}]` : "";
     const label = `Row ${tool.row} - ${tool.name}${status}`;
     return `<option value="${tool.row}">${escapeHtml(label)}</option>`;
   }).join("");
+  els.toolSelect.innerHTML = options;
+  if (els.basicToolSelect) {
+    els.basicToolSelect.innerHTML = options;
+  }
   const first = state.tools[0];
   if (first) {
-    els.rowNumber.value = first.row;
-    els.toolSelect.value = String(first.row);
+    const wanted = state.tools.some((tool) => String(tool.row) === String(previousRow)) ? previousRow : first.row;
+    syncRowEverywhere(wanted);
   }
   updateInfoCards();
 }
 
 async function loadTools() {
   setStatus("Loading", "busy");
-  const data = await api(`/api/tools?input=${encodeURIComponent(els.inputPath.value)}`);
+  const inputPath = (els.basicInputPath?.value || els.inputPath.value || "").trim();
+  setExcelPathEverywhere(inputPath);
+  const data = await api(`/api/tools?input=${encodeURIComponent(inputPath)}`);
   renderToolOptions(data.tools || []);
+  await saveUiSettings({
+    inputPath,
+    row: Number(els.basicRowNumber?.value || els.rowNumber.value || 2)
+  });
   setStatus("Ready");
+  setExcelStatus(`${data.tools?.length || 0} tool row(s) loaded from selected file.`);
   updateInfoCards();
 }
 
@@ -1162,8 +1447,17 @@ function attachRun(run) {
   state.lastRun = run;
   els.runTitle.textContent = run.id;
   els.runState.textContent = run.status;
+  if (els.basicRunState) {
+    els.basicRunState.textContent = run.status;
+  }
+  if (els.basicTerminalState) {
+    els.basicTerminalState.textContent = run.status;
+  }
   els.stopBtn.disabled = false;
+  els.basicStopBtn.disabled = false;
   els.runBtn.disabled = true;
+  els.basicPrepareBtn.disabled = true;
+  els.basicCreateReelBtn.disabled = true;
   els.queueBtn.disabled = true;
   els.loginBtn.disabled = true;
   els.retryBtn.disabled = true;
@@ -1178,9 +1472,18 @@ function attachRun(run) {
   state.eventSource.addEventListener("status", (event) => {
     const latest = JSON.parse(event.data);
     els.runState.textContent = latest.status;
+    if (els.basicRunState) {
+      els.basicRunState.textContent = latest.status;
+    }
+    if (els.basicTerminalState) {
+      els.basicTerminalState.textContent = latest.status;
+    }
     if (latest.status !== "running") {
       els.stopBtn.disabled = true;
+      els.basicStopBtn.disabled = true;
       els.runBtn.disabled = false;
+      els.basicPrepareBtn.disabled = false;
+      els.basicCreateReelBtn.disabled = false;
       els.queueBtn.disabled = Boolean(state.activeQueueId);
       els.loginBtn.disabled = false;
       els.retryBtn.disabled = !state.lastRunBody;
@@ -1206,7 +1509,6 @@ function showResult(run) {
   if (report?.mp4Path) {
     const isLocalFallback = report.mode === "generate_export" && report.fallback === "local_remotion";
     const isHookMerge = report.hookVidsFirst || report.fallback === "local_hook_vids_merge";
-    els.resultTitle.textContent = isHookMerge ? "Hook + local edit video ready" : isLocalFallback ? "Local fallback video ready" : "Video ready";
     const parts = [
       `MP4: ${report.mp4Path}`,
       report.driveVideoPath ? `Drive video: ${report.driveVideoPath}` : "",
@@ -1230,24 +1532,25 @@ function showResult(run) {
       report.partialGeneratedScenes?.length ? `Vids scenes inserted before failure: ${report.partialGeneratedScenes.join(", ")}` : "",
       `Workbook: ${report.preparedWorkbook || ""}`
     ].filter(Boolean);
-    els.resultMeta.textContent = parts.join("\n");
+    setResultCopy(
+      isHookMerge ? "Hook + local edit video ready" : isLocalFallback ? "Local fallback video ready" : "Video ready",
+      parts.join("\n")
+    );
     return;
   }
   if (report?.vidsUrl) {
-    els.resultTitle.textContent = "Google Vids link ready";
-    els.resultMeta.textContent = [
+    setResultCopy("Google Vids link ready", [
       report.vidsUrl,
       report.generatedFolder ? `Generated: ${report.generatedFolder}` : "",
       report.freeVideoProviderPackFolder ? `Providers: ${report.freeVideoProviderPackFolder}` : "",
       report.voiceoverPackFolder ? `Voice pack: ${report.voiceoverPackFolder}` : "",
       report.avatarReferencePackFolder ? `Avatar pack: ${report.avatarReferencePackFolder}` : "",
       report.vidsClipCacheFolder ? `Vids cache: ${report.vidsClipCacheFolder}` : ""
-    ].filter(Boolean).join("\n");
+    ].filter(Boolean).join("\n"));
     return;
   }
   if (report?.generatedFolder || report?.vidsClipCacheFolder || report?.freeVideoProviderPackFolder) {
-    els.resultTitle.textContent = run.status === "complete" ? "Assets ready" : "Run failed";
-    els.resultMeta.textContent = [
+    setResultCopy(run.status === "complete" ? "Assets ready" : "Run failed", [
       report.generatedFolder ? `Generated: ${report.generatedFolder}` : "",
       report.freeVideoProviderPackFolder ? `Providers: ${report.freeVideoProviderPackFolder}` : "",
       report.voiceoverPackFolder ? `Voice pack: ${report.voiceoverPackFolder}` : "",
@@ -1257,11 +1560,10 @@ function showResult(run) {
       report.vidsClipCacheFolder ? `Vids cache: ${report.vidsClipCacheFolder}` : "",
       report.preparedWorkbook ? `Workbook: ${report.preparedWorkbook}` : "",
       report.error || ""
-    ].filter(Boolean).join("\n");
+    ].filter(Boolean).join("\n"));
     return;
   }
-  els.resultTitle.textContent = run.status === "complete" ? "Run complete" : "Run failed";
-  els.resultMeta.textContent = report?.error || run.outputDir || "Check terminal output.";
+  setResultCopy(run.status === "complete" ? "Run complete" : "Run failed", report?.error || run.outputDir || "Check terminal output.");
 }
 
 function modeLabel(mode) {
@@ -1426,6 +1728,36 @@ async function startOneVideo() {
   attachRun(data.run);
 }
 
+async function startBasicRun(modeOverride = "") {
+  resetTerminal([
+    "Starting Basic workflow...",
+    modeOverride === "prep"
+      ? "Step: script + assets only. No final render and no Google Vids quota."
+      : "Step: assets first, then avatar hook when available, then local edit with captions and voiceover.",
+    ""
+  ].join("\n"));
+  setFeatureTab("basic");
+  const body = buildBasicRunBody(modeOverride);
+  if (!body.input) {
+    throw new Error("Excel file path missing. Choose an Excel file first.");
+  }
+  state.lastRunBody = body;
+  await saveUiSettings({
+    inputPath: body.input,
+    row: body.row,
+    basicWorkflowMode: body.mode,
+    hookAvatarStyle: body.hookAvatarStyle,
+    sceneCount: body.maxScenes,
+    driveSyncDir: body.driveSyncDir,
+    updateSourceWorkbook: body.updateSourceWorkbook
+  });
+  const data = await api("/api/runs", {
+    method: "POST",
+    body: JSON.stringify(body)
+  });
+  attachRun(data.run);
+}
+
 async function retryLastRun() {
   if (!state.lastRunBody) return;
   resetTerminal("");
@@ -1554,8 +1886,7 @@ function previewPath(target) {
   const pseudoRun = { outputDir: directoryOf(target) };
   const pseudoReport = { mp4Path: target };
   setOutputButtons(pseudoReport, pseudoRun);
-  els.resultTitle.textContent = "Preview loaded";
-  els.resultMeta.textContent = target;
+  setResultCopy("Preview loaded", target);
 }
 
 async function attachRunById(runId) {
@@ -1718,12 +2049,39 @@ els.excelFileInput.addEventListener("change", () => {
     })
     .finally(() => {
       els.chooseExcelBtn.disabled = false;
+      els.basicChooseExcelBtn.disabled = false;
       els.excelFileInput.value = "";
     });
 });
 
+els.basicChooseExcelBtn.addEventListener("click", () => {
+  els.basicExcelFileInput.click();
+});
+
+els.basicExcelFileInput.addEventListener("change", () => {
+  const file = els.basicExcelFileInput.files?.[0];
+  uploadExcelFile(file)
+    .catch((error) => {
+      setStatus("Error", "error");
+      setExcelStatus(error.message);
+      appendTerminal(`${error.message}\n`, "stderr");
+    })
+    .finally(() => {
+      els.chooseExcelBtn.disabled = false;
+      els.basicChooseExcelBtn.disabled = false;
+      els.basicExcelFileInput.value = "";
+    });
+});
+
 els.inputPath.addEventListener("input", () => {
-  els.excelFileStatus.textContent = "Manual path entered. Click Load to read tools.";
+  els.basicInputPath.value = els.inputPath.value;
+  setExcelStatus("Manual path entered. Click Load to read tools.");
+  updateInfoCards();
+});
+
+els.basicInputPath.addEventListener("input", () => {
+  els.inputPath.value = els.basicInputPath.value;
+  setExcelStatus("Manual path entered. Click Load to read tools.");
   updateInfoCards();
 });
 
@@ -1734,20 +2092,103 @@ els.loadToolsBtn.addEventListener("click", () => {
   });
 });
 
+els.basicLoadToolsBtn.addEventListener("click", () => {
+  loadTools().catch((error) => {
+    setStatus("Error", "error");
+    resetTerminal(`${error.message}\n`);
+  });
+});
+
 els.toolSelect.addEventListener("change", () => {
-  els.rowNumber.value = els.toolSelect.value;
-  els.queueStartRow.value = els.toolSelect.value;
+  syncRowEverywhere(els.toolSelect.value);
+  saveUiSettings({ row: Number(els.toolSelect.value || 2) }).catch(() => {});
   updateQuotaEstimate();
   updateInfoCards();
 });
 
 els.rowNumber.addEventListener("input", () => {
-  const match = Array.from(els.toolSelect.options).find((option) => option.value === els.rowNumber.value);
-  if (match) {
-    els.toolSelect.value = match.value;
-  }
-  els.queueStartRow.value = els.rowNumber.value || "2";
+  syncRowEverywhere(els.rowNumber.value || "2");
+  saveUiSettings({ row: Number(els.rowNumber.value || 2) }).catch(() => {});
   updateInfoCards();
+});
+
+els.basicToolSelect.addEventListener("change", () => {
+  syncRowEverywhere(els.basicToolSelect.value);
+  saveUiSettings({ row: Number(els.basicToolSelect.value || 2) }).catch(() => {});
+  updateQuotaEstimate();
+  updateInfoCards();
+});
+
+els.basicRowNumber.addEventListener("input", () => {
+  syncRowEverywhere(els.basicRowNumber.value || "2");
+  saveUiSettings({ row: Number(els.basicRowNumber.value || 2) }).catch(() => {});
+  updateInfoCards();
+});
+
+els.basicWorkflowMode.addEventListener("change", () => {
+  applyBasicRecommendedControls();
+  saveUiSettings({ basicWorkflowMode: els.basicWorkflowMode.value }).catch(() => {});
+});
+
+els.basicHookAvatarStyle.addEventListener("change", () => {
+  applyBasicRecommendedControls();
+  saveUiSettings({ hookAvatarStyle: els.basicHookAvatarStyle.value }).catch(() => {});
+});
+
+els.basicSceneCount.addEventListener("change", () => {
+  applyBasicRecommendedControls();
+  saveUiSettings({ sceneCount: Number(els.basicSceneCount.value || 6) }).catch(() => {});
+});
+
+els.basicDriveSyncDir.addEventListener("input", () => {
+  syncDriveFields("basic");
+  saveUiSettings({ driveSyncDir: els.basicDriveSyncDir.value.trim() }).catch(() => {});
+});
+
+els.basicUpdateSourceWorkbook.addEventListener("change", () => {
+  syncDriveFields("basic");
+  saveUiSettings({ updateSourceWorkbook: els.basicUpdateSourceWorkbook.checked }).catch(() => {});
+});
+
+els.driveSyncDir.addEventListener("input", () => {
+  syncDriveFields("advanced");
+  saveUiSettings({ driveSyncDir: els.driveSyncDir.value.trim() }).catch(() => {});
+});
+
+els.updateSourceWorkbook.addEventListener("change", () => {
+  syncDriveFields("advanced");
+  saveUiSettings({ updateSourceWorkbook: els.updateSourceWorkbook.checked }).catch(() => {});
+});
+
+els.basicOpenAdvancedBtn.addEventListener("click", () => setFeatureTab("advanced"));
+els.basicPreviewAdvancedDocsBtn.addEventListener("click", () => {
+  setFeatureTab("advanced");
+  setActiveTab("docs");
+});
+els.basicOpenResultFolderBtn.addEventListener("click", () => openOutput(state.output.videoFolder ? "videoFolder" : "runFolder"));
+
+els.basicPrepareBtn.addEventListener("click", () => {
+  startBasicRun("prep").catch((error) => {
+    setStatus("Error", "error");
+    appendTerminal(`${error.message}\n`, "stderr");
+    els.basicPrepareBtn.disabled = false;
+    els.basicCreateReelBtn.disabled = false;
+  });
+});
+
+els.basicCreateReelBtn.addEventListener("click", () => {
+  const selectedMode = els.basicWorkflowMode.value;
+  const finalMode = selectedMode === "prep" || selectedMode === "free-providers" ? "google-hook" : selectedMode;
+  startBasicRun(finalMode).catch((error) => {
+    setStatus("Error", "error");
+    appendTerminal(`${error.message}\n`, "stderr");
+    els.basicPrepareBtn.disabled = false;
+    els.basicCreateReelBtn.disabled = false;
+  });
+});
+
+els.basicStopBtn.addEventListener("click", () => {
+  stopActiveRun().catch((error) => appendTerminal(`${error.message}\n`, "stderr"));
 });
 
 els.runBtn.addEventListener("click", () => {

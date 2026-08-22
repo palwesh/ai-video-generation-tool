@@ -101,6 +101,20 @@ the system converts it to:
 https://www.altftool.com/tools/all/universal-pii-ai-redactor
 ```
 
+### Basic Dashboard Flow
+
+The dashboard opens in `Basic` mode for one-video production:
+
+1. Choose or paste the Excel file path.
+2. Click `Load` and select the tool row.
+3. Keep `Hook Vids + Local` for the recommended workflow.
+4. Choose `Female presenter`, `Male presenter`, or `Auto presenter`.
+5. Choose 30, 40, 50, or 60 seconds.
+6. Click `Prepare Assets` to build script, screenshots, recordings, prompts, and workbook links without final render.
+7. Click `Create Quality Reel` to generate the recommended Reel: Google Vids avatar hook when quota/profile is available, real tool demo in the body, Edge Hindi voiceover, captions, music, quality report, and final local MP4.
+
+The dashboard remembers the last Excel path, selected row, Basic mode, avatar style, duration, Drive sync folder, and selected tab in `work/ui-state.json`.
+
 ### 2. Tool Capture Agent
 
 For each selected tool row, the agent opens the real tool URL and captures:
@@ -146,9 +160,9 @@ Do not invent fake features. Do not show fake UI. Use the real tool screenshot/d
 The scene plan always has:
 
 ```text
-7 scenes
+3-6 scenes
 10 seconds each
-70 seconds total
+30-60 seconds total
 9:16 vertical format
 Hinglish voiceover
 Instagram Reel style

@@ -4,6 +4,7 @@
   "sceneCount": 6,
   "sceneDurationSeconds": 10,
   "style": "realistic, modern, professional SaaS/UGC",
+  "defaultInput": "work/uploads/2026-08-21T11-21-18-914Z-ALTFTOOL-2.xlsx",
   "aiModel": "gpt-5-mini",
   "ai": {
     "enabled": false,

@@ -29,6 +29,10 @@ VIDEO FORMAT:
 - Include clear Hinglish voiceover delivery and light modern background music when the video tool supports audio generation.
 - Keep each 10-second voiceover tight, normally 16-24 spoken words, so captions and speech feel synced.
 - On-screen captions should be punchy, mobile-readable, and usually 3-7 words.
+- The script is for Instagram/Reels promotion of a real micro tool. It must make viewers stop scrolling, understand the tool value, and want to save/comment/share.
+- Avoid generic hooks like "Aaj main dikhata hoon" or "Is tool ko try karo". Use a specific curiosity gap, common mistake, pain/risk, before-after promise, or "save this before you need it" angle.
+- Scene 1 should feel like a creator/avatar talking directly to the viewer, not a product ad. Start with the problem, hidden risk, or surprising shortcut in the first 2 seconds.
+- CTA should ask for one clear engagement action: save this workflow, comment "TOOL", share with a teammate, or follow for the next micro-tool demo.
 - Use Website Capture Notes to mention real visible controls, labels, warnings, inputs, or result areas from the actual tool page.
 - Each scene needs one clear retention job only.
 - Make the Reel valuable, not only promotional: include a practical check, warning, before/after, or next step where the tool supports it.
@@ -38,6 +42,7 @@ VIDEO FORMAT:
   Body: show the actual tool and useful workflow with proof from capture assets.
   CTA: save/share/follow style prompt plus human review/safety reminder.
 - Avoid long explanations. The final spoken script must fit ${totalDuration} seconds.
+- Include SEO-friendly words naturally: AI tool, productivity, workflow, real demo, save time, online tool, micro tool, and the exact tool category when relevant.
 
 SCENE STRUCTURE:
 
@@ -129,7 +134,15 @@ Scene Count:
 ${reelConfig.sceneCount}
 
 Script Goal:
-Prepare a high-retention Instagram Reel script between ${reelConfig.minDurationSeconds} and ${reelConfig.maxDurationSeconds} seconds. Prioritize hook, real demo proof, useful workflow, before/after value, human review, and CTA.
+Prepare a high-retention Instagram Reel script between ${reelConfig.minDurationSeconds} and ${reelConfig.maxDurationSeconds} seconds that promotes this tool without sounding like a boring ad. Prioritize a scroll-stopping hook, real demo proof, useful workflow, before/after value, human review, and a save/comment/share CTA.
+
+Hook Direction:
+Generate a fresh hook angle for this row. Good styles include:
+- Mistake avoidance: "Ye chhoti mistake..."
+- Privacy/risk warning when relevant: "AI paste karne se pehle..."
+- Save-for-later: "Ye tool tab yaad aayega jab..."
+- 3-step shortcut: "Input, run, review..."
+- Curiosity gap: "Most people ye step skip kar dete hain..."
 
 Website Capture Notes:
 ${captureSummary || "No capture notes available. Use the real Tool URL in Scene 3 and avoid inventing UI."}`;

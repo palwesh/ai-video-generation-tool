@@ -5,6 +5,11 @@ import { parseArgs } from "./lib/args.mjs";
 import { ensureDir, readJson, writeJson, writeText } from "./lib/fsx.mjs";
 import { buildGoogleVidsClipPrompt, buildGoogleVidsMasterPrompt } from "./lib/vids-master-prompt.mjs";
 import { applyChromeLaunchOptions, launchWithBundledFallback } from "./lib/browser-paths.mjs";
+import {
+  ensureGoogleVidsSafe,
+  saveGoogleVidsSafetySnapshot,
+  safetyFieldsFromError
+} from "./lib/google-vids-safety.mjs";
 
 dotenv.config({ quiet: true });
 
@@ -19,6 +24,9 @@ const outputRoot = args.output || path.join(
   `google-vids-operate-${new Date().toISOString().replace(/[:.]/g, "-")}`
 );
 const targetUrl = args.url || "https://vids.new";
+const requestedVideoSize = String(args["video-size"] || args.size || "portrait").trim().toLowerCase();
+const manualRecoveryWaitMs = Number(args["manual-recovery-wait"] || process.env.TRF_MANUAL_RECOVERY_WAIT_MS || 0);
+const portraitRequested = /^(portrait|vertical|9:16|reel|short|shorts)$/i.test(requestedVideoSize);
 
 if (!scenesPath) {
   console.error("Missing --tool-dir or --scenes.");
@@ -97,11 +105,9 @@ async function googleSignInBlocker(page) {
 }
 
 async function assertGoogleVidsReady(page, stage) {
-  const blocker = await googleSignInBlocker(page);
-  if (!blocker) {
-    return;
-  }
-  throw new Error(`${blocker} Complete login with npm run vids:login -- --profile ${profileDir}, then retry. Stage: ${stage}.`);
+  return ensureGoogleVidsSafe(page, outputDir, stage, {
+    manualRecoveryWaitMs
+  });
 }
 
 async function clickByText(page, labels, timeout = 7000) {
@@ -178,24 +184,129 @@ async function clickByLabel(page, labels, timeout = 7000) {
   return { clicked: false };
 }
 
+async function clickControlByLabelOrText(page, labels, timeout = 7000) {
+  const byLabel = await clickByLabel(page, labels, timeout);
+  if (byLabel.clicked) {
+    return { ...byLabel, method: "aria_label" };
+  }
+
+  const byText = await clickByText(page, labels, timeout);
+  if (byText.clicked) {
+    return { ...byText, method: "text" };
+  }
+
+  for (const label of labels) {
+    const selector = await page.evaluate((needle) => {
+      document.querySelectorAll("[data-trf-click-target]").forEach((element) => {
+        element.removeAttribute("data-trf-click-target");
+      });
+      const clean = (value) => String(value || "").replace(/\s+/g, " ").trim();
+      const pattern = new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      const controls = Array.from(document.querySelectorAll("button, [role='button'], [aria-label], [aria-haspopup='menu']"));
+      const match = controls.find((element) => {
+        const rect = element.getBoundingClientRect();
+        const labelText = clean(element.getAttribute("aria-label"));
+        const text = clean(element.innerText || element.textContent);
+        return rect.width && rect.height && element.getClientRects().length && pattern.test(`${labelText} ${text}`);
+      });
+      if (!match) {
+        return "";
+      }
+      match.setAttribute("data-trf-click-target", "true");
+      return "[data-trf-click-target='true']";
+    }, label).catch(() => "");
+    if (!selector) {
+      continue;
+    }
+    const clicked = await page.locator(selector).first().click({ timeout, force: true }).then(() => true).catch(() => false);
+    if (clicked) {
+      await page.waitForTimeout(1000);
+      return { clicked: true, label, selector, method: "dom_ranked_control" };
+    }
+  }
+
+  return { clicked: false };
+}
+
+async function portraitSelectionEvidence(page) {
+  return await page.evaluate(() => {
+    const clean = (value) => String(value || "").replace(/\s+/g, " ").trim();
+    const controls = Array.from(document.querySelectorAll("button, [role='button'], [role='menuitemradio'], [aria-label]"))
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        const text = clean(element.innerText || element.textContent);
+        const ariaLabel = clean(element.getAttribute("aria-label"));
+        const name = `${ariaLabel} ${text}`.trim();
+        const selected = element.getAttribute("aria-checked") === "true"
+          || element.getAttribute("aria-pressed") === "true"
+          || element.getAttribute("aria-selected") === "true"
+          || /selected|checked|active/i.test(String(element.getAttribute("class") || ""));
+        return {
+          text,
+          ariaLabel,
+          selected,
+          visible: Boolean(rect.width && rect.height && element.getClientRects().length)
+        };
+      })
+      .filter((control) => control.visible && /portrait|vertical|9:16/i.test(`${control.ariaLabel} ${control.text}`))
+      .slice(0, 12);
+    return {
+      hasPortraitText: /portrait|vertical|9:16/i.test(clean(document.body?.innerText || "")),
+      selected: controls.some((control) => control.selected),
+      controls
+    };
+  }).catch((error) => ({
+    hasPortraitText: false,
+    selected: false,
+    controls: [],
+    error: error.message
+  }));
+}
+
 async function ensurePortrait(page) {
-  const welcomeChoice = await clickByText(page, ["Portrait"], 2500);
+  const attempts = [];
+  const initialEvidence = await portraitSelectionEvidence(page);
+  attempts.push({ name: "initial_evidence", evidence: initialEvidence });
+
+  const welcomeChoice = await clickByText(page, ["Portrait", "Vertical", "9:16"], 2500);
+  attempts.push({ name: "welcome_dialog", ...welcomeChoice });
   if (welcomeChoice.clicked) {
-    return { strategy: "welcome_dialog", ...welcomeChoice };
+    const evidence = await portraitSelectionEvidence(page);
+    return {
+      strategy: "welcome_dialog",
+      clicked: true,
+      selected: true,
+      evidence,
+      attempts,
+      ...welcomeChoice
+    };
   }
 
-  const videoSize = await clickByLabel(page, ["Video size"], 3500);
+  const videoSize = await clickControlByLabelOrText(page, ["Video size", "Video format", "Aspect ratio", "Size"], 3500);
+  attempts.push({ name: "open_video_size_menu", ...videoSize });
   if (!videoSize.clicked) {
-    return { strategy: "toolbar_video_size", clicked: false, reason: "Video size control was not found." };
+    return {
+      strategy: "toolbar_video_size",
+      clicked: false,
+      selected: Boolean(initialEvidence.selected),
+      evidence: initialEvidence,
+      attempts,
+      reason: initialEvidence.selected ? undefined : "Video size control was not found."
+    };
   }
 
-  const portraitOption = await clickByText(page, ["Portrait"], 5000);
+  const portraitOption = await clickControlByLabelOrText(page, ["Portrait", "Vertical", "9:16"], 5000);
+  attempts.push({ name: "select_portrait_option", ...portraitOption });
+  const finalEvidence = await portraitSelectionEvidence(page);
   return {
     strategy: "toolbar_video_size",
     clicked: portraitOption.clicked,
+    selected: Boolean(portraitOption.clicked || finalEvidence.selected),
     menu: videoSize,
     option: portraitOption,
-    reason: portraitOption.clicked ? undefined : "Portrait option was not found after opening Video size."
+    evidence: finalEvidence,
+    attempts,
+    reason: portraitOption.clicked || finalEvidence.selected ? undefined : "Portrait option was not found after opening Video size."
   };
 }
 
@@ -1586,8 +1697,18 @@ const context = await launchWithBundledFallback(
   launchOptions,
   (options) => chromium.launchPersistentContext(profileDir, options)
 );
-const page = await context.newPage();
 const steps = [];
+let page = await context.newPage();
+
+context.on("page", async (newPage) => {
+  page = newPage;
+  await page.bringToFront().catch(() => {});
+  steps.push({
+    name: "new_page_or_popup_detected",
+    currentUrl: page.url(),
+    note: "Automation switched to the newest browser tab/page."
+  });
+});
 
 try {
   await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
@@ -1597,10 +1718,20 @@ try {
   await assertGoogleVidsReady(page, "opened");
 
   if (!args["insert-only"]) {
-    if (!args["skip-portrait"]) {
+    if (!args["skip-portrait"] && portraitRequested) {
       const portrait = await ensurePortrait(page);
       steps.push({ name: "select_portrait", ...portrait, screenshot: await screenshot(page, outputDir, "03-portrait"), state: await pageState(page, outputDir, "03-portrait") });
+      if (args["require-portrait"] && !portrait.clicked && !portrait.selected) {
+        throw new Error(`Portrait video size was required but could not be selected. ${portrait.reason || ""}`.trim());
+      }
       await assertGoogleVidsReady(page, "select_portrait");
+    } else if (!args["skip-portrait"]) {
+      steps.push({
+        name: "select_video_size",
+        skipped: true,
+        requestedVideoSize,
+        reason: "Portrait selection is only automated for portrait/vertical/9:16 requests."
+      });
     }
 
     for (let index = 0; index < sceneNumbers.length; index += 1) {
@@ -1707,10 +1838,16 @@ try {
     manifestPath,
     promptPath,
     promptFiles,
+    videoSize: {
+      requested: requestedVideoSize,
+      portraitRequested,
+      requirePortrait: Boolean(args["require-portrait"])
+    },
     ingredientUploads: ingredientReport(steps),
     targetUrl,
     currentUrl: page.url(),
     title: await page.title(),
+    manualRecoveryWaitMs,
     steps
   });
 
@@ -1726,6 +1863,11 @@ try {
   const errorState = await pageState(page, outputDir, "error").catch((stateError) => ({
     error: stateError.message
   }));
+  const safetySnapshot = await saveGoogleVidsSafetySnapshot(page, outputDir, "error-final", {
+    event: "operator_failed",
+    error: error.message
+  }).catch(() => null);
+  const safetyFields = safetyFieldsFromError(error, safetySnapshot?.classification || null);
   await writeJson(path.join(outputDir, "vids-operator-report.json"), {
     ok: false,
     mode: args["insert-only"] ? "insert_only" : args.submit ? "submitted" : "filled_prompt_only",
@@ -1736,17 +1878,28 @@ try {
     manifestPath,
     promptPath,
     promptFiles,
+    videoSize: {
+      requested: requestedVideoSize,
+      portraitRequested,
+      requirePortrait: Boolean(args["require-portrait"])
+    },
     ingredientUploads: ingredientReport(steps),
     targetUrl,
     currentUrl: page.url(),
     title: await page.title().catch(() => ""),
+    manualRecoveryWaitMs,
     error: error.message,
     stack: error.stack,
+    ...safetyFields,
+    safetySnapshot,
     errorScreenshot,
     errorState,
     steps
   });
   console.error(`Google Vids operator failed: ${error.message}`);
+  if (safetyFields.manualAction) {
+    console.error(`Manual action: ${safetyFields.manualAction}`);
+  }
   console.error(`Report: ${path.join(outputDir, "vids-operator-report.json")}`);
   process.exitCode = 1;
 } finally {

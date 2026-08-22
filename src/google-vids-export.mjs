@@ -3,6 +3,11 @@ import dotenv from "dotenv";
 import { parseArgs } from "./lib/args.mjs";
 import { ensureDir, writeJson } from "./lib/fsx.mjs";
 import { applyChromeLaunchOptions, launchWithBundledFallback } from "./lib/browser-paths.mjs";
+import {
+  ensureGoogleVidsSafe,
+  saveGoogleVidsSafetySnapshot,
+  safetyFieldsFromError
+} from "./lib/google-vids-safety.mjs";
 
 dotenv.config({ quiet: true });
 
@@ -15,6 +20,7 @@ const outputDir = path.resolve(args.output || path.join(
   `google-vids-export-${new Date().toISOString().replace(/[:.]/g, "-")}`
 ));
 const timeoutMs = Number(args.timeout || 600000);
+const manualRecoveryWaitMs = Number(args["manual-recovery-wait"] || process.env.TRF_MANUAL_RECOVERY_WAIT_MS || 0);
 
 if (!targetUrl) {
   console.error("Missing --url for the Google Vids file.");
@@ -152,17 +158,29 @@ const context = await launchWithBundledFallback(
   launchOptions,
   (options) => chromium.launchPersistentContext(profileDir, options)
 );
-const page = await context.newPage();
 const steps = [];
+let page = await context.newPage();
+
+context.on("page", async (newPage) => {
+  page = newPage;
+  await page.bringToFront().catch(() => {});
+  steps.push({
+    name: "new_page_or_popup_detected",
+    currentUrl: page.url(),
+    note: "Automation switched to the newest browser tab/page."
+  });
+});
 
 try {
   await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
   await page.waitForTimeout(7000);
   steps.push({ name: "opened", screenshot: await screenshot(page, "01-opened"), state: await pageState(page, "01-opened") });
+  await ensureGoogleVidsSafe(page, outputDir, "export-opened", { manualRecoveryWaitMs });
 
   const saving = await waitForSavingComplete(page);
   steps.push({ name: "wait_for_saved", ...saving, screenshot: await screenshot(page, "02-saved"), state: await pageState(page, "02-saved") });
+  await ensureGoogleVidsSafe(page, outputDir, "export-after-save-wait", { manualRecoveryWaitMs });
 
   const result = await clickFileDownloadMp4(page);
   steps.push(...result.steps);
@@ -189,6 +207,7 @@ try {
     currentUrl: page.url(),
     title: await page.title(),
     outputDir,
+    manualRecoveryWaitMs,
     savedPath,
     suggestedFilename,
     failure,
@@ -208,19 +227,30 @@ try {
   const errorState = await pageState(page, "error").catch((stateError) => ({
     error: stateError.message
   }));
+  const safetySnapshot = await saveGoogleVidsSafetySnapshot(page, outputDir, "error-final", {
+    event: "export_failed",
+    error: error.message
+  }).catch(() => null);
+  const safetyFields = safetyFieldsFromError(error, safetySnapshot?.classification || null);
   await writeJson(path.join(outputDir, "google-vids-export-report.json"), {
     ok: false,
     mode: args["dry-run"] ? "dry_run" : "download",
     targetUrl,
     currentUrl: page.url(),
     title: await page.title().catch(() => ""),
+    manualRecoveryWaitMs,
     error: error.message,
     stack: error.stack,
+    ...safetyFields,
+    safetySnapshot,
     errorScreenshot,
     errorState,
     steps
   });
   console.error(`Google Vids export failed: ${error.message}`);
+  if (safetyFields.manualAction) {
+    console.error(`Manual action: ${safetyFields.manualAction}`);
+  }
   console.error(`Report: ${path.join(outputDir, "google-vids-export-report.json")}`);
   process.exitCode = 1;
 } finally {

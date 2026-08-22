@@ -3,467 +3,507 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Tool Reel Factory</title>
-    <link rel="stylesheet" href="/styles.css">
+    <title>Tool Reel Factory Fresh</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/home.css">
   </head>
   <body>
-    <main class="app-shell">
-      <section class="workspace">
-        <aside class="panel controls-panel">
-          <div class="brand-row">
+    <main class="fresh-shell">
+      <header class="fresh-topbar" aria-label="Tool Reel Factory">
+        <a class="fresh-brand" href="/">
+          <span class="fresh-brand-icon">TRF</span>
+          <span>
+            <strong>Tool Reel Factory</strong>
+            <small>Fresh workspace</small>
+          </span>
+        </a>
+        <div id="taskNotice" class="task-notice" data-tone="idle" aria-live="polite">
+          <span class="task-dot"></span>
+          <div>
+            <strong id="taskName">No task running</strong>
+            <small id="taskDetail">Ready for next action</small>
+          </div>
+        </div>
+        <nav class="fresh-actions" aria-label="Existing pages">
+          <a class="icon-link" href="/advanced.html" aria-label="Open old Version 1 tool">
+            <span class="mini-icon">V1</span>
+            <span>Old Tool</span>
+          </a>
+        </nav>
+      </header>
+
+      <section class="clean-workspace" aria-label="Fresh clean workspace">
+        <aside class="step-sidebar" aria-label="Workflow steps">
+          <div class="sidebar-head">
+            <span class="mini-icon">V2</span>
             <div>
-              <p class="eyebrow">ALT F TOOL</p>
-              <h1>Tool Reel Factory</h1>
-            </div>
-            <span id="serverStatus" class="status-dot">Ready</span>
-          </div>
-
-          <div class="feature-tabs" role="tablist" aria-label="Feature level">
-            <button class="feature-tab active" data-feature-tab="basic" type="button">Basic</button>
-            <button class="feature-tab" data-feature-tab="advanced" type="button">Advanced Features</button>
-          </div>
-
-          <section id="basicControls" class="basic-controls">
-            <div class="basic-placeholder">
-              <p class="eyebrow">BASIC</p>
-              <h2>Process ready</h2>
-              <p class="small-note">Basic workflow will appear here after you define the exact process.</p>
-            </div>
-          </section>
-
-          <section id="advancedControls" class="advanced-feature-panel is-hidden">
-          <div class="field">
-            <label for="inputPath">Excel file</label>
-            <div class="path-picker">
-              <input id="inputPath" type="text" autocomplete="off">
-              <button id="chooseExcelBtn" class="secondary-button" type="button">Choose</button>
-            </div>
-            <input id="excelFileInput" class="visually-hidden" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv">
-            <p id="excelFileStatus" class="small-note">Choose an Excel/CSV file or paste a full path.</p>
-          </div>
-
-          <div class="field">
-            <label for="driveSyncDir">Drive sync folder</label>
-            <input id="driveSyncDir" type="text" placeholder="/Users/.../Google Drive/Tool-Reel-Factory" autocomplete="off">
-          </div>
-
-          <label class="check-line">
-            <input id="updateSourceWorkbook" type="checkbox">
-            <span>Update source Excel after run</span>
-          </label>
-
-          <div class="tool-row">
-            <div class="field">
-              <label for="toolSelect">Tool row</label>
-              <select id="toolSelect"></select>
-            </div>
-            <button id="loadToolsBtn" class="secondary-button" type="button">Load</button>
-          </div>
-
-          <div class="field-grid">
-            <div class="field">
-              <label for="rowNumber">Excel row</label>
-              <input id="rowNumber" type="number" min="2" value="2">
-            </div>
-            <div class="field">
-              <label for="maxScenes">Scenes</label>
-              <input id="maxScenes" type="number" min="3" max="6" value="6">
+              <strong>Basic Flow</strong>
+              <small>Excel -> Assets -> Script -> Hook</small>
             </div>
           </div>
-
-          <div class="profile-box queue-config">
-            <div class="section-label">Queue</div>
-            <div class="field-grid">
-              <div class="field">
-                <label for="queueStartRow">Start row</label>
-                <input id="queueStartRow" type="number" min="2" value="2">
-              </div>
-              <div class="field">
-                <label for="queueLimit">Video limit</label>
-                <input id="queueLimit" type="number" min="1" max="50" value="1">
-              </div>
-            </div>
-            <div class="field">
-              <label for="queueRows">Specific rows</label>
-              <input id="queueRows" type="text" placeholder="2,3,5-7" autocomplete="off">
-            </div>
-            <div class="button-row">
-              <button id="queueBtn" class="secondary-button" type="button">Run Queue</button>
-              <button id="stopQueueBtn" class="danger-button" type="button" disabled>Stop Queue</button>
-            </div>
-          </div>
-
-          <div class="field">
-            <label>Mode</label>
-            <div class="segmented" role="radiogroup" aria-label="Mode">
-              <button class="segment" data-mode="prep" type="button">Script + Assets</button>
-              <button class="segment" data-mode="free-providers" type="button">Free Clip Pack</button>
-              <button class="segment active" data-mode="local" type="button">Local MP4</button>
-              <button class="segment" data-mode="google-hook" type="button">Hook Vids + Local</button>
-              <button class="segment" data-mode="google" type="button">Vids Clips</button>
-              <button class="segment" data-mode="google-full" type="button">All Vids Clips</button>
-            </div>
-            <div class="button-row preset-row">
-              <button id="qualityPresetBtn" class="secondary-button" type="button">Quality Reel Preset</button>
-              <span class="small-note">Best free setup for real demo reels.</span>
-            </div>
-          </div>
-
-          <div class="profile-box provider-config">
-            <div class="section-label">Free clip providers</div>
-            <div class="field">
-              <label for="freeVideoProviders">Provider list</label>
-              <input id="freeVideoProviders" type="text" value="capcut,pika,runway,canva,did,shotstack" autocomplete="off">
-            </div>
-            <p id="providerHelp" class="small-note">Creates scene prompts for free/free-trial tools. Download clips into vids-clips/scene-XX.mp4, then Local MP4 uses them.</p>
-          </div>
-
-          <div class="profile-box ai-media-config">
-            <div class="config-head">
-              <div>
-                <div class="section-label">AI + voice + avatar</div>
-                <p id="aiMediaStatus" class="small-note">Local fallback works without API keys.</p>
-              </div>
-            </div>
-            <label class="check-line">
-              <input id="useAiScript" type="checkbox">
-              <span>Use LLM for script</span>
-            </label>
-            <div class="field-grid">
-              <div class="field">
-                <label for="aiProvider">LLM</label>
-                <select id="aiProvider">
-                  <option value="openai">OpenAI</option>
-                  <option value="gemini">Gemini</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="aiModel">Model</label>
-                <input id="aiModel" type="text" value="gpt-5-mini" autocomplete="off">
-              </div>
-            </div>
-            <div class="field-grid">
-              <div class="field">
-                <label for="ttsProvider">Voice</label>
-                <select id="ttsProvider">
-                  <option value="local">Local TTS</option>
-                  <option value="edge">Edge TTS Free</option>
-                  <option value="openai">OpenAI TTS</option>
-                  <option value="elevenlabs">ElevenLabs</option>
-                  <option value="none">No voice gen</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="ttsVoice">Voice ID/name</label>
-                <input id="ttsVoice" type="text" value="verse" autocomplete="off">
-              </div>
-            </div>
-            <div class="field">
-              <label for="ttsModel">Voice model</label>
-              <input id="ttsModel" type="text" value="gpt-4o-mini-tts" autocomplete="off">
-            </div>
-            <div class="field">
-              <label for="hookAvatarStyle">Hook avatar</label>
-              <select id="hookAvatarStyle">
-                <option value="female">Female presenter</option>
-                <option value="male">Male presenter</option>
-                <option value="auto">Auto presenter</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="avatarReferenceImages">Avatar images</label>
-              <input id="avatarReferenceImages" type="text" placeholder="/path/me-front.jpg,/path/me-side.jpg" autocomplete="off">
-            </div>
-            <div class="field-grid">
-              <div class="field">
-                <label for="avatarClipProvider">Avatar clips</label>
-                <select id="avatarClipProvider">
-                  <option value="manual">Prompt pack only</option>
-                  <option value="heygen">HeyGen API</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="heygenVoiceId">HeyGen voice</label>
-                <input id="heygenVoiceId" type="text" placeholder="env/default voice_id" autocomplete="off">
-              </div>
-            </div>
-            <label class="check-line">
-              <input id="generateAvatarClips" type="checkbox">
-              <span>Generate avatar clips when possible</span>
-            </label>
-            <p class="small-note">For avatar clips, use your own image/voice or consented media only.</p>
-          </div>
-
-          <div id="googleVidsConfig" class="profile-box google-config">
-            <div class="config-head">
-              <div>
-                <div class="section-label">Google Vids config</div>
-                <p id="profileCount" class="small-note">0 profiles added</p>
-              </div>
-              <button id="refreshProfilesBtn" class="secondary-button" type="button">Refresh</button>
-            </div>
-            <div id="profileList" class="profile-list"></div>
-            <div class="field">
-              <label for="primaryProfile">Primary profile</label>
-              <select id="primaryProfile"></select>
-            </div>
-            <div class="field">
-              <label for="fallbackProfile">Fallback profile</label>
-              <select id="fallbackProfile"></select>
-            </div>
-            <label class="check-line">
-              <input id="useOnlyPrimary" type="checkbox">
-              <span>Use only primary</span>
-            </label>
-            <label class="check-line">
-              <input id="useAvatar" type="checkbox" checked>
-              <span>Select Vids avatar</span>
-            </label>
-            <div class="field">
-              <label for="avatarChoice">Avatar</label>
-              <select id="avatarChoice"></select>
-            </div>
-            <div class="field">
-              <label for="avatarScenes">Avatar scenes</label>
-              <input id="avatarScenes" type="text" value="1,2,6" autocomplete="off">
-            </div>
-            <label class="check-line">
-              <input id="useIngredients" type="checkbox" checked>
-              <span>Use tool screenshots</span>
-            </label>
-            <div class="field">
-              <label for="ingredientScenes">Screenshot scenes</label>
-              <input id="ingredientScenes" type="text" value="3,4,5" autocomplete="off">
-            </div>
-
-            <div class="quota-card">
-              <div class="quota-head">
-                <div>
-                  <div class="section-label">Quota planner</div>
-                  <p id="quotaEstimate">No Google Vids quota used in local mode.</p>
-                </div>
-                <button id="saveQuotaBtn" class="secondary-button" type="button">Save</button>
-              </div>
-              <div class="field">
-                <label for="quotaPlan">Plan note</label>
-                <input id="quotaPlan" type="text" value="Manual / free" autocomplete="off">
-              </div>
-              <div class="field-grid">
-                <div class="field">
-                  <label for="quotaAiLimit">AI video limit</label>
-                  <input id="quotaAiLimit" type="number" min="0" value="10">
-                </div>
-                <div class="field">
-                  <label for="quotaAiUsed">AI video used</label>
-                  <input id="quotaAiUsed" type="number" min="0" value="0">
-                </div>
-              </div>
-              <div class="field-grid">
-                <div class="field">
-                  <label for="quotaAvatarLimit">Avatar limit</label>
-                  <input id="quotaAvatarLimit" type="number" min="0" value="10">
-                </div>
-                <div class="field">
-                  <label for="quotaAvatarUsed">Avatar used</label>
-                  <input id="quotaAvatarUsed" type="number" min="0" value="0">
-                </div>
-              </div>
-              <label class="check-line quota-limit-used">
-                <input id="quotaExhausted" type="checkbox">
-                <span>Mark Vids limit used</span>
-              </label>
-              <p id="quotaNote" class="small-note">Update this manually when Google shows used quota.</p>
-            </div>
-          </div>
-
-          <details class="advanced">
-            <summary>Advanced</summary>
-            <div class="field">
-              <label for="customProfile">Custom profile path</label>
-              <input id="customProfile" type="text" placeholder="work/google-vids-profile-3" autocomplete="off">
-            </div>
-            <label class="check-line">
-              <input id="reuseUrl" type="checkbox">
-              <span>Reuse same Vids URL on fallback</span>
-            </label>
-            <label class="check-line">
-              <input id="noLocalFallback" type="checkbox">
-              <span>Disable local MP4 fallback</span>
-            </label>
-          </details>
-
-          <div class="button-row">
-            <button id="runBtn" class="primary-button" type="button">Run One Video</button>
-            <button id="stopBtn" class="danger-button" type="button" disabled>Stop</button>
-          </div>
-
-          <div class="profile-login">
-            <div class="field">
-              <label for="loginProfile">Login profile</label>
-              <select id="loginProfile"></select>
-            </div>
-            <button id="loginBtn" class="secondary-button" type="button">Open Login</button>
-          </div>
-
-          <div class="profile-login new-profile-row">
-            <div class="field">
-              <label for="newProfileName">New profile</label>
-              <input id="newProfileName" type="text" placeholder="google-vids-profile-3" autocomplete="off">
-            </div>
-            <div class="profile-button-stack">
-              <button id="addProfileOnlyBtn" class="secondary-button" type="button">Add Profile</button>
-              <button id="addProfileBtn" class="secondary-button" type="button">Add + Login</button>
-            </div>
-          </div>
-          </section>
+          <nav class="step-list">
+            <a id="loadStepLink" class="step-link active" href="#loadExcel">
+              <span>01</span>
+              <strong>Load Excel</strong>
+              <small id="loadStepMeta">Waiting</small>
+            </a>
+            <a id="selectStepLink" class="step-link" href="#selectTool">
+              <span>02</span>
+              <strong>Select Tool</strong>
+              <small id="selectStepMeta">Excel required</small>
+            </a>
+            <a id="assetStepLink" class="step-link" href="#buildAssets">
+              <span>03</span>
+              <strong>Build Assets</strong>
+              <small id="assetStepMeta">Not started</small>
+            </a>
+            <a id="scriptStepLink" class="step-link" href="#generateScript">
+              <span>04</span>
+              <strong>Reel Script</strong>
+              <small id="scriptStepMeta">After assets</small>
+            </a>
+            <a id="hookStepLink" class="step-link" href="#hookAvatar">
+              <span>05</span>
+              <strong>Hook Avatar</strong>
+              <small id="hookStepMeta">After script</small>
+            </a>
+            <a id="finalStepLink" class="step-link" href="#finalReel">
+              <span>06</span>
+              <strong>Final Reel</strong>
+              <small id="finalStepMeta">After hook</small>
+            </a>
+            <a id="profileStepLink" class="step-link" href="#profileManager">
+              <span>07</span>
+              <strong>Profiles</strong>
+              <small id="profileStepMeta">Loading</small>
+            </a>
+          </nav>
+          <a class="version-link" href="/advanced.html">Open Version 1</a>
         </aside>
 
-        <section id="basicWorkspace" class="output-stack basic-workspace">
-          <section class="panel basic-main-panel">
-            <div>
-              <p class="eyebrow">BASIC WORKFLOW</p>
-              <h2>Ready for your process</h2>
-              <p class="summary-hint">Advanced tools are moved into the Advanced Features tab. The basic flow will be added here next.</p>
+        <section class="workflow-main" aria-label="Tool asset workflow">
+          <section id="loadExcel" class="workflow-section import-panel" aria-label="Excel import and analysis">
+            <div class="import-head">
+              <div>
+                <p class="eyebrow">Load Excel Data</p>
+                <h1>Tool Reel Factory</h1>
+                <p>Select tool, build real assets, generate reel script.</p>
+              </div>
+              <span id="analysisState" class="state-pill">Waiting</span>
+            </div>
+
+            <div class="flow-strip" aria-label="Workflow overview">
+              <span data-flow-step="load">Excel</span>
+              <span data-flow-step="select">Tool row</span>
+              <span data-flow-step="asset">Assets</span>
+              <span data-flow-step="script">Script</span>
+              <span data-flow-step="hook">Hook avatar</span>
+              <span data-flow-step="final">Final reel</span>
+              <span data-flow-step="profile">Profiles</span>
+            </div>
+
+            <div class="upload-box">
+              <input id="excelFileInput" class="file-input" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv">
+              <div class="upload-copy">
+                <strong id="fileName">No file selected</strong>
+              <span id="fileHint">Choose .xlsx, .xls, or .csv file. UI only loads idea names.</span>
+              </div>
+              <div class="upload-actions">
+                <button id="defaultBtn" class="secondary-action" type="button">Default Excel</button>
+                <button id="openTrackerExcelBtn" class="secondary-action" type="button">Open Tracker</button>
+                <a class="secondary-action download-action" href="/api/work-tracker/download" download>Download Excel</a>
+                <button id="importBtn" class="primary-action" type="button" disabled>Import</button>
+              </div>
             </div>
           </section>
-        </section>
 
-        <section id="advancedWorkspace" class="output-stack is-hidden">
-          <section class="panel run-summary">
-            <div>
-              <p class="eyebrow">RUN CONTROL</p>
-              <h2 id="runTitle">No active run</h2>
-              <p id="runHint" class="summary-hint">Select a row, choose a mode, then run one reel or a queue.</p>
+          <section id="profileManager" class="workflow-section profile-manager-panel" aria-label="Google Vids profile manager">
+            <div class="profile-manager-head">
+              <div>
+                <p class="eyebrow">Google Vids Users</p>
+                <h2>Profile Manager</h2>
+                <p>Add multiple accounts, login, and track which profile can generate hook avatar clips.</p>
+              </div>
+              <span id="profileState" class="state-pill">Loading</span>
             </div>
-            <div class="summary-actions">
-              <button id="retryBtn" class="secondary-button" type="button" disabled>Retry Last</button>
-              <button id="openVideoBtn" class="secondary-button" type="button" disabled>Open Video</button>
-              <button id="openVideoFolderBtn" class="secondary-button" type="button" disabled>Video Folder</button>
-              <button id="openGeneratedFolderBtn" class="secondary-button" type="button" disabled>Generated</button>
-              <button id="openProviderFolderBtn" class="secondary-button" type="button" disabled>Providers</button>
-              <button id="openCacheFolderBtn" class="secondary-button" type="button" disabled>Vids Cache</button>
-              <button id="openRunFolderBtn" class="secondary-button" type="button" disabled>Run Folder</button>
+
+            <div class="profile-manager-actions">
+              <label class="field-label profile-name-field" for="newHookProfileName">
+                <span>New profile name</span>
+                <input id="newHookProfileName" type="text" placeholder="optional-name" autocomplete="off">
+              </label>
+              <button id="profileRefreshBtn" class="secondary-action" type="button">Refresh</button>
+              <button id="profileAddBtn" class="secondary-action" type="button">Add Profile</button>
+              <button id="profileAddLoginBtn" class="primary-action" type="button">Add + Login</button>
+              <button id="profileLoginSelectedBtn" class="secondary-action" type="button">Login Selected</button>
+            </div>
+
+            <div id="profileManagerSummary" class="profile-manager-summary">
+              <span>Profiles loading...</span>
+            </div>
+            <div id="profileManagerList" class="profile-manager-list">
+              <span class="muted">Profiles loading...</span>
             </div>
           </section>
 
-          <section class="insight-grid" aria-label="Automation status">
-            <article class="insight-card">
-              <p class="eyebrow">SELECTED</p>
-              <strong id="selectedToolInfo">No tool loaded</strong>
-              <span id="selectedToolMeta">Load Excel tools first.</span>
-            </article>
-            <article class="insight-card">
-              <p class="eyebrow">MODE</p>
-              <strong id="modeInfo">Local MP4</strong>
-              <span id="modeMeta">6 scenes, row 2</span>
-            </article>
-            <article class="insight-card">
-              <p class="eyebrow">PROFILES</p>
-              <strong id="profileInfo">0 added</strong>
-              <span id="profileMeta">Refresh profiles to check login/quota.</span>
-            </article>
-            <article class="insight-card">
-              <p class="eyebrow">OUTPUT</p>
-              <strong id="outputInfo">Waiting</strong>
-              <span id="outputMeta">Generated folders will appear after a run.</span>
-            </article>
-          </section>
-
-          <nav class="tab-bar" aria-label="Dashboard tabs">
-            <button class="tab-button active" data-tab="run" type="button">Run</button>
-            <button class="tab-button" data-tab="queue" type="button">Queue & History</button>
-            <button class="tab-button" data-tab="profiles" type="button">Profiles & Limits</button>
-            <button class="tab-button" data-tab="docs" type="button">Docs</button>
-          </nav>
-
-          <section id="tab-run" class="tab-panel active">
-            <section class="terminal-panel">
-              <div class="terminal-bar">
-                <span>Terminal</span>
-                <span id="runState">idle</span>
-              </div>
-              <pre id="terminal" class="terminal-output">Ready.
-</pre>
-            </section>
-
-            <section class="panel result-panel">
-              <div class="result-copy">
-                <p class="eyebrow">OUTPUT</p>
-                <h2 id="resultTitle">Waiting for a run</h2>
-                <p id="resultMeta">Final video, workbook, and folder links will appear here.</p>
-              </div>
-              <video id="videoPreview" controls playsinline></video>
-            </section>
-          </section>
-
-          <section id="tab-queue" class="tab-panel">
-            <section class="panel status-panel">
-              <div class="status-column">
-                <p class="eyebrow">QUEUE</p>
-                <h2 id="queueTitle">No queue running</h2>
-                <p id="queueMeta">Use Run Queue for multiple Excel rows.</p>
-                <div id="queueList" class="mini-list"></div>
-              </div>
-              <div class="status-column">
-                <p class="eyebrow">HISTORY</p>
-                <h2>Recent videos</h2>
-                <div id="historyList" class="mini-list"></div>
-              </div>
-            </section>
-          </section>
-
-          <section id="tab-profiles" class="tab-panel">
-            <section class="panel profile-center-panel">
-              <div class="profile-center-head">
+          <section id="analysisResults" class="analysis-results is-hidden" aria-label="Excel analysis result">
+            <section id="selectTool" class="workflow-section tool-select-panel" aria-label="Tool selection">
+              <div class="section-title-row">
                 <div>
-                  <p class="eyebrow">GOOGLE VIDS</p>
-                  <h2>Profiles & Limits</h2>
-                  <p id="profileCenterStats" class="summary-hint">Refresh profiles to check login and quota state.</p>
+                  <p class="eyebrow">Select Tool</p>
+                  <h2>Tool Idea Name</h2>
                 </div>
-                <button id="profileCenterRefreshBtn" class="secondary-button" type="button">Refresh Profiles</button>
+                <span id="toolOptionCount" class="state-pill">0 tools</span>
               </div>
-              <div id="profileLimitSummary" class="profile-limit-summary"></div>
-              <div id="profileLimitList" class="profile-limit-list"></div>
-            </section>
-          </section>
 
-          <section id="tab-docs" class="tab-panel">
-            <section class="panel docs-panel">
-              <div class="docs-head">
-                <div>
-                  <p class="eyebrow">DOCUMENTATION</p>
-                  <h2 id="docTitle">Automation docs</h2>
-                  <p id="docStats" class="summary-hint">Loading docs...</p>
-                </div>
-                <div class="docs-actions">
-                  <select id="docScope" aria-label="Document scope">
-                    <option value="current">Selected doc</option>
-                    <option value="all">All docs one page</option>
+              <div class="tool-select-grid">
+                <label class="field-label tool-search" for="toolSearchInput">
+                  <span>Search tool name</span>
+                  <input id="toolSearchInput" type="search" placeholder="Search idea name..." autocomplete="off">
+                </label>
+                <label class="field-label tool-picker" for="toolSelect">
+                  <span>Tool idea name</span>
+                  <select id="toolSelect">
+                    <option value="">Load Excel first</option>
                   </select>
-                  <select id="docSelect" aria-label="Document"></select>
-                  <button id="refreshDocsBtn" class="secondary-button" type="button">Refresh</button>
-                </div>
+                </label>
+                <label class="field-label row-field" for="assetRowInput">
+                  <span>Excel row</span>
+                  <input id="assetRowInput" type="number" min="2" step="1" value="2">
+                </label>
               </div>
-              <div class="docs-search-row">
-                <div class="field">
-                  <label for="docSearch">Search docs</label>
-                  <input id="docSearch" type="search" placeholder="setup, google vids, limit, command..." autocomplete="off">
+
+              <div id="selectedToolName" class="selected-tool">No row selected yet.</div>
+              <div id="artifactNotice" class="artifact-notice is-hidden" data-tone="idle">
+                <div class="artifact-copy">
+                  <strong id="artifactNoticeTitle">Checking existing work</strong>
+                  <span id="artifactNoticeDetail">Assets aur scripts folder scan ho rahe hain.</span>
                 </div>
-                <span id="docMatchCount" class="status-dot">0 matches</span>
-              </div>
-              <div class="docs-layout">
-                <aside class="doc-toc">
-                  <p class="eyebrow">SECTIONS</p>
-                  <div id="docToc" class="toc-list"></div>
-                </aside>
-                <article id="docContent" class="doc-content">Loading docs...</article>
+                <div class="artifact-actions">
+                  <button id="useExistingAssetsBtn" class="secondary-action" type="button" disabled>Use Old Assets</button>
+                  <button id="generateNewAssetsBtn" class="primary-action" type="button" disabled>Generate New Assets</button>
+                  <button id="useExistingScriptBtn" class="secondary-action" type="button" disabled>Use Old Script</button>
+                </div>
               </div>
             </section>
+
+            <div class="stats-grid">
+              <article class="stat-card">
+                <span>Tool rows</span>
+                <strong id="toolRows">0</strong>
+              </article>
+              <article class="stat-card">
+                <span>Columns</span>
+                <strong id="columnCount">0</strong>
+              </article>
+              <article class="stat-card">
+                <span>Tool links</span>
+                <strong id="urlCount">0</strong>
+              </article>
+              <article class="stat-card">
+                <span>Scripts</span>
+                <strong id="scriptCount">0</strong>
+              </article>
+            </div>
+
+            <div class="result-row">
+              <section class="summary-card">
+                <p class="eyebrow">Detected Columns</p>
+                <div id="headerList" class="chip-list"></div>
+              </section>
+              <section class="summary-card">
+                <p class="eyebrow">Warnings</p>
+                <div id="warningList" class="warning-list"></div>
+              </section>
+            </div>
+
+            <section id="buildAssets" class="asset-panel workflow-section" aria-label="Tool asset builder">
+              <div class="asset-head">
+                <div>
+                  <p class="eyebrow">Step 1</p>
+                  <h2>Build Assets</h2>
+                  <p>Real tool page capture, screenshots, and screen recordings.</p>
+                </div>
+                <span id="assetState" class="state-pill">Ready</span>
+              </div>
+
+              <div class="asset-controls">
+                <button id="buildAssetsBtn" class="primary-action build-main-action" type="button" disabled>Build Assets</button>
+                <button id="viewAssetsBtn" class="secondary-action" type="button" disabled>View Assets</button>
+              </div>
+
+              <div id="assetResult" class="asset-result is-hidden">
+                <div class="asset-result-head">
+                  <div>
+                    <p class="eyebrow">Latest Build</p>
+                    <h2 id="assetToolName">Tool assets ready</h2>
+                  </div>
+                  <strong id="assetFileCount">0 files</strong>
+                </div>
+                <p id="assetFolderPath" class="path-text"></p>
+                <p id="assetSummary" class="asset-summary"></p>
+                <div id="assetFileList" class="asset-file-list"></div>
+              </div>
+            </section>
+
+            <section id="generateScript" class="script-panel workflow-section" aria-label="Reel script generator">
+              <div class="script-head">
+                <div>
+                  <p class="eyebrow">Step 2</p>
+                  <h2>Generate Reel Script</h2>
+                  <p>30-60 sec Hook, Body, CTA script for Instagram reels.</p>
+                </div>
+                <span id="scriptState" class="state-pill">Ready</span>
+              </div>
+
+              <div class="script-controls">
+                <label class="field-label script-language" for="scriptLanguageSelect">
+                  <span>Script type</span>
+                  <select id="scriptLanguageSelect">
+                    <option value="Hinglish" selected>Hinglish</option>
+                    <option value="Hindi">Hindi</option>
+                    <option value="English">English</option>
+                  </select>
+                </label>
+                <label class="field-label script-duration" for="scriptSceneCount">
+                  <span>Duration</span>
+                  <select id="scriptSceneCount">
+                    <option value="3">30 sec</option>
+                    <option value="4">40 sec</option>
+                    <option value="5" selected>50 sec</option>
+                    <option value="6">60 sec</option>
+                  </select>
+                </label>
+                <button id="generateScriptBtn" class="primary-action build-main-action" type="button" disabled>Generate Script</button>
+                <button id="viewScriptFolderBtn" class="secondary-action" type="button" disabled>View Script Folder</button>
+              </div>
+
+              <div id="scriptResult" class="script-result is-hidden">
+                <div class="script-result-head">
+                  <div>
+                    <p class="eyebrow">Reel Script</p>
+                    <h2 id="scriptToolName">Script ready</h2>
+                  </div>
+                  <strong id="scriptDuration">0 sec</strong>
+                </div>
+                <p id="scriptFolderPath" class="path-text"></p>
+                <div id="scriptParts" class="script-parts"></div>
+                <details class="scene-drawer">
+                  <summary>
+                    <strong>Scene-wise script</strong>
+                    <span id="scriptSceneCountLabel" class="path-text">0 scenes</span>
+                  </summary>
+                  <div id="scriptSceneList" class="script-scene-list"></div>
+                </details>
+              </div>
+            </section>
+
+            <section id="hookAvatar" class="hook-panel workflow-section" aria-label="Hook avatar generator">
+              <div class="hook-head">
+                <div>
+                  <p class="eyebrow">Step 3</p>
+                  <h2>Generate Hook Avatar</h2>
+                  <p>Only first hook clip: human avatar speaks the scroll-stopping line.</p>
+                </div>
+                <span id="hookState" class="state-pill">Ready</span>
+              </div>
+
+              <div class="hook-controls">
+                <label class="field-label hook-presenter" for="hookPresenterSelect">
+                  <span>Presenter</span>
+                  <select id="hookPresenterSelect">
+                    <option value="female" selected>Female creator</option>
+                    <option value="male">Male creator</option>
+                    <option value="auto">Auto</option>
+                  </select>
+                </label>
+                <label class="field-label hook-character" for="hookCharacterSelect">
+                  <span>Character</span>
+                  <select id="hookCharacterSelect">
+                    <option value="auto_by_reel" selected>Auto by reel</option>
+                    <option value="auto">Google Vids auto</option>
+                  </select>
+                </label>
+                <label class="field-label hook-tone" for="hookToneSelect">
+                  <span>Tone</span>
+                  <select id="hookToneSelect">
+                    <option value="energetic" selected>Energetic</option>
+                    <option value="professional">Professional</option>
+                    <option value="friendly">Friendly</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </label>
+                <label class="field-label hook-duration" for="hookDurationSelect">
+                  <span>Length</span>
+                  <select id="hookDurationSelect">
+                    <option value="6">6 sec</option>
+                    <option value="8">8 sec</option>
+                    <option value="10" selected>10 sec</option>
+                  </select>
+                </label>
+                <label class="field-label hook-profile" for="hookPrimaryProfileSelect">
+                  <span>Primary profile</span>
+                  <select id="hookPrimaryProfileSelect">
+                    <option value="work/google-vids-profile">work/google-vids-profile</option>
+                  </select>
+                </label>
+                <label class="field-label hook-fallback-toggle">
+                  <span>Fallback</span>
+                  <span class="check-row">
+                    <input id="hookFallbackEnabled" type="checkbox" checked>
+                    <span>Use second profile</span>
+                  </span>
+                </label>
+                <label class="field-label hook-profile" for="hookFallbackProfileSelect">
+                  <span>Fallback profile</span>
+                  <select id="hookFallbackProfileSelect">
+                    <option value="">No fallback</option>
+                  </select>
+                </label>
+                <button id="refreshHookProfilesBtn" class="secondary-action" type="button">Refresh Profiles</button>
+                <button id="prepareHookAvatarBtn" class="secondary-action" type="button" disabled>Prepare Hook</button>
+                <button id="generateHookAvatarBtn" class="primary-action build-main-action" type="button" disabled>Generate Avatar</button>
+                <button id="viewHookAvatarBtn" class="secondary-action" type="button" disabled>View Hook Folder</button>
+              </div>
+              <div id="hookProfileStatus" class="profile-status-strip" aria-live="polite">
+                <span>Profiles loading...</span>
+              </div>
+
+              <div id="hookResult" class="hook-result is-hidden">
+                <div class="hook-result-head">
+                  <div>
+                    <p class="eyebrow">Hook Clip</p>
+                    <h2 id="hookToolName">Hook avatar ready</h2>
+                  </div>
+                  <strong id="hookStatusText">Prepared</strong>
+                </div>
+                <p id="hookFolderPath" class="path-text"></p>
+                <div class="hook-preview-grid">
+                  <article class="script-part-card">
+                    <span>Hook Script</span>
+                    <p id="hookScriptText"></p>
+                  </article>
+                  <article class="script-part-card">
+                    <span>Google Vids Prompt</span>
+                    <p id="hookPromptText"></p>
+                  </article>
+                </div>
+                <div id="hookFileList" class="asset-file-list"></div>
+                <video id="hookVideoPreview" class="hook-video-preview is-hidden" controls playsinline></video>
+              </div>
+            </section>
+
+            <section id="finalReel" class="final-panel workflow-section" aria-label="Final reel renderer">
+              <div class="final-head">
+                <div>
+                  <p class="eyebrow">Step 4</p>
+                  <h2>Render Final Reel</h2>
+                  <p>Merge avatar hook, real tool assets, voiceover, captions, and CTA into a vertical reel.</p>
+                </div>
+                <span id="finalState" class="state-pill">Ready</span>
+              </div>
+
+              <div class="final-controls">
+                <label class="field-label final-voice" for="finalVoiceProviderSelect">
+                  <span>Voice</span>
+                  <select id="finalVoiceProviderSelect">
+                    <option value="free" selected>Auto free voice</option>
+                    <option value="local">Local fallback</option>
+                    <option value="openai">OpenAI TTS</option>
+                    <option value="elevenlabs">ElevenLabs</option>
+                    <option value="none">No external TTS</option>
+                  </select>
+                </label>
+                <button id="generateRemainingVidsBtn" class="secondary-action" type="button" disabled>Generate Vids Voiceover</button>
+                <button id="playVoiceoverBtn" class="secondary-action" type="button" disabled>Play Voiceover</button>
+                <button id="renderFinalReelBtn" class="primary-action build-main-action" type="button" disabled>Render Final Reel</button>
+                <button id="viewFinalFolderBtn" class="secondary-action" type="button" disabled>View Final Folder</button>
+              </div>
+
+              <div id="finalPipeline" class="pipeline-mini" aria-live="polite">
+                <span data-status="idle">Waiting for final render.</span>
+              </div>
+
+              <div id="finalResult" class="final-result is-hidden">
+                <div class="final-result-head">
+                  <div>
+                    <p class="eyebrow">Final Output</p>
+                    <h2 id="finalToolName">Final reel ready</h2>
+                  </div>
+                  <strong id="finalStatusText">Prepared</strong>
+                </div>
+                <p id="finalFolderPath" class="path-text"></p>
+                <p id="finalSummary" class="asset-summary"></p>
+                <div class="final-preview-grid">
+                  <video id="finalVideoPreview" class="final-video-preview is-hidden" controls playsinline></video>
+                  <div>
+                    <div id="voiceoverPreviewBox" class="voiceover-preview is-hidden">
+                      <strong class="mini-section-title">Voiceover Preview</strong>
+                      <audio id="voiceoverAudioPreview" controls preload="metadata"></audio>
+                      <small id="voiceoverPreviewInfo" class="voiceover-preview-info"></small>
+                    </div>
+                    <strong class="mini-section-title">Files</strong>
+                    <div id="finalFileList" class="asset-file-list"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <details class="table-card preview-drawer">
+              <summary>
+                <span>
+                  <span class="eyebrow">Preview</span>
+                  <strong id="previewTitle">First rows</strong>
+                </span>
+                <span id="savedPath" class="path-text"></span>
+              </summary>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Row</th>
+                      <th>Tool</th>
+                      <th>URL</th>
+                      <th>Description</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="previewBody"></tbody>
+                </table>
+              </div>
+            </details>
           </section>
         </section>
+
+        <div
+          id="workspaceResizer"
+          class="workspace-resizer"
+          role="separator"
+          aria-label="Resize workspace and terminal"
+          aria-orientation="vertical"
+          tabindex="0"
+          title="Drag to resize terminal"
+        >
+          <span></span>
+        </div>
+
+        <aside id="terminalPane" class="terminal-pane" aria-label="Live terminal">
+          <div class="terminal-head">
+            <div>
+              <p class="eyebrow">Live Debug</p>
+              <h2>Terminal</h2>
+            </div>
+            <div class="terminal-actions">
+              <button id="clearTerminalBtn" class="icon-button" type="button" aria-label="Clear terminal">Clear</button>
+              <button id="terminalFullscreenBtn" class="icon-button" type="button" aria-label="Toggle terminal fullscreen">Full</button>
+            </div>
+          </div>
+          <div id="terminalStatus" class="terminal-status">Idle</div>
+          <pre id="terminalOutput" class="terminal-output">Ready. Actions, API calls, and asset build steps will appear here.
+</pre>
+        </aside>
       </section>
     </main>
-
-    <script src="/app.js" type="module"></script>
+    <script src="/home.js" type="module"></script>
   </body>
 </html>
