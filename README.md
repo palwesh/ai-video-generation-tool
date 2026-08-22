@@ -188,7 +188,7 @@ npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Bo
 
 This does not use Google Vids as the final merger. It creates and exports `scene-01`, `scene-02`, etc. separately, saves them under `vids-generated-scenes/scene-XX/`, caches them under `vids-clips/scene-XX.mp4`, then renders the final MP4 locally.
 
-Google Vids hook only, then local edit with real tool assets:
+Google Vids avatar pack, then local edit with real tool assets:
 
 ```bash
 npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --hook-vids-first --vids-scenes 1 --scene-count 6 --max-scenes 6
@@ -212,11 +212,19 @@ http://127.0.0.1:4317
 
 The dashboard now opens in `Basic` mode. The existing full control set is under `Advanced Features`, including Excel row selection, modes, Google Vids profiles, queue/history, docs, terminal, and MP4 preview.
 
+Read the docs inside the Basic dashboard:
+
+```text
+http://127.0.0.1:4317/#docsSection
+```
+
+Use the top `Docs` button, the `Read Docs` button beside Excel import, or the left sidebar `Docs` step. The docs reader supports selected doc, all docs one page, search, refresh, and clickable sections.
+
 Basic mode is the recommended one-video workflow:
 
 - `Excel file`: choose an `.xlsx`, `.xls`, or `.csv`, or paste the saved workbook path. The last selected path is remembered.
 - `Tool row`: select the exact Excel row to process; Basic and Advanced row fields stay synced.
-- `Video mode`: keep `Hook Vids + Local` for the best balance: Google Vids tries only the first 10-second avatar hook, then local rendering uses real screenshots/recordings for the body and CTA.
+- `Video mode`: keep `Hook Vids + Local` for the best balance: Google Vids creates short avatar moments where useful, then local rendering uses real screenshots/recordings for the body.
 - `Duration`: choose 30, 40, 50, or 60 seconds. Each scene is 10 seconds.
 - `Prepare Assets`: builds script, scene plan, screenshots, recordings, prompts, provider packs, and workbook links without final rendering or Google Vids quota.
 - `Create Quality Reel`: applies the recommended production preset, saves settings, runs one video, streams logs in the black terminal, and previews the final MP4 in the Basic page.
@@ -229,7 +237,9 @@ Dashboard production controls:
 - `Free Clip Pack`: prepares CapCut, Pika, Runway, Canva, D-ID, and Shotstack scene prompt folders without rendering or using Google Vids quota.
 - `Local MP4`: fully free local Reel render with captions, voiceover, music, real tool screenshots, and demo recordings.
 - `Quality Reel Preset`: one click sets the recommended free workflow: Local MP4, 6 scenes, female/male avatar hook, real tool captures, free Edge TTS voice, captions, and music.
-- `Hook Vids + Local`: generates only Scene 1 as a Google Vids/avatar hook clip, downloads/caches it, then merges the final MP4 locally with real tool screenshots and demo recordings.
+- `Avatar Pack`: prepares or generates a hook avatar clip, optional mid-reel focus avatar clip, and final CTA avatar clip. The Basic button is `Generate Avatar Pack`.
+- `Hook Vids + Local`: uses Google Vids/avatar clips for the hook, optional focus break, and CTA when available, downloads/caches them, then merges the final MP4 locally with real tool screenshots and demo recordings.
+- Voiceover-matched visuals: body scenes choose the best captured screenshot/recording based on the scene voiceover, so workflow, result, before-after, share, and safety lines show the right asset instead of random screenshots.
 - `Vids clip cache`: every tool folder has `vids-clips/`; local MP4 uses cached Google Vids/avatar clips first when they exist.
 - `Vids Clips`: Google Vids generates each selected scene as a separate clip, downloads it into `vids-generated-scenes/scene-XX/`, caches it as `vids-clips/scene-XX.mp4`, then local rendering merges the final Reel.
 - `All Vids Clips`: same scene-by-scene download flow for every scene; use only when quota is available.

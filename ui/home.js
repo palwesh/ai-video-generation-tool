@@ -37,6 +37,7 @@ const els = {
   hookStepLink: document.getElementById("hookStepLink"),
   finalStepLink: document.getElementById("finalStepLink"),
   profileStepLink: document.getElementById("profileStepLink"),
+  docsStepLink: document.getElementById("docsStepLink"),
   loadStepMeta: document.getElementById("loadStepMeta"),
   selectStepMeta: document.getElementById("selectStepMeta"),
   assetStepMeta: document.getElementById("assetStepMeta"),
@@ -44,6 +45,17 @@ const els = {
   hookStepMeta: document.getElementById("hookStepMeta"),
   finalStepMeta: document.getElementById("finalStepMeta"),
   profileStepMeta: document.getElementById("profileStepMeta"),
+  docsStepMeta: document.getElementById("docsStepMeta"),
+  docState: document.getElementById("docState"),
+  docTitle: document.getElementById("docTitle"),
+  docStats: document.getElementById("docStats"),
+  docScopeSelect: document.getElementById("docScopeSelect"),
+  docSelect: document.getElementById("docSelect"),
+  docSearchInput: document.getElementById("docSearchInput"),
+  docMatchCount: document.getElementById("docMatchCount"),
+  docToc: document.getElementById("docToc"),
+  docContent: document.getElementById("docContent"),
+  refreshDocsBtn: document.getElementById("refreshDocsBtn"),
   toolSearchInput: document.getElementById("toolSearchInput"),
   toolOptionCount: document.getElementById("toolOptionCount"),
   artifactNotice: document.getElementById("artifactNotice"),
@@ -154,6 +166,8 @@ const state = {
   finalReelEventSource: null,
   hookProfiles: [],
   hookAvatarOptions: [],
+  docs: [],
+  docCache: new Map(),
   terminalWidth: 340,
   isResizingTerminal: false,
   resizeStartX: 0,
@@ -180,6 +194,21 @@ function formatBytes(bytes) {
   if (value < 1024) return `${value} B`;
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
   return `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
+async function readJsonApi(path, options = {}) {
+  const response = await fetch(path, {
+    headers: {
+      "content-type": "application/json",
+      ...(options.headers || {})
+    },
+    ...options
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.error || `Request failed: ${response.status}`);
+  }
+  return data;
 }
 
 function timeLabel(date = new Date()) {
@@ -224,6 +253,141 @@ function applyTheme(theme) {
   }
   if (els.themeToggleText) {
     els.themeToggleText.textContent = isDark ? "Light" : "Dark";
+  }
+}
+
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function docSearchTerms(query) {
+  return String(query || "")
+    .trim()
+    .split(/\s+/)
+    .map((term) => term.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+function highlightDocText(value, query) {
+  let html = escapeHtml(value);
+  const terms = docSearchTerms(query).map((term) => escapeRegExp(escapeHtml(term)));
+  if (!terms.length) {
+    return html;
+  }
+  return html.replace(new RegExp(`(${terms.join("|")})`, "gi"), "<mark>$1</mark>");
+}
+
+function countDocMatches(content, query) {
+  const text = String(content || "").toLowerCase();
+  return docSearchTerms(query).reduce((count, term) => {
+    const needle = term.toLowerCase();
+    if (!needle) return count;
+    let matches = 0;
+    let index = text.indexOf(needle);
+    while (index !== -1) {
+      matches += 1;
+      index = text.indexOf(needle, index + needle.length);
+    }
+    return count + matches;
+  }, 0);
+}
+
+function slugifyDocHeading(value, used = new Map()) {
+  const base = String(value || "section")
+    .toLowerCase()
+    .replace(/`+/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "") || "section";
+  const count = used.get(base) || 0;
+  used.set(base, count + 1);
+  return count ? `${base}-${count + 1}` : base;
+}
+
+function markdownToDocHtml(content, query = "") {
+  const lines = String(content || "").split(/\r?\n/);
+  const headings = [];
+  const usedHeadings = new Map();
+  let html = "";
+  let inCode = false;
+  let listType = "";
+
+  const closeList = () => {
+    if (listType) {
+      html += `</${listType}>`;
+      listType = "";
+    }
+  };
+
+  for (const line of lines) {
+    if (/^```/.test(line)) {
+      closeList();
+      html += inCode ? "</code></pre>" : "<pre><code>";
+      inCode = !inCode;
+      continue;
+    }
+
+    if (inCode) {
+      html += `${highlightDocText(line, query)}\n`;
+      continue;
+    }
+
+    if (!line.trim()) {
+      closeList();
+      html += '<div class="doc-gap"></div>';
+      continue;
+    }
+
+    const heading = line.match(/^(#{1,4})\s+(.+)$/);
+    if (heading) {
+      closeList();
+      const level = Math.min(4, heading[1].length);
+      const text = heading[2].trim();
+      const id = slugifyDocHeading(text, usedHeadings);
+      headings.push({ id, level, text });
+      html += `<h${level} id="${id}">${highlightDocText(text, query)}</h${level}>`;
+      continue;
+    }
+
+    const bullet = line.match(/^\s*[-*]\s+(.+)$/);
+    if (bullet) {
+      if (listType !== "ul") {
+        closeList();
+        html += "<ul>";
+        listType = "ul";
+      }
+      html += `<li>${highlightDocText(bullet[1], query)}</li>`;
+      continue;
+    }
+
+    const ordered = line.match(/^\s*\d+\.\s+(.+)$/);
+    if (ordered) {
+      if (listType !== "ol") {
+        closeList();
+        html += "<ol>";
+        listType = "ol";
+      }
+      html += `<li>${highlightDocText(ordered[1], query)}</li>`;
+      continue;
+    }
+
+    closeList();
+    html += `<p>${highlightDocText(line, query)}</p>`;
+  }
+
+  closeList();
+  if (inCode) {
+    html += "</code></pre>";
+  }
+  return { html, headings };
+}
+
+function setDocState(label, tone = "idle") {
+  if (!els.docState) return;
+  els.docState.textContent = label;
+  els.docState.dataset.tone = tone;
+  if (els.docsStepMeta) {
+    els.docsStepMeta.textContent = label;
   }
 }
 
@@ -921,6 +1085,106 @@ function renderFinalPipeline(steps = []) {
   `).join("");
 }
 
+function renderDocToc(headings = []) {
+  if (!els.docToc) return;
+  const visible = headings.filter((heading) => heading.level <= 3).slice(0, 70);
+  if (!visible.length) {
+    els.docToc.innerHTML = '<span class="empty-note">No sections found.</span>';
+    return;
+  }
+  els.docToc.innerHTML = visible.map((heading) => (
+    `<a class="toc-link level-${heading.level}" href="#${escapeHtml(heading.id)}">${escapeHtml(heading.text)}</a>`
+  )).join("");
+}
+
+async function loadDocs() {
+  if (!els.docSelect) return;
+  setDocState("Loading", "busy");
+  const data = await readJsonApi("/api/docs");
+  state.docs = data.docs || [];
+  state.docCache.clear();
+  els.docSelect.innerHTML = state.docs.map((doc) => (
+    `<option value="${escapeHtml(doc.path)}">${escapeHtml(doc.title)} - ${escapeHtml(doc.path)}</option>`
+  )).join("");
+  const preferred = state.docs.find((doc) => doc.path === "docs/master-automation-doc.md") || state.docs[0];
+  if (!preferred) {
+    els.docTitle.textContent = "Automation docs";
+    els.docStats.textContent = "No docs found.";
+    els.docContent.textContent = "No docs found.";
+    renderDocToc([]);
+    setDocState("No docs", "error");
+    return;
+  }
+  els.docSelect.value = preferred.path;
+  await renderDocView();
+}
+
+async function ensureDocContent(docPath) {
+  if (state.docCache.has(docPath)) {
+    return state.docCache.get(docPath);
+  }
+  const data = await readJsonApi(`/api/docs/read?path=${encodeURIComponent(docPath)}`);
+  state.docCache.set(docPath, data.doc);
+  return data.doc;
+}
+
+async function currentDocPayload() {
+  const allDocs = els.docScopeSelect?.value === "all";
+  if (!allDocs) {
+    return ensureDocContent(els.docSelect?.value || "README.md");
+  }
+  const docs = await Promise.all(state.docs.map((doc) => ensureDocContent(doc.path)));
+  const content = docs.map((doc) => (
+    `# ${doc.title || doc.path}\n\nPath: ${doc.path}\n\n${doc.content || ""}`
+  )).join("\n\n---\n\n");
+  const updatedAt = state.docs
+    .map((doc) => doc.updatedAt)
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+  return {
+    path: "__all__",
+    title: "All docs one page",
+    content,
+    docCount: docs.length,
+    updatedAt: updatedAt || ""
+  };
+}
+
+async function renderDocView() {
+  if (!els.docContent) return;
+  setDocState("Reading", "busy");
+  const docPath = els.docSelect?.value || "README.md";
+  const query = els.docSearchInput?.value.trim() || "";
+  const allDocs = els.docScopeSelect?.value === "all";
+  if (els.docSelect) {
+    els.docSelect.disabled = allDocs;
+  }
+  if (els.docMatchCount) {
+    els.docMatchCount.textContent = "Loading";
+  }
+  const doc = await currentDocPayload();
+  const selectedMeta = state.docs.find((item) => item.path === docPath);
+  const matchCount = countDocMatches(doc.content, query);
+  const wordCount = String(doc.content || "").trim().split(/\s+/).filter(Boolean).length;
+  const { html, headings } = markdownToDocHtml(doc.content, query);
+
+  els.docTitle.textContent = doc.title || docPath;
+  els.docStats.textContent = [
+    doc.path === "__all__" ? `${doc.docCount || state.docs.length} documents` : doc.path,
+    `${wordCount.toLocaleString()} words`,
+    doc.path !== "__all__" && selectedMeta?.bytes ? formatBytes(selectedMeta.bytes) : "",
+    doc.updatedAt || selectedMeta?.updatedAt ? `Updated ${shortDateTime(doc.updatedAt || selectedMeta.updatedAt)}` : ""
+  ].filter(Boolean).join(" | ");
+  if (els.docMatchCount) {
+    els.docMatchCount.textContent = query ? `${matchCount} match${matchCount === 1 ? "" : "es"}` : "Search ready";
+    els.docMatchCount.dataset.tone = query && matchCount === 0 ? "error" : query ? "busy" : "success";
+  }
+  renderDocToc(headings);
+  els.docContent.innerHTML = html || "<p>No content.</p>";
+  setDocState("Ready", "success");
+}
+
 function finalVideoUrl(filePath) {
   return filePath ? `/file?path=${encodeURIComponent(filePath)}` : "";
 }
@@ -1053,10 +1317,10 @@ function renderWarnings(warnings = []) {
 }
 
 function activeStep(step) {
-  for (const link of [els.loadStepLink, els.selectStepLink, els.assetStepLink, els.scriptStepLink, els.hookStepLink, els.finalStepLink, els.profileStepLink].filter(Boolean)) {
+  for (const link of [els.loadStepLink, els.selectStepLink, els.assetStepLink, els.scriptStepLink, els.hookStepLink, els.finalStepLink, els.profileStepLink, els.docsStepLink].filter(Boolean)) {
     link.classList.remove("active");
   }
-  const order = ["load", "select", "asset", "script", "hook", "final", "profile"];
+  const order = ["load", "select", "asset", "script", "hook", "final", "profile", "docs"];
   const activeIndex = Math.max(0, order.indexOf(step));
   for (const item of els.flowSteps) {
     const itemIndex = order.indexOf(item.dataset.flowStep || "");
@@ -1075,6 +1339,8 @@ function activeStep(step) {
     els.finalStepLink?.classList.add("active");
   } else if (step === "profile") {
     els.profileStepLink?.classList.add("active");
+  } else if (step === "docs") {
+    els.docsStepLink?.classList.add("active");
   } else {
     els.loadStepLink.classList.add("active");
   }
@@ -2066,6 +2332,61 @@ els.previewBody.addEventListener("click", (event) => {
   activeStep("select");
 });
 
+els.refreshDocsBtn?.addEventListener("click", () => {
+  loadDocs().catch((error) => {
+    setDocState("Failed", "error");
+    if (els.docContent) {
+      els.docContent.textContent = error.message;
+    }
+    appendTerminal(error.message, "stderr");
+  });
+});
+
+els.docSelect?.addEventListener("change", () => {
+  renderDocView().catch((error) => {
+    setDocState("Failed", "error");
+    els.docContent.textContent = error.message;
+  });
+});
+
+els.docScopeSelect?.addEventListener("change", () => {
+  renderDocView().catch((error) => {
+    setDocState("Failed", "error");
+    els.docContent.textContent = error.message;
+  });
+});
+
+els.docSearchInput?.addEventListener("input", () => {
+  renderDocView().catch((error) => {
+    setDocState("Failed", "error");
+    els.docContent.textContent = error.message;
+  });
+});
+
+els.docToc?.addEventListener("click", (event) => {
+  const link = event.target.closest(".toc-link");
+  if (!link) return;
+  event.preventDefault();
+  const target = els.docContent.querySelector(link.getAttribute("href"));
+  if (target) {
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+});
+
+for (const docsLink of document.querySelectorAll('a[href="#docsSection"]')) {
+  docsLink.addEventListener("click", () => {
+    activeStep("docs");
+    if (!state.docs.length) {
+      loadDocs().catch((error) => {
+        setDocState("Failed", "error");
+        if (els.docContent) {
+          els.docContent.textContent = error.message;
+        }
+      });
+    }
+  });
+}
+
 els.toolSelect.addEventListener("change", () => {
   if (els.toolSelect.value) {
     els.assetRowInput.value = els.toolSelect.value;
@@ -2452,4 +2773,11 @@ loadHookProfiles().catch((error) => {
   if (els.hookProfileStatus) {
     els.hookProfileStatus.innerHTML = `<span data-tone="error">${escapeHtml(error.message)}</span>`;
   }
+});
+loadDocs().catch((error) => {
+  setDocState("Failed", "error");
+  if (els.docContent) {
+    els.docContent.textContent = error.message;
+  }
+  appendTerminal(error.message, "stderr");
 });

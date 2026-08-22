@@ -2,6 +2,63 @@
 
 Last updated: 2026-08-22
 
+## Latest Avatar Pack And Docs Reader Update
+
+The Basic dashboard now has a readable Docs section on the same page.
+
+Read docs link:
+
+```text
+http://127.0.0.1:4317/#docsSection
+```
+
+Where to find it:
+
+1. Top bar `Docs` button.
+2. Load Excel card `Read Docs` button.
+3. Left sidebar `Docs` step.
+
+The Docs section can read one selected doc or all docs in one page. It also includes search, match count, refresh, and a clickable section list.
+
+The Google Vids avatar flow is now an `Avatar Pack`:
+
+```text
+Scene 1: hook avatar clip
+Scene 2: optional mid-reel focus avatar clip
+Last scene: CTA avatar clip
+Body scenes: real tool screenshots / screen recordings / local voiceover
+```
+
+Generated avatar clip names:
+
+```text
+hook_avatar.mp4
+focus_avatar_scene_02.mp4
+cta_avatar.mp4
+```
+
+Cached local render names:
+
+```text
+vids-clips/scene-01.mp4
+vids-clips/scene-02.mp4
+vids-clips/scene-05.mp4 or vids-clips/scene-06.mp4, depending on selected duration
+```
+
+During final render, any cached avatar/focus clip keeps its own Google Vids audio. The local voiceover is skipped for that scene to avoid double voice. The remaining body scenes continue to use real tool screenshots/recordings with captions and voiceover.
+
+Body scene visuals now follow the voiceover meaning:
+
+```text
+input / run / workflow -> demo screen recording
+result / output / checklist -> after/result screenshot
+before / after / proof -> before-after captured screens
+mobile / share / caption -> mobile scroll or share-context screen
+privacy / safe / review -> safety/result screen
+```
+
+Every rendered scene keeps AltFTool visible through the top brand strip, page frame, caption/footer, or final brand card.
+
 ## Latest Brand And Windows Portability Update
 
 The project now includes the real ALTF logo and Windows-first run scripts.
@@ -45,11 +102,11 @@ The current default production flow is now:
 11. Merge the final Reel locally with captions, voiceover, music, transitions, progress bar, CTA, and safety reminder.
 12. Save final MP4, reports, props, render assets, exports, and generated files under the same tool folder.
 
-Default Google Vids settings:
+Default Google Vids/avatar pack settings:
 
 ```text
-Avatar scenes: 1,2,6
-Screenshot/proof scenes: 3,4,5
+Avatar scenes: 1,2,last
+Screenshot/proof scenes: remaining body scenes
 ```
 
 Use `--scene-count 3`, `--scene-count 4`, `--scene-count 5`, or `--scene-count 6` to choose the script/video length.
@@ -64,7 +121,7 @@ You want to focus only on developing tools. This automation should handle the pr
 2. Open the actual tool link.
 3. Capture screenshots and short screen recordings.
 4. Prepare a better Hinglish Reel script.
-5. Convert it into exactly 7 scenes.
+5. Convert it into 3-6 focused scenes.
 6. Create Google Vids prompts for 10-second clips.
 7. Optionally use Google Vids with avatar and screenshot ingredients.
 8. If Google Vids quota fails, render a free local MP4 fallback.
@@ -286,7 +343,7 @@ partial-google-vids-export-scenes-01-03.mp4
 
 Default Google Vids mode creates one Vids file per scene, exports each scene MP4, stores it in `vids-generated-scenes/scene-XX/`, and caches it as `vids-clips/scene-XX.mp4`. Local rendering then merges the final Reel. The old full-timeline export path is available with `--vids-timeline-export`.
 
-Hook-first hybrid mode creates only Scene 1 in Google Vids, exports it as a 10-second hook/avatar clip, stores it in `vids-generated-scenes/scene-01/`, caches it as `vids-clips/scene-01.mp4`, and then renders the final Reel locally with real tool screenshots and demo recordings:
+Avatar Pack hybrid mode creates Scene 1 hook, optional Scene 2 focus, and the last CTA in Google Vids, exports each as a short avatar clip, caches them in `vids-clips/`, and then renders the final Reel locally with real tool screenshots and demo recordings:
 
 ```bash
 npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --hook-vids-first --vids-scenes 1 --scene-count 6 --max-scenes 6
@@ -303,7 +360,7 @@ real screenshots
 
 If visual QA shows a cached Vids export has hallucinated or fake UI, set that manifest entry to `renderEligible: false` or a rejected `qualityStatus`. The file stays saved in `vids-clips/`, but local rendering skips it and uses real captured screenshots/recordings instead.
 
-If scene export is blocked by the current Google Vids UI, manually download or record a Vids/avatar scene and save it as `scene-01.mp4`, `scene-02.mp4`, etc. inside `vids-clips/`.
+If scene export is blocked by the current Google Vids UI, manually download or record a Vids/avatar scene and save it as `scene-01.mp4`, `scene-02.mp4`, etc. inside `vids-clips/`. For the Basic Avatar Pack, also keep copies in the `hook-avatar/` folder as `hook_avatar.mp4`, `focus_avatar_scene_02.mp4`, and `cta_avatar.mp4`.
 
 ### 6. Local Free Video Renderer
 
@@ -412,7 +469,7 @@ Script + Assets -> prepares script, scene plan, screenshots, recordings, prompts
 Free Clip Pack -> prepares free provider prompt folders with no Google Vids quota.
 Local MP4 -> creates a free local video with captions, voiceover, music, and real tool proof.
 Quality Reel Preset -> sets Local MP4, 6 scenes, female/male avatar hook, Edge TTS free voice, real captures, captions, and music.
-Hook Vids + Local -> generates only the first 10-second Google Vids/avatar hook, then merges locally with real screenshots and demo recordings.
+Hook Vids + Local -> generates short Google Vids/avatar clips for hook, focus, and CTA when useful, then merges locally with real screenshots and demo recordings.
 Vids Clips -> asks Google Vids to generate/export separate scene clips, then local merge.
 All Vids Clips -> same scene-by-scene download flow for every scene; use only when quota is available.
 ```
@@ -512,7 +569,13 @@ It does not store your Google password.
 
 ## Docs Menu
 
-The dashboard has a Docs tab.
+The Basic dashboard has an in-page Docs section and the Advanced dashboard has a Docs tab.
+
+Basic docs link:
+
+```text
+http://127.0.0.1:4317/#docsSection
+```
 
 It can read:
 
@@ -917,8 +980,8 @@ Every generated reel should follow:
 
 ```text
 9:16 vertical
-70 seconds total
-7 scenes
+30-60 seconds total
+3-6 scenes
 10 seconds per scene
 realistic SaaS/UGC look
 fast cuts
@@ -932,13 +995,10 @@ final human review before posting
 Scene structure:
 
 ```text
-Scene 1: strong problem/hook
-Scene 2: introduce the product/tool
-Scene 3: actual tool demonstration using Tool URL
-Scene 4: main workflow/use case
-Scene 5: useful output/result
-Scene 6: before-after benefit
-Scene 7: human review and safety reminder
+Scene 1: strong avatar hook
+Scene 2: optional avatar focus break or product intro
+Middle scenes: actual tool demo, workflow, useful output, before-after proof
+Last scene: CTA, brand, human review, and safety reminder
 ```
 
 ## Current Tested Status

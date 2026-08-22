@@ -45,13 +45,30 @@ function toolInitials(toolName) {
 function compactDomain(value) {
   const text = cleanText(value);
   if (!text) {
-    return "";
+    return "altftool.com";
   }
   try {
     return new URL(text).hostname.replace(/^www\./, "");
   } catch {
     return clampText(text.replace(/^https?:\/\//, "").replace(/^www\./, ""), 42);
   }
+}
+
+function brandedToolDisplay(toolName, maxLength = 44) {
+  const name = cleanText(toolName, "Tool");
+  const branded = /^alt\s*f|^altftool/i.test(name) ? name : `AltFTool • ${name}`;
+  return clampText(branded, maxLength);
+}
+
+function sceneNarrationText(scene = {}) {
+  return cleanText([
+    scene.voiceover,
+    scene.spoken_voiceover,
+    scene.voiceover_audio,
+    scene.onscreen_text,
+    scene.visual,
+    scene.video_prompt
+  ].filter(Boolean).join(" ")).toLowerCase();
 }
 
 function isVideoAsset(value) {
@@ -133,30 +150,57 @@ function cachedVidsMedia(assets, sceneIndex, totalScenes = 6) {
   };
 }
 
-function toolMediaForScene(assets, sceneIndex) {
-  if (sceneIndex > 0) {
-    return assets.demoVideo
-      || assets.mobileScroll
-      || assets.demoAfter
-      || assets.desktopFull
-      || assets.desktop
-      || assets.demoBefore
-      || assets.mobile
-      || "";
+function firstAvailable(...candidates) {
+  return candidates.find(Boolean) || "";
+}
+
+function mediaPurposeLabel(scene, sceneIndex, totalScenes = 6) {
+  const text = sceneNarrationText(scene);
+  if (/(before|after|compare|comparison|difference|proof)/.test(text) || sceneIndex === totalScenes - 2) {
+    return "BEFORE / AFTER";
   }
-  if (sceneIndex === 2) {
-    return assets.demoVideo || assets.demoAfter || assets.desktopFull || assets.desktop || assets.mobileScroll || "";
+  if (/(result|output|summary|checklist|warning|next step|review-ready|ready)/.test(text)) {
+    return "RESULT SCREEN";
   }
-  if (sceneIndex === 3) {
-    return assets.demoVideo || assets.demoAfter || assets.desktopFull || assets.desktop || "";
+  if (/(input|fill|click|run|workflow|step|demo|use case|use-case|tool page|actual tool)/.test(text)) {
+    return "WORKFLOW DEMO";
   }
-  if (sceneIndex === 4) {
-    return assets.demoAfter || assets.demoVideo || assets.desktopFull || assets.desktop || "";
+  if (/(mobile|phone|scroll|instagram|caption|share|post|publish)/.test(text)) {
+    return "SHARE FLOW";
   }
-  if (sceneIndex === 5) {
-    return assets.demoAfter || assets.desktopFull || assets.demoVideo || assets.desktop || "";
+  if (/(privacy|safe|redact|mask|data|human review|review)/.test(text)) {
+    return "SAFETY CHECK";
   }
-  return assets.desktop || assets.demoBefore || assets.desktopFull || assets.mobile || "";
+  return sceneIndex <= 1 ? "REAL TOOL PAGE" : "REAL TOOL DEMO";
+}
+
+function toolMediaForScene(assets, scene = {}, sceneIndex = 0, totalScenes = 6) {
+  const text = sceneNarrationText(scene);
+  if (sceneIndex === 0) {
+    return firstAvailable(assets.desktop, assets.demoBefore, assets.desktopFull, assets.mobile, assets.demoAfter);
+  }
+  if (sceneIndex === totalScenes - 1) {
+    return firstAvailable(assets.demoAfter, assets.desktopFull, assets.demoVideo, assets.desktop, assets.mobile);
+  }
+  if (/(mobile|phone|scroll|instagram|caption|share|post|publish)/.test(text)) {
+    return firstAvailable(assets.mobileScroll, assets.mobile, assets.demoAfter, assets.demoVideo, assets.desktopFull, assets.desktop);
+  }
+  if (/(before|manual|messy|problem|risk|mistake)/.test(text) && !/(after|result|output)/.test(text)) {
+    return firstAvailable(assets.demoBefore, assets.desktop, assets.desktopFull, assets.demoVideo, assets.mobile);
+  }
+  if (/(before|after|compare|comparison|difference|proof)/.test(text) || sceneIndex === totalScenes - 2) {
+    return firstAvailable(assets.demoAfter, assets.demoBefore, assets.demoVideo, assets.desktopFull, assets.desktop);
+  }
+  if (/(result|output|summary|checklist|warning|next step|review-ready|ready)/.test(text)) {
+    return firstAvailable(assets.demoAfter, assets.desktopFull, assets.demoVideo, assets.desktop, assets.mobileScroll);
+  }
+  if (/(input|fill|click|run|workflow|step|demo|use case|use-case|tool page|actual tool)/.test(text)) {
+    return firstAvailable(assets.demoVideo, assets.demoAfter, assets.desktopFull, assets.desktop, assets.mobileScroll);
+  }
+  if (sceneIndex === 1) {
+    return firstAvailable(assets.desktopFull, assets.desktop, assets.demoVideo, assets.demoAfter, assets.mobile);
+  }
+  return firstAvailable(assets.demoVideo, assets.demoAfter, assets.desktopFull, assets.desktop, assets.mobileScroll, assets.demoBefore, assets.mobile);
 }
 
 function firstStrongLine(scene, toolName, sceneIndex) {
@@ -169,7 +213,7 @@ function firstStrongLine(scene, toolName, sceneIndex) {
     return words.slice(0, 6).join(" ") || "Stop manual work";
   }
   if (sceneIndex === 1) {
-    return clampText(toolName, 35);
+    return brandedToolDisplay(toolName, 38);
   }
   if (sceneIndex === 2) {
     return "Real tool demo";
@@ -340,7 +384,7 @@ function TopStrip({ scene, sceneIndex, totalScenes, toolName }) {
     >
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ width: 12, height: 12, borderRadius: 999, backgroundColor: accents[sceneIndex] || Palette.blue }} />
-        <div>{clampText(toolName, 32)}</div>
+        <div>{brandedToolDisplay(toolName, 36)}</div>
       </div>
       <div>{String(scene.scene_number || sceneIndex + 1).padStart(2, "0")} / {String(totalScenes).padStart(2, "0")}</div>
     </div>
@@ -467,7 +511,7 @@ function EndBrandCard({ toolName, toolUrl, assets, frame, fps, accent, sceneDura
             fontWeight: 940
           }}
         >
-          TOOL USED IN THIS REEL
+          ALT F TOOL USED IN THIS REEL
         </div>
         <div
           style={{
@@ -480,7 +524,7 @@ function EndBrandCard({ toolName, toolUrl, assets, frame, fps, accent, sceneDura
             textWrap: "balance"
           }}
         >
-          {clampText(toolName, 54)}
+          {brandedToolDisplay(toolName, 54)}
         </div>
         {domain ? (
           <div
@@ -557,7 +601,7 @@ function BrowserFrame({ media, fps, accent, label = "REAL TOOL DEMO", large = fa
             paddingLeft: 18
           }}
         >
-          actual tool page
+          altftool.com / actual tool page
         </div>
       </div>
       <div style={{ position: "absolute", left: 0, right: 0, top: large ? 58 : 46, bottom: 0 }}>
@@ -1110,7 +1154,7 @@ function HookScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, 
           fontWeight: 650
         }}
       >
-        {clampText(toolUrl || toolName, 74)}
+        {clampText(toolUrl || "altftool.com", 74)}
       </div>
     </AbsoluteFill>
   );
@@ -1147,14 +1191,14 @@ function HookVideoLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl,
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 14, height: 14, borderRadius: 999, backgroundColor: "#FFD700", boxShadow: "0 0 24px rgba(255,215,0,0.65)" }} />
-          <div>{clampText(toolName, 34)}</div>
+          <div>{brandedToolDisplay(toolName, 40)}</div>
         </div>
         <div>{String(scene.scene_number || sceneIndex + 1).padStart(2, "0")} / {String(totalScenes).padStart(2, "0")}</div>
       </div>
 
       <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent="#FFD700" />
       <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: "rgba(255,255,255,0.82)", fontSize: 22, fontWeight: 700 }}>
-        {clampText(toolUrl || toolName, 74)}
+        {clampText(toolUrl || "altftool.com", 74)}
       </div>
     </AbsoluteFill>
   );
@@ -1172,7 +1216,7 @@ function IntroScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
 
       <div style={{ position: "absolute", left: 72, right: 72, top: 168 }}>
         <div style={{ color: Palette.ink, fontSize: 76, lineHeight: 1.02, fontWeight: 950, textWrap: "balance" }}>
-          {clampText(toolName, 42)}
+          {brandedToolDisplay(toolName, 48)}
         </div>
         <div style={{ marginTop: 18, color: Palette.slate, fontSize: 35, lineHeight: 1.18, fontWeight: 720 }}>
           {supportingLine(scene, 118)}
@@ -1183,7 +1227,7 @@ function IntroScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
         media={toolMedia}
         fps={fps}
         accent={accent}
-        label="TOOL INTRO"
+        label={mediaPurposeLabel(scene, sceneIndex, totalScenes)}
         large
         style={{
           left: 72,
@@ -1242,7 +1286,7 @@ function IntroScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
       <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact sceneIndex={sceneIndex} />
       <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
       <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
-        {clampText(toolUrl || toolName, 74)}
+        {clampText(toolUrl || "altftool.com", 74)}
       </div>
     </AbsoluteFill>
   );
@@ -1256,6 +1300,7 @@ function DemoScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, 
     extrapolateRight: "clamp"
   });
   const isWorkflow = sceneIndex > 2;
+  const mediaLabel = mediaPurposeLabel(scene, sceneIndex, totalScenes);
 
   return (
     <AbsoluteFill style={{ opacity: fade, overflow: "hidden" }}>
@@ -1275,7 +1320,7 @@ function DemoScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, 
         media={toolMedia}
         fps={fps}
         accent={accent}
-        label={isWorkflow ? "WORKFLOW RECORDING" : "REAL TOOL DEMO"}
+        label={mediaLabel || (isWorkflow ? "WORKFLOW RECORDING" : "REAL TOOL DEMO")}
         large
         crop
         style={{
@@ -1339,7 +1384,7 @@ function DemoScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, 
       <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} sceneIndex={sceneIndex} />
       <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
       <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
-        {clampText(toolUrl || toolName, 74)}
+        {clampText(toolUrl || "altftool.com", 74)}
       </div>
     </AbsoluteFill>
   );
@@ -1422,7 +1467,7 @@ function ProofScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
       <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} sceneIndex={sceneIndex} />
       <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
       <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
-        {clampText(toolUrl || toolName, 74)}
+        {clampText(toolUrl || "altftool.com", 74)}
       </div>
     </AbsoluteFill>
   );
@@ -1506,7 +1551,7 @@ function CtaScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, t
         media={toolMedia}
         fps={fps}
         accent={Palette.blue}
-        label="FINAL PROOF"
+        label="ALT F TOOL PROOF"
         style={{
           left: 74,
           right: 74,
@@ -1539,7 +1584,7 @@ function CtaScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, t
           <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact sceneIndex={sceneIndex} />
           <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
           <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
-            {clampText(toolUrl || toolName, 74)}
+            {clampText(toolUrl || "altftool.com", 74)}
           </div>
         </>
       ) : null}
@@ -1587,7 +1632,7 @@ export const ReelScene = ({ scene, sceneIndex, totalScenes = 6, sceneDurationSec
   const rawAssets = assets || {};
   const generatedClip = cachedVidsMedia(rawAssets, sceneIndex, totalScenes);
   const sceneAssets = sceneIndex === 0 ? rawAssets : { ...rawAssets, avatarHost: "" };
-  const toolMedia = toolMediaForScene(sceneAssets, sceneIndex);
+  const toolMedia = toolMediaForScene(sceneAssets, scene, sceneIndex, totalScenes);
   const fade = interpolate(frame, [0, sceneDurationFrames - 18, sceneDurationFrames], [1, 1, 0.94], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",

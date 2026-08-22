@@ -31,6 +31,10 @@
             <span id="themeToggleIcon" class="mini-icon">D</span>
             <span id="themeToggleText">Dark</span>
           </button>
+          <a id="readDocsTopLink" class="icon-link" href="#docsSection" aria-label="Read automation docs">
+            <span class="mini-icon">?</span>
+            <span>Docs</span>
+          </a>
           <a class="icon-link" href="/advanced.html" aria-label="Open old Version 1 tool">
             <span class="mini-icon">V1</span>
             <span>Old Tool</span>
@@ -83,6 +87,11 @@
               <strong>Profiles</strong>
               <small id="profileStepMeta">Loading</small>
             </a>
+            <a id="docsStepLink" class="step-link" href="#docsSection">
+              <span>08</span>
+              <strong>Docs</strong>
+              <small id="docsStepMeta">Ready</small>
+            </a>
           </nav>
           <a class="version-link" href="/advanced.html">Open Version 1</a>
         </aside>
@@ -106,6 +115,7 @@
               <span data-flow-step="hook">Avatar pack</span>
               <span data-flow-step="final">Final reel</span>
               <span data-flow-step="profile">Profiles</span>
+              <span data-flow-step="docs">Docs</span>
             </div>
 
             <div class="upload-box">
@@ -117,9 +127,53 @@
               <div class="upload-actions">
                 <button id="defaultBtn" class="secondary-action" type="button">Default Excel</button>
                 <button id="openTrackerExcelBtn" class="secondary-action" type="button">Open Tracker</button>
+                <a class="secondary-action download-action" href="#docsSection">Read Docs</a>
                 <a class="secondary-action download-action" href="/api/work-tracker/download" download>Download Excel</a>
                 <button id="importBtn" class="primary-action" type="button" disabled>Import</button>
               </div>
+            </div>
+          </section>
+
+          <section id="docsSection" class="workflow-section docs-panel" aria-label="Documentation reader">
+            <div class="docs-head">
+              <div>
+                <p class="eyebrow">Docs</p>
+                <h2 id="docTitle">Automation docs</h2>
+                <p id="docStats">Loading docs...</p>
+              </div>
+              <span id="docState" class="state-pill">Loading</span>
+            </div>
+
+            <div class="docs-toolbar">
+              <label class="field-label doc-scope-field" for="docScopeSelect">
+                <span>View</span>
+                <select id="docScopeSelect">
+                  <option value="selected" selected>Selected doc</option>
+                  <option value="all">All docs one page</option>
+                </select>
+              </label>
+              <label class="field-label doc-select-field" for="docSelect">
+                <span>Document</span>
+                <select id="docSelect">
+                  <option>Loading docs...</option>
+                </select>
+              </label>
+              <label class="field-label doc-search-field" for="docSearchInput">
+                <span>Search</span>
+                <input id="docSearchInput" type="search" placeholder="Search docs..." autocomplete="off">
+              </label>
+              <span id="docMatchCount" class="state-pill">Search ready</span>
+              <button id="refreshDocsBtn" class="secondary-action" type="button">Refresh</button>
+            </div>
+
+            <div class="docs-layout">
+              <aside class="doc-toc" aria-label="Doc sections">
+                <strong>Sections</strong>
+                <div id="docToc" class="toc-list">
+                  <span class="empty-note">Loading...</span>
+                </div>
+              </aside>
+              <article id="docContent" class="doc-content">Loading docs...</article>
             </div>
           </section>
 

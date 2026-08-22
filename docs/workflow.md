@@ -19,9 +19,12 @@
 Use `http://127.0.0.1:4317` for the simplest one-video workflow.
 
 - The dashboard opens in `Basic` mode and remembers the last Excel path, row, mode, avatar style, duration, Drive folder, and active tab.
+- The Basic page includes a readable Docs section at `http://127.0.0.1:4317/#docsSection` with selected-doc mode, all-docs mode, search, refresh, and section links.
 - `Prepare Assets` runs the quota-free preparation stage: real website capture, asset brief, improved Hook-Body-CTA script, 3-6 scene plan, Google Vids prompts, free provider prompts, and workbook links.
 - `Create Quality Reel` runs the recommended production path. If the mode is not a final-render mode, it switches to `Hook Vids + Local` automatically.
-- `Hook Vids + Local` tries to generate and download only Scene 1 as a Google Vids/avatar hook, caches it under `vids-clips/scene-01.mp4`, then merges the final MP4 locally with real tool screenshots/recordings, voiceover, captions, music, and CTA.
+- `Generate Avatar Pack` prepares or generates Google Vids avatar clips for Scene 1 hook, Scene 2 focus break, and the last-scene CTA.
+- `Hook Vids + Local` uses the downloaded hook/focus/CTA clips when available, caches them under `vids-clips/scene-XX.mp4`, then merges the final MP4 locally with real tool screenshots/recordings, voiceover, captions, music, and CTA.
+- Body visuals are selected from the captured assets according to voiceover meaning: workflow lines show screen recording, output lines show result screenshots, before-after lines show comparison screens, and share/review lines show mobile or safety/result screens.
 - `Local MP4 Free` skips Google Vids quota entirely and creates the Reel locally from real assets and local generated presenter-style visuals.
 - The Basic terminal is scrollable and mirrors the Advanced terminal logs.
 
@@ -36,7 +39,8 @@ Google Vids supports prompt-based AI clips and MP4 download, but a stable public
 - Submit, insert, and export one generated Google Vids scene at a time.
 - Save each scene export under `vids-generated-scenes/scene-XX/` and cache it as `vids-clips/scene-XX.mp4`.
 - Merge final MP4 locally from cached Vids scene clips plus real tool screenshots/recordings.
-- Recommended hybrid option: generate only the first 10-second hook/avatar clip in Google Vids with `--hook-vids-first --vids-scenes 1`, cache it as `vids-clips/scene-01.mp4`, then let local rendering use real screenshots and demo recordings for the rest.
+- Recommended hybrid option: generate short Google Vids avatar clips only where they improve retention: hook first, optional middle focus break, and CTA. Cache them as `vids-clips/scene-01.mp4`, `vids-clips/scene-02.mp4`, and the last scene clip, then let local rendering use real screenshots and demo recordings for the rest.
+- Cached avatar/focus clips keep their own audio. Local voiceover is skipped on those scenes to avoid double voice.
 - If `--drive-sync-dir` is provided, copy the final MP4 and tool folder into the Google Drive Desktop synced folder and write the Drive video/folder links into the workbook.
 
 Tested browser automation status:
