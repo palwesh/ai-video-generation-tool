@@ -38,13 +38,19 @@ On a fresh Windows laptop, clone/copy the project, open PowerShell in the projec
 .\setup-windows.bat
 ```
 
+After setup, daily start command:
+
+```powershell
+.\run-windows.bat
+```
+
 With your Excel file path:
 
 ```powershell
 .\setup-windows.bat -ExcelPath "C:\Users\YOUR_NAME\Documents\Book1.xlsx"
 ```
 
-The script installs/checks Node.js 20+, dependencies, Git, Chrome, Playwright Chromium, FFmpeg when available, creates `.env`, and starts the dashboard. Full guide: `docs/windows-setup.md`.
+The setup script installs/checks Node.js 20+, dependencies, Git, Chrome, Playwright Chromium, FFmpeg when available, creates `.env`, saves optional Excel/Drive defaults, and starts the dashboard. `run-windows.bat` reuses that setup for normal daily use. Full guide: `docs/windows-setup.md`.
 
 For a simple Windows-first checklist, read `WINDOWS-RUN-GUIDE.md`.
 

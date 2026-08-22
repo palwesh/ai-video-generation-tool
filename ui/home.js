@@ -566,7 +566,7 @@ function initWorkspaceResizer() {
   applyTerminalWidth(Number.isFinite(savedWidth) && savedWidth > 0 ? savedWidth : DEFAULT_TERMINAL_WIDTH);
 
   els.workspaceResizer.addEventListener("pointerdown", (event) => {
-    if (window.matchMedia("(max-width: 860px)").matches || document.body.classList.contains("terminal-fullscreen")) {
+    if (window.matchMedia("(max-width: 1120px)").matches || document.body.classList.contains("terminal-fullscreen")) {
       return;
     }
     state.isResizingTerminal = true;

@@ -2,7 +2,7 @@
 
 Use this on a fresh Windows laptop after cloning or copying the project folder.
 
-## One Command
+## One-Time Setup
 
 Open PowerShell in the project folder and run:
 
@@ -27,16 +27,40 @@ Then it starts the dashboard:
 http://127.0.0.1:4317
 ```
 
+## Daily Run
+
+After setup is complete, use this command every time you want to start the dashboard:
+
+```powershell
+.\run-windows.bat
+```
+
+This reuses saved `.env` settings, Google Vids profile folders, installed dependencies, and generated output folders.
+
 ## With Your Excel Path
 
 ```powershell
 .\setup-windows.bat -ExcelPath "C:\Users\YOUR_NAME\Documents\Book1.xlsx"
 ```
 
+This path is saved into `.env` as `TRF_DEFAULT_INPUT`, so it stays as the dashboard default.
+
+You can update the saved path during daily run too:
+
+```powershell
+.\run-windows.bat -ExcelPath "C:\Users\YOUR_NAME\Documents\Book1.xlsx"
+```
+
 ## Choose Another Port
 
 ```powershell
 .\setup-windows.bat -Port 4320
+```
+
+The chosen port is saved, so `.\run-windows.bat` will reuse it. To override later:
+
+```powershell
+.\run-windows.bat -Port 4317
 ```
 
 ## Install Only, Do Not Start Dashboard
@@ -48,7 +72,35 @@ http://127.0.0.1:4317
 Then start later:
 
 ```powershell
+.\run-windows.bat
+```
+
+Advanced direct command:
+
+```powershell
 npm run ui -- --port 4317
+```
+
+## Google Drive Sync Folder
+
+If you use Google Drive Desktop on Windows, pass your local Drive folder once:
+
+```powershell
+.\setup-windows.bat -DriveSyncDir "G:\My Drive\Tool-Reel-Factory"
+```
+
+Or update it during daily run:
+
+```powershell
+.\run-windows.bat -DriveSyncDir "G:\My Drive\Tool-Reel-Factory"
+```
+
+The folder is saved in `.env` as `TRF_DRIVE_SYNC_DIR`.
+
+## Start Without Opening Browser
+
+```powershell
+.\run-windows.bat -NoBrowser
 ```
 
 ## Google Vids Login On Windows
@@ -116,6 +168,8 @@ Then run Local MP4 mode; it will use cached provider clips first.
 
 ## Notes
 
+- `setup-windows.bat` is for first-time setup or dependency repair.
+- `run-windows.bat` is for normal daily use.
 - Windows local voiceover uses PowerShell speech synthesis when available.
 - For a free neural Hindi/Hinglish voice, install Edge TTS with `py -m pip install edge-tts`, then run `npm run voiceover:generate -- --tool-dir path\to\tool-folder --provider edge --voice hi-IN-SwaraNeural`.
 - For a more natural final voice, run `npm run voiceover:pack -- --tool-dir path\to\tool-folder`, record `scene-01.mp3`, `scene-02.mp3`, etc. in the created `voiceovers` folder, then render with `--voiceover-dir path\to\tool-folder\voiceovers`.

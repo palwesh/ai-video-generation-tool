@@ -32,7 +32,9 @@ export const RemotionRoot = () => {
         toolUrl: "https://www.altftool.com/",
         scenes: defaultScenes,
         sceneDurationSeconds: 10,
-        assets: {}
+        assets: {
+          brandLogo: "brand/altf-logo.png"
+        }
       }}
     />
   );

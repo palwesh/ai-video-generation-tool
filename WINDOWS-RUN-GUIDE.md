@@ -38,7 +38,21 @@ Setup complete hone ke baad dashboard open hoga:
 http://127.0.0.1:4317
 ```
 
-## 3. Excel File Ke Saath Run
+## 3. Daily Run
+
+Setup complete hone ke baad normal use ke liye bas ye command chalao:
+
+```powershell
+.\run-windows.bat
+```
+
+Agar browser auto-open nahi chahiye:
+
+```powershell
+.\run-windows.bat -NoBrowser
+```
+
+## 4. Excel File Ke Saath Run
 
 Agar Excel file ka path pehle se set karna hai:
 
@@ -46,9 +60,15 @@ Agar Excel file ka path pehle se set karna hai:
 .\setup-windows.bat -ExcelPath "C:\Users\YOUR_NAME\Documents\Book1.xlsx"
 ```
 
+Ye path `.env` me save ho jayega. Baad me path change karna ho to:
+
+```powershell
+.\run-windows.bat -ExcelPath "C:\Users\YOUR_NAME\Documents\Book1.xlsx"
+```
+
 Dashboard open hone ke baad Excel input field me bhi path change kar sakte ho.
 
-## 4. Dashboard Use
+## 5. Dashboard Use
 
 Dashboard URL:
 
@@ -75,7 +95,7 @@ Mode: Free Clip Pack
 
 Ye CapCut, Pika, Runway, Canva, D-ID, aur Shotstack ke scene prompts `free-video-providers\` me save karta hai.
 
-## 5. Google Vids Login
+## 6. Google Vids Login
 
 Google Vids/avatar clips chahiye to Windows laptop par profile login karna padega:
 
@@ -93,7 +113,7 @@ npm run vids:login -- --profile work/google-vids-profile-2
 
 Use only accounts you control and Google Vids limits follow karo.
 
-## 6. One Video Command
+## 7. One Video Command
 
 Free local video:
 
@@ -113,7 +133,7 @@ Free provider prompt pack:
 npm run agent:one-video -- --input "C:\Users\YOUR_NAME\Documents\Book1.xlsx" --row 2 --limit 1 --prep-only --free-video-providers all
 ```
 
-## 7. Output Kaha Milega
+## 8. Output Kaha Milega
 
 Final videos aur assets yaha save honge:
 
@@ -137,18 +157,18 @@ generated\
 
 Final MP4 usually `generated\local-render\` ke andar milega.
 
-## 8. Common Problems
+## 9. Common Problems
 
 If dashboard open nahi hota:
 
 ```powershell
-npm run ui -- --port 4317
+.\run-windows.bat
 ```
 
 If port busy hai:
 
 ```powershell
-npm run ui -- --port 4320
+.\run-windows.bat -Port 4320
 ```
 
 If Google Vids limit used hai:
@@ -163,12 +183,12 @@ If setup script block ho:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\setup-windows.ps1
 ```
 
-## 9. Best Workflow
+## 10. Best Workflow
 
 Start simple:
 
 1. Run `.\setup-windows.bat`.
-2. Dashboard open karo.
+2. Next time se `.\run-windows.bat` use karo.
 3. Excel path set karo.
 4. Row `2`, Limit `1`, Mode `Local MP4`.
 5. Video check karo.

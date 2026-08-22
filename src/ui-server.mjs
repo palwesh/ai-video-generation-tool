@@ -821,7 +821,10 @@ function allowedDocPath(targetPath) {
   if (!/\.(md|txt)$/i.test(relative)) {
     return false;
   }
-  return relative === "README.md" || relative.startsWith("docs/") || relative.startsWith("outputs/");
+  return relative === "README.md" ||
+    relative === "WINDOWS-RUN-GUIDE.md" ||
+    relative.startsWith("docs/") ||
+    relative.startsWith("outputs/");
 }
 
 function docTitleFrom(content, fallback) {
@@ -5120,11 +5123,25 @@ async function openPath(body) {
     throw new Error("Only project output files/folders can be opened.");
   }
   await fs.access(target);
-  const opener = spawn("open", [target], {
-    cwd: projectRoot,
-    stdio: "ignore",
-    detached: true
-  });
+  const opener =
+    process.platform === "win32"
+      ? spawn("cmd.exe", ["/c", "start", "", target], {
+          cwd: projectRoot,
+          stdio: "ignore",
+          detached: true,
+          windowsHide: true
+        })
+      : process.platform === "darwin"
+        ? spawn("open", [target], {
+            cwd: projectRoot,
+            stdio: "ignore",
+            detached: true
+          })
+        : spawn("xdg-open", [target], {
+            cwd: projectRoot,
+            stdio: "ignore",
+            detached: true
+          });
   opener.unref();
   return { ok: true, path: target };
 }

@@ -6,6 +6,7 @@ param(
   [switch]$SkipInstall,
   [switch]$SkipBrowserInstall,
   [switch]$SkipStart,
+  [switch]$NoOpenBrowser,
   [switch]$LocalOnlySmokeTest
 )
 
@@ -38,15 +39,24 @@ function Invoke-Step {
 }
 
 function Update-SessionPath {
+  $currentPath = $env:Path
   $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
   $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-  $commonPaths = @(
-    $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles "nodejs" }),
-    $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles "Git\cmd" }),
-    $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles "Google\Chrome\Application" }),
-    $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps" })
-  )
-  $env:Path = (@($machinePath, $userPath) + $commonPaths | Where-Object { $_ }) -join ";"
+  $programFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
+  $commonPaths = @()
+  if ($env:ProgramFiles) {
+    $commonPaths += Join-Path $env:ProgramFiles "nodejs"
+    $commonPaths += Join-Path $env:ProgramFiles "Git\cmd"
+    $commonPaths += Join-Path $env:ProgramFiles "Google\Chrome\Application"
+  }
+  if ($programFilesX86) {
+    $commonPaths += Join-Path $programFilesX86 "Google\Chrome\Application"
+  }
+  if ($env:LOCALAPPDATA) {
+    $commonPaths += Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps"
+    $commonPaths += Join-Path $env:LOCALAPPDATA "Google\Chrome\Application"
+  }
+  $env:Path = (@($currentPath, $machinePath, $userPath) + $commonPaths | Where-Object { $_ }) -join ";"
 }
 
 function Install-WingetPackage {
@@ -111,8 +121,85 @@ GOOGLE_VIDS_FILE_ID=
   Write-Host "Created default .env." -ForegroundColor Green
 }
 
+function ConvertTo-DotEnvValue {
+  param([string]$Value)
+  return (($Value -replace "`r", " ") -replace "`n", " ").Trim()
+}
+
+function Set-LocalEnvValue {
+  param(
+    [string]$Key,
+    [string]$Value
+  )
+
+  if (-not $Key -or -not $Value) {
+    return
+  }
+
+  Ensure-EnvFile
+  $lines = @()
+  if (Test-Path ".env") {
+    $lines = @(Get-Content ".env" -ErrorAction SilentlyContinue)
+  }
+
+  $line = "$Key=$(ConvertTo-DotEnvValue -Value $Value)"
+  $pattern = "^\s*$([regex]::Escape($Key))="
+  $updated = $false
+  for ($i = 0; $i -lt $lines.Count; $i++) {
+    if ($lines[$i] -match $pattern) {
+      $lines[$i] = $line
+      $updated = $true
+      break
+    }
+  }
+
+  if (-not $updated) {
+    $lines += $line
+  }
+
+  $lines | Set-Content -Path ".env" -Encoding UTF8
+}
+
+function Resolve-OptionalPathText {
+  param([string]$PathText)
+  if (-not $PathText) {
+    return ""
+  }
+  try {
+    return (Resolve-Path $PathText).Path
+  } catch {
+    return $PathText
+  }
+}
+
 function Find-Ffmpeg {
   return Test-CommandExists "ffmpeg"
+}
+
+function Test-ChromeInstalled {
+  if (Test-CommandExists "chrome") {
+    return $true
+  }
+
+  $programFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
+  $candidates = @()
+  if ($env:ProgramFiles) {
+    $candidates += Join-Path $env:ProgramFiles "Google\Chrome\Application\chrome.exe"
+  }
+  if ($programFilesX86) {
+    $candidates += Join-Path $programFilesX86 "Google\Chrome\Application\chrome.exe"
+  }
+  if ($env:LOCALAPPDATA) {
+    $candidates += Join-Path $env:LOCALAPPDATA "Google\Chrome\Application\chrome.exe"
+  }
+
+  foreach ($candidate in $candidates) {
+    if ($candidate -and (Test-Path $candidate)) {
+      return $true
+    }
+  }
+
+  return $false
 }
 
 $projectRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -150,11 +237,8 @@ if (Test-CommandExists "git") {
   Write-Host "Git: $(& git --version)" -ForegroundColor Green
 }
 
-if (-not (Test-CommandExists "chrome")) {
-  $chromeExe = if ($env:ProgramFiles) { Join-Path $env:ProgramFiles "Google\Chrome\Application\chrome.exe" } else { "" }
-  if (-not $chromeExe -or -not (Test-Path $chromeExe)) {
-    Install-WingetPackage -PackageId "Google.Chrome" -FriendlyName "Google Chrome"
-  }
+if (-not (Test-ChromeInstalled)) {
+  Install-WingetPackage -PackageId "Google.Chrome" -FriendlyName "Google Chrome"
 }
 Write-Host "Chrome check complete. Playwright can also use bundled Chromium." -ForegroundColor Green
 
@@ -177,15 +261,32 @@ if (-not $SkipBrowserInstall) {
 
 Write-Section "Creating local files"
 Ensure-EnvFile
-New-Item -ItemType Directory -Force -Path "outputs\runs", "work", "public\tool-reel-assets" | Out-Null
+$resolvedExcelPath = Resolve-OptionalPathText -PathText $ExcelPath
+$resolvedDriveSyncDir = Resolve-OptionalPathText -PathText $DriveSyncDir
+New-Item -ItemType Directory -Force -Path `
+  "inputs", `
+  "outputs", `
+  "outputs\runs", `
+  "outputs\final-reels", `
+  "outputs\work-tracker", `
+  "work", `
+  "work\google-vids-profile", `
+  "work\google-vids-profile-2", `
+  "public", `
+  "public\tool-reel-assets" | Out-Null
 
-if ($ExcelPath) {
-  $env:TRF_DEFAULT_INPUT = $ExcelPath
-  Write-Host "Dashboard Excel default: $ExcelPath" -ForegroundColor Green
+Set-LocalEnvValue -Key "TRF_UI_PORT" -Value "$Port"
+Set-LocalEnvValue -Key "PLAYWRIGHT_CHANNEL" -Value "chrome"
+
+if ($resolvedExcelPath) {
+  $env:TRF_DEFAULT_INPUT = $resolvedExcelPath
+  Set-LocalEnvValue -Key "TRF_DEFAULT_INPUT" -Value $resolvedExcelPath
+  Write-Host "Dashboard Excel default saved: $resolvedExcelPath" -ForegroundColor Green
 }
-if ($DriveSyncDir) {
-  $env:TRF_DRIVE_SYNC_DIR = $DriveSyncDir
-  Write-Host "Drive sync folder for this terminal: $DriveSyncDir" -ForegroundColor Green
+if ($resolvedDriveSyncDir) {
+  $env:TRF_DRIVE_SYNC_DIR = $resolvedDriveSyncDir
+  Set-LocalEnvValue -Key "TRF_DRIVE_SYNC_DIR" -Value $resolvedDriveSyncDir
+  Write-Host "Drive sync folder saved: $resolvedDriveSyncDir" -ForegroundColor Green
 }
 $env:TRF_UI_PORT = "$Port"
 
@@ -196,15 +297,18 @@ if ($LocalOnlySmokeTest) {
 
 Write-Section "Ready"
 Write-Host "Dashboard URL: http://127.0.0.1:$Port" -ForegroundColor Green
+Write-Host "Daily run command: .\run-windows.bat" -ForegroundColor Green
 Write-Host "Google Vids login command: npm run vids:login -- --profile work/google-vids-profile" -ForegroundColor Green
 Write-Host "Stop dashboard with Ctrl+C." -ForegroundColor DarkGray
 
 if (-not $SkipStart) {
-  Start-Job -ScriptBlock {
-    param($Url)
-    Start-Sleep -Seconds 4
-    Start-Process $Url
-  } -ArgumentList "http://127.0.0.1:$Port" | Out-Null
+  if (-not $NoOpenBrowser) {
+    Start-Job -ScriptBlock {
+      param($Url)
+      Start-Sleep -Seconds 4
+      Start-Process $Url
+    } -ArgumentList "http://127.0.0.1:$Port" | Out-Null
+  }
 
   Invoke-Step -File $npmCommand -CommandArgs @("run", "ui", "--", "--port", "$Port") -Name "dashboard"
 }

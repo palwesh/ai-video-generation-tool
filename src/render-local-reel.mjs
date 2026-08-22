@@ -668,6 +668,7 @@ const avatarHostImage = args["avatar-host"]
     || await accessOrNull(path.join(toolDir, "generated", "avatar-host.jpeg"));
 
 const assets = {
+  brandLogo: "brand/altf-logo.png",
   desktop: await copyAsset(desktopTop, assetDir, "desktop-top"),
   desktopFull: await copyAsset(desktopFull, assetDir, "desktop-full-page"),
   mobile: await copyAsset(mobileTop, assetDir, "mobile-top"),

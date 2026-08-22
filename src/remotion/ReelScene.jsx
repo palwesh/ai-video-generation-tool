@@ -28,8 +28,61 @@ function splitWords(value) {
   return cleanText(value).split(" ").filter(Boolean);
 }
 
+function toolInitials(toolName) {
+  const words = cleanText(toolName, "Tool")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!words.length) {
+    return "AT";
+  }
+  if (words.length === 1) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+  return words.slice(0, 2).map((word) => word[0]).join("").toUpperCase();
+}
+
+function compactDomain(value) {
+  const text = cleanText(value);
+  if (!text) {
+    return "";
+  }
+  try {
+    return new URL(text).hostname.replace(/^www\./, "");
+  } catch {
+    return clampText(text.replace(/^https?:\/\//, "").replace(/^www\./, ""), 42);
+  }
+}
+
 function isVideoAsset(value) {
   return /\.(webm|mp4|mov)$/i.test(String(value || ""));
+}
+
+function isImageAsset(value) {
+  return /\.(png|jpe?g|webp|svg)$/i.test(String(value || ""));
+}
+
+const defaultBrandLogo = "brand/altf-logo.png";
+
+function remotionImageSource(value) {
+  const source = cleanText(value);
+  if (/^https?:\/\//i.test(source)) {
+    return source;
+  }
+  return staticFile(source);
+}
+
+function toolLogoSource(assets) {
+  const candidates = [
+    assets?.toolLogo,
+    assets?.tool_logo,
+    assets?.logo,
+    assets?.logoPath,
+    assets?.brandLogo,
+    assets?.brand_logo,
+    assets?.favicon
+  ];
+  return candidates.find((candidate) => isImageAsset(candidate)) || defaultBrandLogo;
 }
 
 function mediaSource(media) {
@@ -291,6 +344,174 @@ function TopStrip({ scene, sceneIndex, totalScenes, toolName }) {
   );
 }
 
+function ToolLogoMark({ toolName, assets, accent, frame, size = 164 }) {
+  const source = toolLogoSource(assets);
+  const hasLogoImage = Boolean(source);
+  const pulse = interpolate(frame % 72, [0, 36, 72], [1, 1.035, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp"
+  });
+  const markWidth = hasLogoImage ? Math.round(size * 2.18) : size;
+  const markHeight = hasLogoImage ? Math.round(size * 0.82) : size;
+
+  return (
+    <div
+      style={{
+        width: markWidth,
+        height: markHeight,
+        borderRadius: hasLogoImage ? 26 : 34,
+        background: hasLogoImage ? "#050a14" : `linear-gradient(145deg, ${accent}, #111827 74%)`,
+        border: "7px solid #ffffff",
+        boxShadow: `0 22px 70px ${accent}55, 0 0 0 12px rgba(255,255,255,0.18)`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "hidden",
+        padding: hasLogoImage ? Math.round(size * 0.08) : 0,
+        scale: pulse
+      }}
+    >
+      {hasLogoImage ? (
+        <Img
+          src={remotionImageSource(source)}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            backgroundColor: "#050a14"
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            color: "#ffffff",
+            fontSize: Math.round(size * 0.42),
+            lineHeight: 1,
+            fontWeight: 980,
+            textShadow: "0 7px 0 rgba(0,0,0,0.28)"
+          }}
+        >
+          {toolInitials(toolName)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EndBrandCard({ toolName, toolUrl, assets, frame, fps, accent, sceneDurationFrames }) {
+  const startFrame = Math.max(0, sceneDurationFrames - Math.round(fps * 3.1));
+  if (frame < startFrame) {
+    return null;
+  }
+
+  const localFrame = frame - startFrame;
+  const enter = spring({
+    frame: localFrame,
+    fps,
+    config: { damping: 160, stiffness: 220, mass: 0.72 }
+  });
+  const domain = compactDomain(toolUrl);
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 40,
+        background: `linear-gradient(180deg, rgba(2,6,23,${interpolate(localFrame, [0, 18], [0.28, 0.82], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp"
+        })}) 0%, rgba(2,6,23,0.92) 100%)`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 74
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          minHeight: 720,
+          borderRadius: 34,
+          backgroundColor: "rgba(255,255,255,0.96)",
+          border: `6px solid ${accent}`,
+          boxShadow: "0 40px 120px rgba(0,0,0,0.42)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 30,
+          scale: interpolate(enter, [0, 1], [0.92, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp"
+          }),
+          translate: `0px ${interpolate(localFrame, [0, 20], [42, 0], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+            easing: Easing.bezier(0.16, 1, 0.3, 1)
+          })}px`
+        }}
+      >
+        <ToolLogoMark toolName={toolName} assets={assets} accent={accent} frame={frame} size={178} />
+        <div
+          style={{
+            padding: "11px 20px",
+            borderRadius: 999,
+            backgroundColor: "#111827",
+            color: "#FFD700",
+            fontSize: 25,
+            lineHeight: 1,
+            fontWeight: 940
+          }}
+        >
+          TOOL USED IN THIS REEL
+        </div>
+        <div
+          style={{
+            maxWidth: 790,
+            color: Palette.ink,
+            fontSize: 76,
+            lineHeight: 0.98,
+            fontWeight: 980,
+            textAlign: "center",
+            textWrap: "balance"
+          }}
+        >
+          {clampText(toolName, 54)}
+        </div>
+        {domain ? (
+          <div
+            style={{
+              color: Palette.slate,
+              fontSize: 34,
+              lineHeight: 1,
+              fontWeight: 820,
+              textAlign: "center"
+            }}
+          >
+            Open: {domain}
+          </div>
+        ) : null}
+        <div
+          style={{
+            marginTop: 8,
+            padding: "20px 32px",
+            borderRadius: 999,
+            backgroundColor: accent,
+            color: "#ffffff",
+            fontSize: 32,
+            lineHeight: 1,
+            fontWeight: 940,
+            boxShadow: `0 18px 48px ${accent}55`
+          }}
+        >
+          Save this reel and try the tool
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BrowserFrame({ media, fps, accent, label = "REAL TOOL DEMO", large = false, style = {}, crop = false }) {
   return (
     <div
@@ -495,52 +716,168 @@ function HostFrame({
   );
 }
 
-function ReelCaption({ text, frame, fps, accent, compact = false }) {
+function trendCaptionTag(text, sceneIndex) {
+  const source = cleanText(text).toLowerCase();
+  if (/(save|bookmark|remember|keep)/.test(source)) {
+    return "SAVE THIS";
+  }
+  if (/(free|without paying|no cost)/.test(source)) {
+    return "FREE TOOL";
+  }
+  if (/(demo|screen|click|input|run|workflow|step)/.test(source)) {
+    return sceneIndex <= 2 ? "REAL DEMO" : "STEP BY STEP";
+  }
+  if (/(before|after|result|output|proof)/.test(source)) {
+    return "RESULT CHECK";
+  }
+  if (/(review|safe|privacy|data|publish|share)/.test(source)) {
+    return "CHECK FIRST";
+  }
+  return sceneIndex <= 2 ? "WATCH THIS" : "QUICK TIP";
+}
+
+function ReelCaption({ text, frame, fps, accent, compact = false, sceneIndex = 1 }) {
   const chunk = captionChunk(text, frame, fps);
   if (!chunk) {
     return null;
   }
-  const powerWords = /^(stop|save|comment|tool|real|demo|review|privacy|risk|output|before|after|fast|free|mask|safe|watch|try|human|clear|check)$/i;
+  const powerWords = /^(stop|save|comment|tool|real|demo|review|privacy|risk|output|before|after|fast|free|mask|safe|watch|try|human|clear|check|ai|viral|secret|easy|quick|proof|result|workflow|click|time|salary|slip|data|share|post|instagram|reel)$/i;
   const words = chunk.split(/\s+/).filter(Boolean);
+  const localFrame = frame % Math.max(1, Math.round(fps * 1.2));
+  const pop = spring({
+    frame: localFrame,
+    fps,
+    config: { damping: 180, stiffness: 260, mass: 0.55 }
+  });
+  const enterY = interpolate(localFrame, [0, Math.round(fps * 0.14), Math.round(fps * 1.2)], [18, 0, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.16, 1, 0.3, 1)
+  });
+  const shine = interpolate(frame % 72, [0, 36, 72], [0.15, 0.45, 0.15], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp"
+  });
+  const tag = trendCaptionTag(text, sceneIndex);
 
   return (
     <div
       style={{
         position: "absolute",
-        left: compact ? 102 : 76,
-        right: compact ? 102 : 76,
-        bottom: compact ? 196 : 172,
-        minHeight: compact ? 112 : 132,
-        padding: compact ? "20px 28px" : "24px 34px",
-        borderRadius: 24,
-        backgroundColor: "rgba(17, 24, 39, 0.93)",
-        border: `3px solid ${accent}`,
-        boxShadow: "0 26px 72px rgba(15, 23, 42, 0.26)",
-        display: "flex",
+        left: compact ? 90 : 64,
+        right: compact ? 90 : 64,
+        bottom: compact ? 190 : 160,
+        minHeight: compact ? 124 : 150,
+        display: "grid",
         alignItems: "center",
-        justifyContent: "center"
+        justifyItems: "center",
+        translate: `0px ${enterY}px`,
+        scale: interpolate(pop, [0, 1], [0.96, 1], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp"
+        })
       }}
     >
       <div
         style={{
-          fontSize: compact ? 42 : 50,
-          lineHeight: 1.08,
-          fontWeight: 950,
-          textAlign: "center",
-          textWrap: "balance",
-          textShadow: "0 4px 0 #000000, 0 0 18px rgba(0,0,0,0.65)"
+          position: "absolute",
+          top: -31,
+          padding: "11px 19px",
+          borderRadius: 999,
+          backgroundColor: "#FFD700",
+          color: "#111827",
+          border: "4px solid #111827",
+          boxShadow: "0 12px 0 rgba(0,0,0,0.26)",
+          fontSize: compact ? 22 : 24,
+          lineHeight: 1,
+          fontWeight: 980,
+          letterSpacing: 0
         }}
       >
-        {words.map((word, index) => {
-          const normalized = word.replace(/[^\p{L}\p{N}]/gu, "");
-          const highlighted = index === 0 || powerWords.test(normalized);
-          return (
-            <React.Fragment key={`${word}-${index}`}>
-              <span style={{ color: highlighted ? "#FFD700" : "#ffffff" }}>{word}</span>
-              {index < words.length - 1 ? " " : ""}
-            </React.Fragment>
-          );
-        })}
+        {tag}
+      </div>
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          minHeight: compact ? 124 : 150,
+          padding: compact ? "31px 32px 26px" : "36px 40px 30px",
+          borderRadius: 26,
+          backgroundColor: "rgba(8, 13, 23, 0.95)",
+          border: `5px solid ${accent}`,
+          boxShadow: "0 28px 0 rgba(0,0,0,0.22), 0 34px 84px rgba(15, 23, 42, 0.42)",
+          overflow: "hidden",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center"
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: `linear-gradient(110deg, rgba(255,255,255,0) 0%, rgba(255,255,255,${shine}) 42%, rgba(255,255,255,0) 72%)`,
+            translate: `${interpolate(frame % 72, [0, 72], [-520, 520], {
+              extrapolateLeft: "clamp",
+              extrapolateRight: "clamp"
+            })}px 0px`
+          }}
+        />
+        <div
+          style={{
+            position: "relative",
+            zIndex: 1,
+            fontSize: compact ? 46 : 56,
+            lineHeight: 1.02,
+            fontWeight: 980,
+            textAlign: "center",
+            textWrap: "balance",
+            textTransform: "uppercase",
+            textShadow: "0 5px 0 #000000, 0 0 18px rgba(0,0,0,0.72)"
+          }}
+        >
+          {words.map((word, index) => {
+            const normalized = word.replace(/[^\p{L}\p{N}]/gu, "");
+            const highlighted = index === 0 || powerWords.test(normalized);
+            const displayWord = word.toUpperCase();
+            return (
+              <React.Fragment key={`${word}-${index}`}>
+                <span
+                  style={{
+                    color: highlighted ? "#FFD700" : "#ffffff",
+                    WebkitTextStroke: highlighted ? "1.5px #111827" : "0px transparent"
+                  }}
+                >
+                  {displayWord}
+                </span>
+                {index < words.length - 1 ? " " : ""}
+              </React.Fragment>
+            );
+          })}
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            left: 22,
+            bottom: 16,
+            width: 72,
+            height: 7,
+            borderRadius: 999,
+            backgroundColor: "#FFD700"
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            right: 22,
+            top: 17,
+            width: 48,
+            height: 48,
+            borderRadius: 999,
+            border: "5px solid rgba(255,255,255,0.92)",
+            boxShadow: `0 0 0 9px ${accent}55`
+          }}
+        />
       </div>
     </div>
   );
@@ -757,7 +1094,6 @@ function HookScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, 
         ))}
       </div>
 
-      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact />
       <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
 
       <div
@@ -778,17 +1114,6 @@ function HookScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, 
 }
 
 function HookVideoLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, generatedClip, frame, fps, accent, sceneDurationFrames, fade }) {
-  const headline = firstStrongLine(scene, toolName, sceneIndex);
-  const titleY = interpolate(frame, [0, 24], [36, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.bezier(0.16, 1, 0.3, 1)
-  });
-  const badgeScale = interpolate(frame % 50, [0, 25, 50], [1, 1.035, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp"
-  });
-
   return (
     <AbsoluteFill style={{ opacity: fade, overflow: "hidden", backgroundColor: "#020617" }}>
       <div style={{ ...fullBleed }}>
@@ -824,48 +1149,6 @@ function HookVideoLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl,
         <div>{String(scene.scene_number || sceneIndex + 1).padStart(2, "0")} / {String(totalScenes).padStart(2, "0")}</div>
       </div>
 
-      <div
-        style={{
-          position: "absolute",
-          left: 72,
-          right: 72,
-          bottom: 395,
-          translate: `0px ${titleY}px`
-        }}
-      >
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            padding: "14px 20px",
-            borderRadius: 999,
-            backgroundColor: "rgba(255, 215, 0, 0.94)",
-            color: "#111827",
-            fontSize: 28,
-            lineHeight: 1,
-            fontWeight: 980,
-            scale: badgeScale,
-            boxShadow: "0 20px 48px rgba(0,0,0,0.28)"
-          }}
-        >
-          Stop scrolling
-        </div>
-        <div
-          style={{
-            marginTop: 22,
-            color: "#ffffff",
-            fontSize: 84,
-            lineHeight: 0.98,
-            fontWeight: 980,
-            textWrap: "balance",
-            textShadow: "0 5px 0 #000000, 0 18px 42px rgba(0,0,0,0.42)"
-          }}
-        >
-          {clampText(headline, 42)}
-        </div>
-      </div>
-
-      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent="#FFD700" compact />
       <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent="#FFD700" />
       <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: "rgba(255,255,255,0.82)", fontSize: 22, fontWeight: 700 }}>
         {clampText(toolUrl || toolName, 74)}
@@ -953,7 +1236,7 @@ function IntroScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
         ))}
       </div>
 
-      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact />
+      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact sceneIndex={sceneIndex} />
       <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
       <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
         {clampText(toolUrl || toolName, 74)}
@@ -1050,7 +1333,7 @@ function DemoScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, 
         ))}
       </div>
 
-      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} />
+      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} sceneIndex={sceneIndex} />
       <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
       <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
         {clampText(toolUrl || toolName, 74)}
@@ -1133,7 +1416,7 @@ function ProofScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
         />
       ) : null}
 
-      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} />
+      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} sceneIndex={sceneIndex} />
       <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
       <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
         {clampText(toolUrl || toolName, 74)}
@@ -1143,6 +1426,8 @@ function ProofScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
 }
 
 function CtaScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, toolMedia, generatedClip, frame, fps, accent, sceneDurationFrames, fade }) {
+  const brandOutroStart = Math.max(0, sceneDurationFrames - Math.round(fps * 3.1));
+  const showRegularOutroUi = frame < brandOutroStart - 4;
   const hostIn = interpolate(frame, [4, 28], [-120, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -1246,11 +1531,24 @@ function CtaScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, t
         Human review mandatory before publishing or sharing.
       </div>
 
-      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact />
-      <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
-      <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
-        {clampText(toolUrl || toolName, 74)}
-      </div>
+      {showRegularOutroUi ? (
+        <>
+          <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact sceneIndex={sceneIndex} />
+          <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
+          <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
+            {clampText(toolUrl || toolName, 74)}
+          </div>
+        </>
+      ) : null}
+      <EndBrandCard
+        toolName={toolName}
+        toolUrl={toolUrl}
+        assets={assets}
+        frame={frame}
+        fps={fps}
+        accent={accent}
+        sceneDurationFrames={sceneDurationFrames}
+      />
     </AbsoluteFill>
   );
 }

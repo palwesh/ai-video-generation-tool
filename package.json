@@ -32,7 +32,8 @@
     "workbook:update": "node src/update-prepared-workbook.mjs",
     "drive:download-vid": "node src/download-google-vid.mjs",
     "browser:install": "playwright install chromium",
-    "setup:windows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-windows.ps1"
+    "setup:windows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-windows.ps1",
+    "run:windows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run-windows.ps1"
   },
   "dependencies": {
     "@remotion/cli": "^4.0.512",
