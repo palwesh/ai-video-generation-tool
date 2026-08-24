@@ -45,6 +45,7 @@ const els = {
   finalStepLink: document.getElementById("finalStepLink"),
   scriptVideoStepLink: document.getElementById("scriptVideoStepLink"),
   profileStepLink: document.getElementById("profileStepLink"),
+  mainStepSections: [...document.querySelectorAll("[data-main-step-section]")],
   docsStepLink: document.getElementById("docsStepLink"),
   loadStepMeta: document.getElementById("loadStepMeta"),
   selectStepMeta: document.getElementById("selectStepMeta"),
@@ -76,6 +77,9 @@ const els = {
   useExistingAssetsBtn: document.getElementById("useExistingAssetsBtn"),
   generateNewAssetsBtn: document.getElementById("generateNewAssetsBtn"),
   useExistingScriptBtn: document.getElementById("useExistingScriptBtn"),
+  useExistingHookBtn: document.getElementById("useExistingHookBtn"),
+  jumpToAvatarStepBtn: document.getElementById("jumpToAvatarStepBtn"),
+  jumpToFinalStepBtn: document.getElementById("jumpToFinalStepBtn"),
   stepFlowState: document.getElementById("stepFlowState"),
   stepFlowStatus: document.getElementById("stepFlowStatus"),
   stepFlowTimeline: document.getElementById("stepFlowTimeline"),
@@ -133,6 +137,13 @@ const els = {
   scriptSceneEditorList: document.getElementById("scriptSceneEditorList"),
   hookPresenterSelect: document.getElementById("hookPresenterSelect"),
   hookCharacterSelect: document.getElementById("hookCharacterSelect"),
+  hookAvatarPhotoInput: document.getElementById("hookAvatarPhotoInput"),
+  hookAvatarPhotoPreview: document.getElementById("hookAvatarPhotoPreview"),
+  hookAvatarPhotoTitle: document.getElementById("hookAvatarPhotoTitle"),
+  hookAvatarPhotoStatus: document.getElementById("hookAvatarPhotoStatus"),
+  useFemaleAvatarPhotoBtn: document.getElementById("useFemaleAvatarPhotoBtn"),
+  useMaleAvatarPhotoBtn: document.getElementById("useMaleAvatarPhotoBtn"),
+  clearAvatarPhotoBtn: document.getElementById("clearAvatarPhotoBtn"),
   hookToneSelect: document.getElementById("hookToneSelect"),
   hookDurationSelect: document.getElementById("hookDurationSelect"),
   hookPrimaryProfileSelect: document.getElementById("hookPrimaryProfileSelect"),
@@ -255,6 +266,8 @@ const state = {
   lastScriptVideoRunId: "",
   hookProfiles: [],
   hookAvatarOptions: [],
+  avatarHostImage: "",
+  avatarHostLabel: "",
   dashboardDefaults: null,
   activeAutoQueueId: "",
   activeAutoQueueRunId: "",
@@ -289,6 +302,10 @@ const CREDIT_SPEND_CONFIRM_WORD = "VIDS";
 const STEP_FLOW_RUN_TIMEOUT_MS = 45 * 60 * 1000;
 const DEFAULT_PRIMARY_PROFILE = "work/hr-anslation.com";
 const DEFAULT_FALLBACK_PROFILE = "work/shejal.sahu-anslation.com-profile";
+const DEFAULT_AVATAR_PHOTOS = {
+  female: "public/avatar/altftool-female-host-custom.png",
+  male: "public/avatar/altftool-male-host-main.png"
+};
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -1853,6 +1870,86 @@ function finalVideoUrl(filePath) {
   return filePath ? `/file?path=${encodeURIComponent(filePath)}` : "";
 }
 
+function isDefaultAvatarPhoto(filePath) {
+  const normalized = String(filePath || "").replaceAll("\\", "/");
+  return Object.values(DEFAULT_AVATAR_PHOTOS).some((avatarPath) => normalized.endsWith(avatarPath));
+}
+
+function avatarPhotoLabel(filePath, explicitLabel = "") {
+  if (explicitLabel) return explicitLabel;
+  const normalized = String(filePath || "").replaceAll("\\", "/");
+  if (normalized.endsWith(DEFAULT_AVATAR_PHOTOS.female)) return "Default female avatar";
+  if (normalized.endsWith(DEFAULT_AVATAR_PHOTOS.male)) return "Default male avatar";
+  const base = normalized.split("/").filter(Boolean).pop() || "";
+  return base ? `Custom avatar: ${base}` : "No avatar photo";
+}
+
+function setAvatarHostImage(filePath = "", label = "", options = {}) {
+  const { persist = true } = options;
+  const avatarPath = String(filePath || "").trim();
+  state.avatarHostImage = avatarPath;
+  state.avatarHostLabel = avatarPhotoLabel(avatarPath, label);
+  if (els.hookAvatarPhotoPreview) {
+    if (avatarPath) {
+      els.hookAvatarPhotoPreview.src = finalVideoUrl(avatarPath);
+      els.hookAvatarPhotoPreview.classList.remove("is-empty");
+    } else {
+      els.hookAvatarPhotoPreview.removeAttribute("src");
+      els.hookAvatarPhotoPreview.classList.add("is-empty");
+    }
+  }
+  if (els.hookAvatarPhotoTitle) {
+    els.hookAvatarPhotoTitle.textContent = state.avatarHostLabel;
+  }
+  if (els.hookAvatarPhotoStatus) {
+    els.hookAvatarPhotoStatus.textContent = avatarPath
+      ? "Ye photo avatar reference aur local reel presenter me use hogi."
+      : "Female/male default ya apni consented photo use karo.";
+  }
+  if (persist) {
+    saveHookSettings().catch((error) => appendTerminal(error.message, "stderr"));
+  }
+}
+
+function avatarPhotoForPresenter(presenter = "") {
+  return presenter === "male" ? DEFAULT_AVATAR_PHOTOS.male : DEFAULT_AVATAR_PHOTOS.female;
+}
+
+function syncDefaultAvatarPhotoWithPresenter(options = {}) {
+  if (state.avatarHostImage && !isDefaultAvatarPhoto(state.avatarHostImage)) {
+    return;
+  }
+  const presenter = els.hookPresenterSelect?.value || "female";
+  const avatarPath = avatarPhotoForPresenter(presenter);
+  setAvatarHostImage(avatarPath, avatarPhotoLabel(avatarPath), options);
+}
+
+async function uploadAvatarPhoto(file) {
+  if (!file) return;
+  const looksLikeImage = /^image\/(png|jpe?g|webp)$/i.test(file.type || "") || /\.(png|jpe?g|webp)$/i.test(file.name || "");
+  if (!looksLikeImage) {
+    throw new Error("Avatar photo PNG, JPG, JPEG, ya WebP honi chahiye.");
+  }
+  if (file.size > 12 * 1024 * 1024) {
+    throw new Error("Avatar photo 12 MB se choti honi chahiye.");
+  }
+  appendTerminal(`POST /api/avatar-upload ${file.name}`);
+  setTask("Uploading avatar photo", file.name, "busy");
+  const response = await fetch("/api/avatar-upload", {
+    method: "POST",
+    headers: { "x-file-name": encodeURIComponent(file.name || "avatar.png") },
+    body: file
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.error || `Avatar upload failed: ${response.status}`);
+  }
+  const savedPath = data.upload?.path || data.upload?.avatar?.path || "";
+  setAvatarHostImage(savedPath, `Custom avatar: ${file.name}`, { persist: false });
+  setTask("Avatar photo ready", "Custom photo saved and selected.", "success");
+  setTerminalStatus("Custom avatar photo selected");
+}
+
 function selectedScriptVideoProfiles() {
   const primary = els.customScriptPrimaryProfileSelect?.value || els.hookPrimaryProfileSelect?.value || DEFAULT_PRIMARY_PROFILE;
   const fallback = els.customScriptFallbackEnabled?.checked
@@ -2124,6 +2221,61 @@ function pickVoiceoverPreviewFile(finalReel = {}) {
   return candidates[0]?.file || null;
 }
 
+function scrollToWorkflowStep(step) {
+  const targetId = {
+    load: "loadExcel",
+    select: "selectTool",
+    asset: "buildAssets",
+    script: "generateScript",
+    hook: "hookAvatar",
+    final: "finalReel",
+    "script-video": "scriptVideo",
+    profile: "profileManager"
+  }[step];
+  activeStep(step);
+  if (targetId) {
+    document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function applyExistingAssetsFromArtifacts() {
+  const asset = state.latestArtifacts?.latestAssets;
+  if (!asset?.assetBuild) return false;
+  appendTerminal(`Using existing assets: ${asset.folder}`, "stdout");
+  renderAssetBuild(asset.assetBuild);
+  setAssetState("Old assets ready", "success");
+  return true;
+}
+
+function applyExistingScriptFromArtifacts() {
+  const script = state.latestArtifacts?.latestScript;
+  if (!script?.scriptBuild) return false;
+  appendTerminal(`Using existing script: ${script.folder}`, "stdout");
+  renderScriptResult(script.scriptBuild);
+  setScriptState("Old script ready", "success");
+  return true;
+}
+
+function applyExistingHookFromArtifacts() {
+  const hook = state.latestArtifacts?.latestHookAvatar;
+  if (!hook?.hookAvatar) return false;
+  appendTerminal(`Using existing avatar pack: ${hook.folder}`, "stdout");
+  renderHookAvatarResult(hook.hookAvatar);
+  setHookState(hookArtifactHasVideo(hook) ? "Old avatar video ready" : "Old avatar prompt ready", "success");
+  return true;
+}
+
+function hydrateResumeStateFromArtifacts(options = {}) {
+  const { includeHook = true } = options;
+  const usedAssets = state.lastAssetFolder ? true : applyExistingAssetsFromArtifacts();
+  const usedScript = state.lastScriptFolder ? true : applyExistingScriptFromArtifacts();
+  const usedHook = includeHook
+    ? (state.lastHookAvatarFolder ? true : applyExistingHookFromArtifacts())
+    : Boolean(state.lastHookAvatarFolder);
+  const usedHookVideo = Boolean(state.lastHookAvatarVideo || hookArtifactHasVideo(state.latestArtifacts?.latestHookAvatar || {}));
+  return { usedAssets, usedScript, usedHook, usedHookVideo };
+}
+
 function renderArtifactNotice(artifacts) {
   state.latestArtifacts = artifacts || null;
   const asset = artifacts?.latestAssets || null;
@@ -2132,9 +2284,19 @@ function renderArtifactNotice(artifacts) {
   const hasAsset = Boolean(asset?.assetBuild);
   const hasScript = Boolean(script?.scriptBuild);
   const hasHook = Boolean(hook?.hookAvatar);
+  const hasHookVideo = hookArtifactHasVideo(hook || {});
   els.useExistingAssetsBtn.disabled = !hasAsset;
   els.generateNewAssetsBtn.disabled = !state.inputPath || !Number(els.assetRowInput.value || 0);
   els.useExistingScriptBtn.disabled = !hasScript;
+  if (els.useExistingHookBtn) {
+    els.useExistingHookBtn.disabled = !hasHook;
+  }
+  if (els.jumpToAvatarStepBtn) {
+    els.jumpToAvatarStepBtn.disabled = !(hasScript || state.lastScriptFolder);
+  }
+  if (els.jumpToFinalStepBtn) {
+    els.jumpToFinalStepBtn.disabled = !(hasScript || state.lastScriptFolder || hasHook || state.lastHookAvatarFolder);
+  }
   if (hasAsset && !state.lastAssetFolder) {
     els.assetStepMeta.textContent = "Old assets found";
   }
@@ -2142,11 +2304,11 @@ function renderArtifactNotice(artifacts) {
     els.scriptStepMeta.textContent = "Old script found";
   }
   if (hasHook && !state.lastHookAvatarFolder) {
-    els.hookStepMeta.textContent = "Old hook found";
+    els.hookStepMeta.textContent = hasHookVideo ? "Old avatar video found" : "Old avatar prompt found";
     renderHookAvatarResult(hook.hookAvatar);
   }
   if (hasAsset && hasScript && !state.lastFinalReelFolder) {
-    setFinalState(hasHook ? "Ready after hook" : "Ready, hook optional", "idle");
+    setFinalState(hasHookVideo ? "Ready after avatar" : "Ready, avatar optional", "idle");
     setFinalBusy(false);
   }
 
@@ -2168,11 +2330,18 @@ function renderArtifactNotice(artifacts) {
     parts.push(`Script: ${script.duration || 0}s${script.generatedAt ? `, ${shortDateTime(script.generatedAt)}` : ""}`);
   }
   if (hasHook) {
-    parts.push(`Hook: ${hook.status || hook.hookAvatar?.status || "ready"}${hook.generatedAt ? `, ${shortDateTime(hook.generatedAt)}` : ""}`);
+    parts.push(`Avatar: ${hasHookVideo ? "video ready" : "prompt pack only"}${hook.generatedAt ? `, ${shortDateTime(hook.generatedAt)}` : ""}`);
+  }
+  if (hasAsset && hasScript && (!hasHook || !hasHookVideo)) {
+    parts.push("Avatar video missing: click Avatar Step, generate/download avatar, then Final Step");
+  } else if (hasAsset && !hasScript) {
+    parts.push("Script missing: click Use Old Assets, then Generate Script");
+  } else if (hasScript && !hasAsset) {
+    parts.push("Assets missing: build assets, or continue if script already has usable captures");
   }
   setArtifactNotice(
-    "Existing work found",
-    `${parts.join(" | ")}. Old use karna hai ya new generate karna hai?`,
+    hasAsset && hasScript && (!hasHook || !hasHookVideo) ? "Resume available: avatar video missing" : "Existing work found",
+    `${parts.join(" | ")}. Old use karo, missing step se continue karo, ya new generate karo.`,
     "found",
     false
   );
@@ -2231,31 +2400,41 @@ function activeStep(step) {
   setWorkspaceTab(workspaceTabFromStep(step), { persist: false });
   for (const link of [els.loadStepLink, els.selectStepLink, els.assetStepLink, els.scriptStepLink, els.hookStepLink, els.finalStepLink, els.scriptVideoStepLink, els.profileStepLink].filter(Boolean)) {
     link.classList.remove("active");
+    link.removeAttribute("aria-current");
   }
   const order = ["load", "select", "asset", "script", "hook", "final", "script-video", "profile"];
+  const mainOrder = ["load", "select", "asset", "script", "hook", "final"];
   const activeIndex = Math.max(0, order.indexOf(step));
+  const mainActiveIndex = mainOrder.indexOf(step);
   for (const item of els.flowSteps) {
     const itemIndex = order.indexOf(item.dataset.flowStep || "");
     item.classList.toggle("active", itemIndex === activeIndex);
     item.classList.toggle("done", itemIndex > -1 && itemIndex < activeIndex);
   }
-  if (step === "select") {
-    els.selectStepLink.classList.add("active");
-  } else if (step === "asset") {
-    els.assetStepLink.classList.add("active");
-  } else if (step === "script") {
-    els.scriptStepLink.classList.add("active");
-  } else if (step === "hook") {
-    els.hookStepLink.classList.add("active");
-  } else if (step === "final") {
-    els.finalStepLink?.classList.add("active");
-  } else if (step === "script-video") {
-    els.scriptVideoStepLink?.classList.add("active");
-  } else if (step === "profile") {
-    els.profileStepLink?.classList.add("active");
-  } else {
-    els.loadStepLink.classList.add("active");
+  for (const section of els.mainStepSections) {
+    const sectionStep = section.dataset.mainStepSection || "";
+    const sectionMainIndex = mainOrder.indexOf(sectionStep);
+    section.classList.toggle("is-current-step", sectionStep === step);
+    section.classList.toggle("is-step-complete", mainActiveIndex > -1 && sectionMainIndex > -1 && sectionMainIndex < mainActiveIndex);
   }
+  let activeLink = els.loadStepLink;
+  if (step === "select") {
+    activeLink = els.selectStepLink;
+  } else if (step === "asset") {
+    activeLink = els.assetStepLink;
+  } else if (step === "script") {
+    activeLink = els.scriptStepLink;
+  } else if (step === "hook") {
+    activeLink = els.hookStepLink;
+  } else if (step === "final") {
+    activeLink = els.finalStepLink;
+  } else if (step === "script-video") {
+    activeLink = els.scriptVideoStepLink;
+  } else if (step === "profile") {
+    activeLink = els.profileStepLink;
+  }
+  activeLink?.classList.add("active");
+  activeLink?.setAttribute("aria-current", "step");
 }
 
 function renderAnalysis(upload) {
@@ -2404,6 +2583,12 @@ async function loadDashboardDefaults() {
   if (els.hookPresenterSelect && defaults.settings?.hookAvatarStyle) {
     els.hookPresenterSelect.value = defaults.settings.hookAvatarStyle;
   }
+  const defaultAvatarPath = avatarPhotoForPresenter(els.hookPresenterSelect?.value || defaults.settings?.hookAvatarStyle || "female");
+  setAvatarHostImage(
+    defaults.settings?.avatarHostImage || defaultAvatarPath,
+    defaults.settings?.avatarHostImage ? "" : avatarPhotoLabel(defaultAvatarPath),
+    { persist: false }
+  );
   if (state.hookProfiles.length) {
     renderHookProfileOptions();
     renderHookProfileStatus();
@@ -2424,6 +2609,7 @@ async function saveHookSettings() {
     body: JSON.stringify({
       hookAvatarStyle: els.hookPresenterSelect.value || "female",
       hookAvatarCharacter: els.hookCharacterSelect.value || "auto_by_reel",
+      avatarHostImage: state.avatarHostImage || "",
       hookPrimaryProfile: selection.primary,
       hookFallbackProfile: selection.fallback,
       hookFallbackEnabled: selection.fallbackEnabled,
@@ -2979,6 +3165,8 @@ function hookAvatarPayload(extra = {}) {
     presenter: els.hookPresenterSelect.value || "female",
     avatar: els.hookCharacterSelect?.value || "auto_by_reel",
     avatarLabel: hookCharacterLabel(els.hookCharacterSelect?.value || "auto_by_reel"),
+    avatarHostImage: state.avatarHostImage || "",
+    avatarReferenceImages: state.avatarHostImage || "",
     tone: els.hookToneSelect.value || "energetic",
     durationSeconds: Number(els.hookDurationSelect.value || 10),
     includeMiddleAvatar: true,
@@ -3002,9 +3190,40 @@ function hookVideoUrl(filePath) {
   return filePath ? `/file?path=${encodeURIComponent(filePath)}` : "";
 }
 
+function hookVideoPathFromArtifact(hookAvatar = {}) {
+  return hookAvatar.videoPath
+    || hookAvatar.hookAvatar?.videoPath
+    || hookAvatar.cachedScenePath
+    || hookAvatar.hookAvatar?.cachedScenePath
+    || "";
+}
+
+function ctaVideoPathFromArtifact(hookAvatar = {}) {
+  return hookAvatar.ctaVideoPath
+    || hookAvatar.ctaAvatar?.videoPath
+    || hookAvatar.ctaCachedScenePath
+    || hookAvatar.ctaAvatar?.cachedScenePath
+    || "";
+}
+
+function middleVideoPathsFromArtifact(hookAvatar = {}) {
+  return Object.values(hookAvatar.middleAvatarVideos || {})
+    .concat(Object.values(hookAvatar.hookAvatar?.middleAvatarVideos || {}))
+    .filter(Boolean);
+}
+
+function hookArtifactHasVideo(artifact = {}) {
+  const hookAvatar = artifact.hookAvatar || artifact;
+  return Boolean(
+    hookVideoPathFromArtifact(hookAvatar)
+    || ctaVideoPathFromArtifact(hookAvatar)
+    || middleVideoPathsFromArtifact(hookAvatar).length
+  );
+}
+
 function renderHookAvatarResult(hookAvatar = {}) {
   const status = hookAvatar.status || hookAvatar.hookAvatar?.status || "prepared";
-  const videoPath = hookAvatar.videoPath || hookAvatar.hookAvatar?.videoPath || "";
+  const videoPath = hookVideoPathFromArtifact(hookAvatar);
   state.lastHookAvatarFolder = hookAvatar.hookDir || hookAvatar.folder || "";
   state.lastHookAvatarVideo = videoPath;
   els.hookResult.classList.remove("is-hidden");
@@ -3053,8 +3272,8 @@ function renderHookAvatarResult(hookAvatar = {}) {
     els.hookVideoPreview.classList.add("is-hidden");
     els.hookVideoPreview.removeAttribute("src");
   }
-  const ctaVideoPath = hookAvatar.ctaVideoPath || hookAvatar.ctaAvatar?.videoPath || "";
-  const middleVideoPaths = Object.values(hookAvatar.middleAvatarVideos || {});
+  const ctaVideoPath = ctaVideoPathFromArtifact(hookAvatar);
+  const middleVideoPaths = middleVideoPathsFromArtifact(hookAvatar);
   const success = status === "complete" || Boolean(videoPath || ctaVideoPath || middleVideoPaths.length);
   setHookState(success ? (middleVideoPaths.length || ctaVideoPath ? "Avatar pack ready" : "Hook video ready") : "Avatar pack prepared", "success");
   setTask(success ? "Avatar clips ready" : "Avatar pack ready", ctaVideoPath || middleVideoPaths[0] || videoPath || hookAvatar.hookDir || "", "success");
@@ -3350,6 +3569,8 @@ function finalReelPayload(extra = {}) {
     presenter: els.hookPresenterSelect?.value || "female",
     hookAvatarCharacter: els.hookCharacterSelect?.value || "auto_by_reel",
     hookAvatarCharacterLabel: hookCharacterLabel(els.hookCharacterSelect?.value || "auto_by_reel"),
+    avatarHostImage: state.avatarHostImage || "",
+    avatarReferenceImages: state.avatarHostImage || "",
     voiceoverProvider: els.finalVoiceProviderSelect?.value || "free",
     assetsDir: Number(state.lastAssetRow || 0) === row ? state.lastAssetFolder : "",
     scriptDir: state.lastScriptFolder || "",
@@ -4192,6 +4413,45 @@ els.scriptLanguageSelect.addEventListener("change", () => {
   setFinalBusy(false);
 });
 
+els.useFemaleAvatarPhotoBtn?.addEventListener("click", () => {
+  if (els.hookPresenterSelect) {
+    els.hookPresenterSelect.value = "female";
+  }
+  setAvatarHostImage(DEFAULT_AVATAR_PHOTOS.female, "Default female avatar");
+  setHookState("Female avatar selected", "idle");
+  setTerminalStatus("Avatar photo: default female");
+});
+
+els.useMaleAvatarPhotoBtn?.addEventListener("click", () => {
+  if (els.hookPresenterSelect) {
+    els.hookPresenterSelect.value = "male";
+  }
+  setAvatarHostImage(DEFAULT_AVATAR_PHOTOS.male, "Default male avatar");
+  setHookState("Male avatar selected", "idle");
+  setTerminalStatus("Avatar photo: default male");
+});
+
+els.clearAvatarPhotoBtn?.addEventListener("click", () => {
+  setAvatarHostImage("", "No avatar photo");
+  setHookState("Avatar photo cleared", "idle");
+  setTerminalStatus("Avatar photo cleared");
+});
+
+els.hookAvatarPhotoInput?.addEventListener("change", async () => {
+  const file = els.hookAvatarPhotoInput.files?.[0];
+  if (!file) return;
+  try {
+    await uploadAvatarPhoto(file);
+    setHookState("Custom avatar selected", "success");
+  } catch (error) {
+    setHookState("Avatar upload failed", "error");
+    setTask("Avatar upload failed", error.message, "error");
+    appendTerminal(error.message, "stderr");
+  } finally {
+    els.hookAvatarPhotoInput.value = "";
+  }
+});
+
 els.finalVoiceProviderSelect?.addEventListener("change", () => {
   if (creditSafeEnabled() && ["openai", "elevenlabs"].includes(els.finalVoiceProviderSelect.value || "")) {
     els.finalVoiceProviderSelect.value = "free";
@@ -4229,6 +4489,9 @@ for (const control of [
   els.customScriptDurationSelect
 ].filter(Boolean)) {
   control.addEventListener("change", () => {
+    if (control === els.hookPresenterSelect) {
+      syncDefaultAvatarPhotoWithPresenter({ persist: false });
+    }
     if (globalProfileControls.has(control)) {
       const source = [
         els.customScriptPrimaryProfileSelect,
@@ -4409,23 +4672,56 @@ els.profileManagerList?.addEventListener("click", async (event) => {
 els.buildAssetsBtn.addEventListener("click", runAssetBuildFromUi);
 
 els.useExistingAssetsBtn.addEventListener("click", () => {
-  const asset = state.latestArtifacts?.latestAssets;
-  if (!asset?.assetBuild) return;
-  appendTerminal(`Using existing assets: ${asset.folder}`, "stdout");
-  renderAssetBuild(asset.assetBuild);
-  setAssetState("Old assets ready", "success");
-  setTask("Old assets selected", asset.folder || "Existing assets selected", "success");
+  if (!applyExistingAssetsFromArtifacts()) return;
+  setTask("Old assets selected", state.lastAssetFolder || "Existing assets selected", "success");
 });
 
 els.generateNewAssetsBtn.addEventListener("click", runAssetBuildFromUi);
 
 els.useExistingScriptBtn.addEventListener("click", () => {
-  const script = state.latestArtifacts?.latestScript;
-  if (!script?.scriptBuild) return;
-  appendTerminal(`Using existing script: ${script.folder}`, "stdout");
-  renderScriptResult(script.scriptBuild);
-  setScriptState("Old script ready", "success");
-  setTask("Old script selected", script.folder || "Existing script selected", "success");
+  if (!applyExistingScriptFromArtifacts()) return;
+  setTask("Old script selected", state.lastScriptFolder || "Existing script selected", "success");
+});
+
+els.useExistingHookBtn?.addEventListener("click", () => {
+  if (!applyExistingHookFromArtifacts()) return;
+  setTask(
+    state.lastHookAvatarVideo ? "Old avatar video selected" : "Old avatar prompt selected",
+    state.lastHookAvatarVideo || state.lastHookAvatarFolder || "Existing avatar selected",
+    "success"
+  );
+});
+
+els.jumpToAvatarStepBtn?.addEventListener("click", () => {
+  const hydrated = hydrateResumeStateFromArtifacts({ includeHook: false });
+  if (!hydrated.usedScript) {
+    setTask("Script required", "Avatar step ke liye pehle script generate/select karo.", "error");
+    setHookState("Script needed", "error");
+    return;
+  }
+  setHookBusy(false);
+  setFinalBusy(false);
+  setTask("Resume from Avatar Step", "Old assets/script ready. Ab avatar pack generate karo.", "success");
+  setTerminalStatus("Resume: avatar step ready");
+  scrollToWorkflowStep("hook");
+});
+
+els.jumpToFinalStepBtn?.addEventListener("click", () => {
+  const hydrated = hydrateResumeStateFromArtifacts({ includeHook: true });
+  if (!hydrated.usedScript) {
+    setTask("Script required", "Final render ke liye pehle script generate/select karo.", "error");
+    setFinalState("Script needed", "error");
+    return;
+  }
+  setFinalState(hydrated.usedHookVideo ? "Ready after avatar" : "Ready, avatar optional", "idle");
+  setFinalBusy(false);
+  setTask(
+    "Resume from Final Step",
+    hydrated.usedHookVideo ? "Old avatar video selected. Render Final Reel click karo." : "Avatar video missing hai, but local fallback se render kar sakte ho.",
+    "success"
+  );
+  setTerminalStatus("Resume: final render ready");
+  scrollToWorkflowStep("final");
 });
 
 els.generateScriptBtn.addEventListener("click", async () => {

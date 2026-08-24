@@ -52,42 +52,42 @@
             </div>
           </div>
           <nav class="step-list">
-            <a id="loadStepLink" class="step-link active" href="#loadExcel">
+            <a id="loadStepLink" class="step-link main-step-link active" href="#loadExcel">
               <span>01</span>
               <strong>Load Excel</strong>
               <small id="loadStepMeta">Waiting</small>
             </a>
-            <a id="selectStepLink" class="step-link" href="#selectTool">
+            <a id="selectStepLink" class="step-link main-step-link" href="#selectTool">
               <span>02</span>
               <strong>Select Tool</strong>
               <small id="selectStepMeta">Excel required</small>
             </a>
-            <a id="assetStepLink" class="step-link" href="#buildAssets">
+            <a id="assetStepLink" class="step-link main-step-link" href="#buildAssets">
               <span>03</span>
               <strong>Build Assets</strong>
               <small id="assetStepMeta">Not started</small>
             </a>
-            <a id="scriptStepLink" class="step-link" href="#generateScript">
+            <a id="scriptStepLink" class="step-link main-step-link" href="#generateScript">
               <span>04</span>
               <strong>Reel Script</strong>
               <small id="scriptStepMeta">After assets</small>
             </a>
-            <a id="hookStepLink" class="step-link" href="#hookAvatar">
+            <a id="hookStepLink" class="step-link main-step-link" href="#hookAvatar">
               <span>05</span>
               <strong>Hook Avatar</strong>
               <small id="hookStepMeta">After script</small>
             </a>
-            <a id="finalStepLink" class="step-link" href="#finalReel">
+            <a id="finalStepLink" class="step-link main-step-link" href="#finalReel">
               <span>06</span>
               <strong>Final Reel</strong>
               <small id="finalStepMeta">After hook</small>
             </a>
-            <a id="scriptVideoStepLink" class="step-link" href="#scriptVideo">
+            <a id="scriptVideoStepLink" class="step-link utility-step-link" href="#scriptVideo">
               <span>SV</span>
               <strong>Script Video</strong>
               <small id="scriptVideoStepMeta">Separate tab</small>
             </a>
-            <a id="profileStepLink" class="step-link" href="#profileManager">
+            <a id="profileStepLink" class="step-link utility-step-link" href="#profileManager">
               <span>GP</span>
               <strong>Profiles</strong>
               <small id="profileStepMeta">Global</small>
@@ -127,10 +127,10 @@
             <button id="manageProfilesTabBtn" class="secondary-action" type="button">Manage Profiles</button>
           </div>
 
-          <section id="loadExcel" class="workflow-section import-panel flow-tab-panel" data-workspace-panel="tool-promo" aria-label="Excel import and analysis">
+          <section id="loadExcel" class="workflow-section import-panel flow-tab-panel" data-workspace-panel="tool-promo" data-main-step-section="load" data-step-index="01" aria-label="Excel import and analysis">
             <div class="import-head">
               <div>
-                <p class="eyebrow">Load Excel Data</p>
+                <p class="eyebrow">Step 1 | Load Excel Data</p>
                 <h1>AI Reel Creator by Prathak</h1>
                 <p>Select tool, build real assets, generate reel script.</p>
               </div>
@@ -138,13 +138,13 @@
             </div>
 
             <div class="flow-strip" aria-label="Workflow overview">
-              <span data-flow-step="load">Excel</span>
-              <span data-flow-step="select">Tool row</span>
-              <span data-flow-step="asset">Assets</span>
-              <span data-flow-step="script">Script</span>
-              <span data-flow-step="hook">Avatar pack</span>
-              <span data-flow-step="final">Final reel</span>
-              <span data-flow-step="profile">Profiles</span>
+              <span data-flow-step="load" data-step-index="01">Excel</span>
+              <span data-flow-step="select" data-step-index="02">Tool row</span>
+              <span data-flow-step="asset" data-step-index="03">Assets</span>
+              <span data-flow-step="script" data-step-index="04">Script</span>
+              <span data-flow-step="hook" data-step-index="05">Avatar pack</span>
+              <span data-flow-step="final" data-step-index="06">Final reel</span>
+              <span data-flow-step="profile" data-step-index="GP">Profiles</span>
             </div>
 
             <div class="upload-box">
@@ -162,7 +162,7 @@
             </div>
           </section>
 
-          <section id="profileManager" class="workflow-section profile-manager-panel flow-tab-panel" data-workspace-panel="profiles" aria-label="Google Vids profile manager">
+          <section id="profileManager" class="workflow-section profile-manager-panel flow-tab-panel" data-workspace-panel="profiles" data-main-step-section="profile" data-step-index="GP" aria-label="Google Vids profile manager">
             <div class="profile-manager-head">
               <div>
                 <p class="eyebrow">Google Vids Users</p>
@@ -193,7 +193,7 @@
             </div>
           </section>
 
-          <section id="scriptVideo" class="workflow-section script-video-panel flow-tab-panel" data-workspace-panel="script-video" aria-label="General script video generator">
+          <section id="scriptVideo" class="workflow-section script-video-panel flow-tab-panel" data-workspace-panel="script-video" data-main-step-section="script-video" data-step-index="SV" aria-label="General script video generator">
             <div class="script-video-head">
               <div>
                 <p class="eyebrow">Separate Flow</p>
@@ -305,10 +305,10 @@
           </section>
 
           <section id="analysisResults" class="analysis-results is-hidden flow-tab-panel" data-workspace-panel="tool-promo" aria-label="Excel analysis result">
-            <section id="selectTool" class="workflow-section tool-select-panel" aria-label="Tool selection">
+            <section id="selectTool" class="workflow-section tool-select-panel" data-main-step-section="select" data-step-index="02" aria-label="Tool selection">
               <div class="section-title-row">
                 <div>
-                  <p class="eyebrow">Select Tool</p>
+                  <p class="eyebrow">Step 2 | Select Tool</p>
                   <h2>Tool Idea Name</h2>
                 </div>
                 <span id="toolOptionCount" class="state-pill">0 tools</span>
@@ -369,6 +369,9 @@
                   <button id="useExistingAssetsBtn" class="secondary-action" type="button" disabled>Use Old Assets</button>
                   <button id="generateNewAssetsBtn" class="primary-action" type="button" disabled>Generate New Assets</button>
                   <button id="useExistingScriptBtn" class="secondary-action" type="button" disabled>Use Old Script</button>
+                  <button id="useExistingHookBtn" class="secondary-action" type="button" disabled>Use Old Avatar</button>
+                  <button id="jumpToAvatarStepBtn" class="primary-action" type="button" disabled>Avatar Step</button>
+                  <button id="jumpToFinalStepBtn" class="secondary-action" type="button" disabled>Final Step</button>
                 </div>
               </div>
 
@@ -446,10 +449,10 @@
               </section>
             </div>
 
-            <section id="buildAssets" class="asset-panel workflow-section" aria-label="Tool asset builder">
+            <section id="buildAssets" class="asset-panel workflow-section" data-main-step-section="asset" data-step-index="03" aria-label="Tool asset builder">
               <div class="asset-head">
                 <div>
-                  <p class="eyebrow">Step 1</p>
+                  <p class="eyebrow">Step 3 | Build Assets</p>
                   <h2>Build Assets</h2>
                   <p>Real tool page capture, screenshots, and screen recordings.</p>
                 </div>
@@ -475,10 +478,10 @@
               </div>
             </section>
 
-            <section id="generateScript" class="script-panel workflow-section" aria-label="Reel script generator">
+            <section id="generateScript" class="script-panel workflow-section" data-main-step-section="script" data-step-index="04" aria-label="Reel script generator">
               <div class="script-head">
                 <div>
-                  <p class="eyebrow">Step 2</p>
+                  <p class="eyebrow">Step 4 | Reel Script</p>
                   <h2>Generate Reel Script</h2>
                   <p>30-60 sec Hook, Body, CTA script for Instagram reels.</p>
                 </div>
@@ -569,10 +572,10 @@
               </div>
             </section>
 
-            <section id="hookAvatar" class="hook-panel workflow-section" aria-label="Hook focus and CTA avatar generator">
+            <section id="hookAvatar" class="hook-panel workflow-section" data-main-step-section="hook" data-step-index="05" aria-label="Hook focus and CTA avatar generator">
               <div class="hook-head">
                 <div>
-                  <p class="eyebrow">Step 3</p>
+                  <p class="eyebrow">Step 5 | Hook Avatar</p>
                   <h2>Generate Hook + Focus + CTA Avatar</h2>
                   <p>Hook, mid-reel focus break, and final CTA with the same human avatar.</p>
                 </div>
@@ -595,6 +598,24 @@
                     <option value="auto">Google Vids auto</option>
                   </select>
                 </label>
+                <div class="avatar-photo-card">
+                  <label class="field-label hook-avatar-photo" for="hookAvatarPhotoInput">
+                    <span>Avatar photo</span>
+                    <input id="hookAvatarPhotoInput" type="file" accept="image/png,image/jpeg,image/webp">
+                  </label>
+                  <div class="avatar-photo-preview">
+                    <img id="hookAvatarPhotoPreview" alt="Selected avatar preview">
+                    <div>
+                      <strong id="hookAvatarPhotoTitle">Default female avatar</strong>
+                      <small id="hookAvatarPhotoStatus">Female/male default ya apni consented photo use karo.</small>
+                    </div>
+                  </div>
+                  <div class="avatar-photo-actions">
+                    <button id="useFemaleAvatarPhotoBtn" class="secondary-action" type="button">Female</button>
+                    <button id="useMaleAvatarPhotoBtn" class="secondary-action" type="button">Male</button>
+                    <button id="clearAvatarPhotoBtn" class="secondary-action" type="button">Clear</button>
+                  </div>
+                </div>
                 <label class="field-label hook-tone" for="hookToneSelect">
                   <span>Tone</span>
                   <select id="hookToneSelect">
@@ -668,10 +689,10 @@
               </div>
             </section>
 
-            <section id="finalReel" class="final-panel workflow-section" aria-label="Final reel renderer">
+            <section id="finalReel" class="final-panel workflow-section" data-main-step-section="final" data-step-index="06" aria-label="Final reel renderer">
               <div class="final-head">
                 <div>
-                  <p class="eyebrow">Step 4</p>
+                  <p class="eyebrow">Step 6 | Final Reel</p>
                   <h2>Render Final Reel</h2>
                   <p>Merge avatar hook, real tool assets, voiceover, captions, and CTA into a vertical reel.</p>
                 </div>

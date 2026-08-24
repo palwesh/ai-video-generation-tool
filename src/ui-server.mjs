@@ -229,6 +229,28 @@ function safeUploadFileName(value) {
   return `${name}${extension}`;
 }
 
+function safeAvatarFileName(value) {
+  const fallback = "avatar.png";
+  let raw = String(value || fallback).trim();
+  try {
+    raw = decodeURIComponent(raw);
+  } catch {
+    // Keep the raw header value if it is not URI encoded.
+  }
+  const base = path.basename(raw || fallback);
+  const extension = path.extname(base).toLowerCase();
+  if (![".png", ".jpg", ".jpeg", ".webp"].includes(extension)) {
+    throw new Error("Please choose a .png, .jpg, .jpeg, or .webp avatar image.");
+  }
+  const name = path.basename(base, extension)
+    .replace(/[^a-z0-9._ -]+/gi, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80) || "avatar";
+  return `${name}${extension}`;
+}
+
 function normalizeProfileList(value) {
   if (Array.isArray(value)) {
     return value.map((item) => String(item || "").trim()).filter(Boolean);
@@ -3214,6 +3236,7 @@ function hookAvatarReadme(result) {
     "",
     result.avatarChoice?.label || result.googleVidsAvatar || "Google Vids auto",
     result.avatarChoice?.reason ? `Reason: ${result.avatarChoice.reason}` : "",
+    result.avatarReferences?.length ? `Custom avatar reference: ${result.avatarReferences.join(", ")}` : "",
     "",
     "Hook script:",
     "",
@@ -3279,6 +3302,7 @@ async function prepareHookAvatar(body = {}) {
   const assetsDir = scriptBuild.assetsDir || artifacts.latestAssets?.folder || path.join(runDir, "assets");
   await ensureDir(hookDir);
   await ensureDir(assetsDir);
+  const avatarReferenceFiles = await avatarReferenceFilesFromBody(body);
   const vidsClipCacheFolder = await ensureVidsClipCache(runDir);
   const scriptScenes = Array.isArray(scriptBuild.plan?.scenes) ? scriptBuild.plan.scenes : [];
   const reelSceneCount = clamp(
@@ -3312,6 +3336,9 @@ async function prepareHookAvatar(body = {}) {
   const characterDirection = googleVidsAvatar === "auto"
     ? "Google Vids should auto-select the most realistic portrait AI avatar for this reel hook."
     : `Use/select the Google Vids AI avatar character "${avatarChoice.label}" if available.`;
+  const customAvatarDirection = avatarReferenceFiles.length
+    ? `Use the attached custom avatar reference photo (${path.basename(avatarReferenceFiles[0])}) as the face/style guide when the tool supports image references; otherwise keep the selected presenter gender and style consistent.`
+    : "";
   const onscreenText = buildHookOnscreenText(hookScript, tool);
   const ctaOnscreenText = buildCtaOnscreenText(tool, body.scriptLanguage || scriptBuild.scriptLanguage || tool.language || "Hinglish");
   const middleAvatarScripts = Object.fromEntries(middleScenes.map((sceneNumber) => [
@@ -3330,15 +3357,18 @@ async function prepareHookAvatar(body = {}) {
     duration: durationSeconds,
     voiceover: hookScript,
     onscreen_text: onscreenText,
-    visual: `${characterDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection(tone)}. Portrait 9:16 reel frame. Laptop beside presenter briefly shows the real tool page.`,
+    visual: `${characterDirection} ${customAvatarDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection(tone)}. Portrait 9:16 reel frame. Hook starts immediately, face fills the upper frame, laptop beside presenter briefly shows the real AltFTool page.`,
     video_prompt: [
       `Create a ${durationSeconds}-second 9:16 vertical portrait AI avatar hook clip.`,
+      "Strictly portrait 9:16 for Instagram Reels, not landscape or square; keep face and captions inside mobile safe margins.",
       characterDirection,
+      customAvatarDirection,
       hookPresenterDirection(presenter),
       hookToneDirection(tone),
-      `The avatar speaks this exact line naturally: ${hookScript}`,
-      "Modern SaaS desk setup, soft daylight, clean background, laptop visible with the real tool page as context.",
-      "No fake UI, no personal information, no unrelated stock footage."
+      `The avatar speaks this exact line naturally in the first 2 seconds without greeting: ${hookScript}`,
+      "Modern SaaS desk setup, soft daylight, clean background, direct eye contact, quick push-in camera move.",
+      "Laptop beside presenter should briefly show the real AltFTool/tool page context, not a fake generated app.",
+      "No fake UI, no personal information, no unrelated stock footage, no slow intro."
     ].join(" ")
   };
   const middleAvatarScenePlan = middleScenes.map((sceneNumber) => ({
@@ -3346,15 +3376,17 @@ async function prepareHookAvatar(body = {}) {
     duration: focusDurationSeconds,
     voiceover: middleAvatarScripts[sceneNumber],
     onscreen_text: middleAvatarOnscreenText[sceneNumber],
-    visual: `${characterDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection("professional")} Mid-reel human focus break beside a laptop showing the real tool demo; the avatar points at the useful workflow and keeps attention before the screen demo continues.`,
+    visual: `${characterDirection} ${customAvatarDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection("professional")} Mid-reel human focus break beside a laptop showing the real AltFTool demo; the avatar points at the useful workflow and keeps attention before the screen demo continues.`,
     video_prompt: [
       `Create a ${focusDurationSeconds}-second 9:16 vertical portrait AI avatar focus clip for Scene ${sceneNumber}.`,
+      "Strictly portrait 9:16 for Instagram Reels, not landscape or square; keep presenter and captions inside safe margins.",
       characterDirection,
+      customAvatarDirection,
       hookPresenterDirection(presenter),
       "Professional but engaging mid-reel focus break, direct eye contact, short hand gesture toward the laptop screen.",
       `The avatar speaks this exact line naturally: ${middleAvatarScripts[sceneNumber]}`,
-      "Keep the real tool page visible on a laptop or phone as context, but do not invent UI. This clip will be used between real screenshots and demo footage.",
-      "No fake UI, no personal information, no unrelated stock footage."
+      "Keep the real AltFTool/tool page visible on a laptop or phone as context, but do not invent UI. This clip will be used between real screenshots and demo footage.",
+      "No fake UI, no personal information, no unrelated stock footage, no generic B-roll."
     ].join(" ")
   }));
   const ctaScene = {
@@ -3362,15 +3394,17 @@ async function prepareHookAvatar(body = {}) {
     duration: ctaDurationSeconds,
     voiceover: ctaScript,
     onscreen_text: ctaOnscreenText,
-    visual: `${characterDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection("friendly")} Final face-to-camera CTA, phone shows an Instagram draft/caption area, laptop has the real tool page visible in the background.`,
+    visual: `${characterDirection} ${customAvatarDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection("friendly")} Final face-to-camera CTA, phone shows an Instagram draft/caption area, laptop has the real AltFTool page visible in the background.`,
     video_prompt: [
       `Create a ${ctaDurationSeconds}-second 9:16 vertical portrait AI avatar CTA clip.`,
+      "Strictly portrait 9:16 for Instagram Reels, not landscape or square; keep presenter and CTA text inside mobile safe margins.",
       characterDirection,
+      customAvatarDirection,
       hookPresenterDirection(presenter),
       "Friendly confident closing energy, direct eye contact, natural hand gesture toward the caption area.",
       `The avatar speaks this exact line naturally: ${ctaScript}`,
-      "Show a phone with a generic Instagram caption draft, no real account details, and a laptop in the background with the actual tool context.",
-      "End with a clear save/follow gesture. No fake UI, no personal information, no unrelated stock footage."
+      "Show a phone with a generic Instagram caption draft saying link in caption, no real account details, and a laptop in the background with the actual AltFTool/tool context.",
+      "End with a clear save/follow gesture and human review reminder. No fake UI, no personal information, no unrelated stock footage."
     ].join(" ")
   };
   const scenePlan = {
@@ -3407,6 +3441,7 @@ async function prepareHookAvatar(body = {}) {
         .filter((filePath) => /\.(png|jpe?g|webp)$/i.test(filePath))
         .slice(0, 6)
     },
+    avatarReferences: avatarReferenceFiles,
     hookAvatar: {
       presenter,
       avatarChoice,
@@ -3465,18 +3500,22 @@ async function prepareHookAvatar(body = {}) {
   ]));
   const saveAsPath = path.join(hookDir, "save-as.txt");
   const hookManifestPath = path.join(hookDir, "hook-avatar-manifest.json");
+  const promptReferenceFiles = [
+    ...avatarReferenceFiles,
+    ...manifest.capture.files
+  ];
   const googleVidsPrompt = buildGoogleVidsClipPrompt(scenePlan, 1, manifest, {
-    referenceFiles: manifest.capture.files
+    referenceFiles: promptReferenceFiles
   });
   const googleVidsMiddlePrompts = Object.fromEntries(middleScenes.map((sceneNumber) => [
     sceneNumber,
     buildGoogleVidsClipPrompt(scenePlan, sceneNumber, manifest, {
-      referenceFiles: manifest.capture.files
+      referenceFiles: promptReferenceFiles
     })
   ]));
   const googleVidsCtaPrompt = includeCtaAvatar
     ? buildGoogleVidsClipPrompt(scenePlan, ctaSceneNumber, manifest, {
-      referenceFiles: manifest.capture.files
+      referenceFiles: promptReferenceFiles
     })
     : "";
   const result = {
@@ -3511,6 +3550,8 @@ async function prepareHookAvatar(body = {}) {
     googleVidsPrompt,
     googleVidsMiddlePrompts,
     googleVidsCtaPrompt,
+    avatarReferences: avatarReferenceFiles,
+    avatarHostImage: avatarReferenceFiles[0] || "",
     scenePlanPath,
     manifestPath,
     hookScriptPath,
@@ -3566,6 +3607,7 @@ async function prepareHookAvatar(body = {}) {
   ].join("\n") + "\n", "utf8");
   await fs.writeFile(path.join(hookDir, "README.md"), `${hookAvatarReadme({ ...result, googleVidsPrompt, googleVidsCtaPrompt })}\n`, "utf8");
   result.files = [
+    ...avatarReferenceFiles,
     scenePlanPath,
     manifestPath,
     hookScriptPath,
@@ -3589,6 +3631,7 @@ async function prepareHookAvatar(body = {}) {
       lastHookAvatarManifest: hookManifestPath,
       hookAvatarPresenter: presenter,
       hookAvatarCharacter: body.avatar || body.googleVidsAvatar || "auto_by_reel",
+      avatarHostImage: avatarReferenceFiles[0] || state.settings?.avatarHostImage || "",
       lastHookAvatarCharacter: googleVidsAvatar,
       lastHookAvatarCharacterLabel: avatarChoice.label,
       hookAvatarTone: tone,
@@ -5384,12 +5427,20 @@ async function generateFinalVoiceovers(prepared, body, run) {
 
 async function renderFinalReel(prepared, body, run) {
   const presenter = normalizeHookPresenter(body.presenter || body.hookAvatarStyle || defaultHookAvatarStyle);
-  await runFinalNodeScript(run, "render:local", "src/render-local-reel.mjs", [
+  const avatarHostImage = await existingAvatarReferencePath(
+    body.avatarHostImage || body.avatarReferenceImage || body.customAvatarImage || body.avatarImage || ""
+  );
+  const renderArgs = [
     "--tool-dir", prepared.finalDir,
     "--output", prepared.renderDir,
     "--filename", "final_reel.mp4",
     "--hook-avatar", presenter
-  ]);
+  ];
+  if (avatarHostImage) {
+    renderArgs.push("--avatar-host", avatarHostImage);
+    addFinalReelLog(run, `Using custom avatar host image: ${avatarHostImage}`);
+  }
+  await runFinalNodeScript(run, "render:local", "src/render-local-reel.mjs", renderArgs);
   const reportPath = path.join(prepared.renderDir, "local-reel-report.json");
   const report = await readJsonArtifact(reportPath);
   if (!report?.ok) {
@@ -5901,6 +5952,17 @@ async function findToolArtifacts(body = {}) {
   const latestAssets = sortLatestArtifacts(assetManifests)[0] || null;
   const latestScript = sortLatestArtifacts(scripts)[0] || null;
   const latestHookAvatar = sortLatestArtifacts(hookAvatars)[0] || null;
+  const latestHookAvatarHasVideo = Boolean(
+    latestHookAvatar?.videoPath
+    || latestHookAvatar?.cachedScenePath
+    || latestHookAvatar?.hookAvatar?.videoPath
+    || latestHookAvatar?.hookAvatar?.hookAvatar?.videoPath
+    || latestHookAvatar?.hookAvatar?.ctaVideoPath
+    || latestHookAvatar?.hookAvatar?.ctaCachedScenePath
+    || latestHookAvatar?.hookAvatar?.ctaAvatar?.videoPath
+    || latestHookAvatar?.hookAvatar?.ctaAvatar?.cachedScenePath
+    || Object.values(latestHookAvatar?.hookAvatar?.middleAvatarVideos || {}).some(Boolean)
+  );
   return {
     input,
     row: rowNumber,
@@ -5912,6 +5974,7 @@ async function findToolArtifacts(body = {}) {
     hasAssets: Boolean(latestAssets),
     hasScript: Boolean(latestScript),
     hasHookAvatar: Boolean(latestHookAvatar),
+    hasHookAvatarVideo: latestHookAvatarHasVideo,
     latestAssets,
     latestScript,
     latestHookAvatar,
@@ -5925,6 +5988,7 @@ async function findToolArtifacts(body = {}) {
     })),
     hookAvatars: sortLatestArtifacts(hookAvatars).slice(0, 5).map((item) => ({
       ...item,
+      hasVideo: Boolean(item.videoPath || item.cachedScenePath || item.hookAvatar?.ctaVideoPath || item.hookAvatar?.ctaCachedScenePath || item.hookAvatar?.ctaAvatar?.videoPath || item.hookAvatar?.ctaAvatar?.cachedScenePath || Object.values(item.hookAvatar?.middleAvatarVideos || {}).some(Boolean)),
       hookAvatar: undefined
     }))
   };
@@ -6188,6 +6252,81 @@ async function saveUploadedInput(req, options = {}) {
     bytes: data.length,
     tools,
     analysis
+  };
+}
+
+function normalizeAvatarReferencePath(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+  if (!/\.(png|jpe?g|webp)$/i.test(raw)) {
+    return "";
+  }
+  const resolved = path.isAbsolute(raw) ? path.resolve(raw) : path.resolve(projectRoot, raw);
+  if (!allowedOutputPath(resolved)) {
+    return "";
+  }
+  return resolved;
+}
+
+async function existingAvatarReferencePath(value) {
+  const resolved = normalizeAvatarReferencePath(value);
+  if (!resolved) {
+    return "";
+  }
+  return fsSync.existsSync(resolved) ? resolved : "";
+}
+
+async function avatarReferenceFilesFromBody(body = {}) {
+  const source = [
+    body.avatarHostImage,
+    body.avatarReferenceImage,
+    body.customAvatarImage,
+    body.avatarImage,
+    body.avatarReferenceImages
+  ].filter(Boolean).join(",");
+  const files = [];
+  for (const item of source.split(",").map((value) => value.trim()).filter(Boolean)) {
+    const found = await existingAvatarReferencePath(item);
+    if (found && !files.includes(found)) {
+      files.push(found);
+    }
+  }
+  return files.slice(0, 3);
+}
+
+async function saveUploadedAvatarReference(req) {
+  const originalName = req.headers["x-file-name"] || "avatar.png";
+  const safeName = safeAvatarFileName(originalName);
+  const data = await readBinaryBody(req, 12 * 1024 * 1024);
+  if (!data.length) {
+    throw new Error("Selected avatar image was empty.");
+  }
+
+  const uploadDir = path.join(projectRoot, "work", "avatar-references");
+  await ensureDir(uploadDir);
+  const savedName = `${timestampSlug()}-${safeName}`;
+  const savedPath = path.resolve(uploadDir, savedName);
+  const relativePath = path.relative(projectRoot, savedPath);
+  if (relativePath.startsWith("../") || path.isAbsolute(relativePath)) {
+    throw new Error("Avatar upload path escaped the project folder.");
+  }
+  await fs.writeFile(savedPath, data);
+  await updateUiState((state) => {
+    state.settings = {
+      ...(state.settings || {}),
+      avatarHostImage: savedPath,
+      updatedAt: new Date().toISOString()
+    };
+  });
+  return {
+    avatar: publicAssetFile(savedPath),
+    path: savedPath,
+    relativePath,
+    originalName: String(originalName || ""),
+    savedName,
+    bytes: data.length
   };
 }
 
@@ -7139,6 +7278,7 @@ async function saveSettingsState(body) {
     "basicWorkflowMode",
     "hookAvatarStyle",
     "hookAvatarCharacter",
+    "avatarHostImage",
     "hookPrimaryProfile",
     "hookFallbackProfile",
     "hookFallbackEnabled",
@@ -7212,6 +7352,7 @@ async function handleApi(req, res, pathname, searchParams) {
           basicWorkflowMode: savedSettings.basicWorkflowMode || "google-hook",
           hookAvatarStyle: savedSettings.hookAvatarStyle || defaultHookAvatarStyle,
           hookAvatarCharacter: savedSettings.hookAvatarCharacter || "auto_by_reel",
+          avatarHostImage: savedSettings.avatarHostImage || "",
           hookPrimaryProfile: savedSettings.hookPrimaryProfile || savedSettings.globalPrimaryProfile || defaultProfiles[0] || "",
           hookFallbackProfile: savedSettings.hookFallbackProfile || savedSettings.globalFallbackProfile || defaultProfiles[1] || "",
           hookFallbackEnabled: typeof savedSettings.hookFallbackEnabled === "boolean" ? savedSettings.hookFallbackEnabled : true,
@@ -7380,6 +7521,11 @@ async function handleApi(req, res, pathname, searchParams) {
     if (req.method === "POST" && pathname === "/api/input-upload") {
       const saveOnly = ["1", "true", "save-only"].includes(String(searchParams.get("saveOnly") || searchParams.get("mode") || "").toLowerCase());
       json(res, 201, { ok: true, upload: await saveUploadedInput(req, { analyze: !saveOnly }) });
+      return;
+    }
+
+    if (req.method === "POST" && pathname === "/api/avatar-upload") {
+      json(res, 201, { ok: true, upload: await saveUploadedAvatarReference(req) });
       return;
     }
 

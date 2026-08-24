@@ -193,12 +193,28 @@ The dashboard opens in `Basic` mode for one-video production:
 2. Click `Load` and select the tool row.
 3. Keep `Hook Vids + Local` for the recommended workflow.
 4. Choose `Female presenter`, `Male presenter`, or `Auto presenter`.
-5. Choose 30, 40, 50, or 60 seconds.
-6. Click `Prepare Assets` to build script, screenshots, recordings, prompts, and workbook links without final render.
-7. Use `Edit Script` when needed to update Hook, Body, CTA, caption, hashtags, or scene-wise voiceover/on-screen text, then click `Save Update`.
-8. Click `Create Quality Reel` to generate the recommended Reel: Google Vids avatar hook when quota/profile is available, real tool demo in the body, Edge Hindi voiceover, captions, music, quality report, and final local MP4.
+5. Use the avatar photo control to select the built-in female/male AltFTool presenter or upload a consented PNG/JPG/WebP custom avatar photo.
+6. Choose 30, 40, 50, or 60 seconds.
+7. Click `Prepare Assets` to build script, screenshots, recordings, prompts, and workbook links without final render.
+8. Use `Edit Script` when needed to update Hook, Body, CTA, caption, hashtags, or scene-wise voiceover/on-screen text, then click `Save Update`.
+9. Click `Create Quality Reel` to generate the recommended Reel: Google Vids avatar hook when quota/profile is available, real tool demo in the body, Edge Hindi voiceover, captions, music, quality report, and final local MP4.
 
-The dashboard remembers the last Excel path, selected row, Basic mode, avatar style, duration, Drive sync folder, and selected tab in `work/ui-state.json`.
+The dashboard remembers the last Excel path, selected row, Basic mode, avatar style, avatar photo, duration, Drive sync folder, and selected tab in `work/ui-state.json`. Uploaded custom avatar photos are stored in `work/avatar-references/`.
+
+Resume after a failed automation run:
+
+1. Select the same tool row again.
+2. Use the existing-work strip to choose `Use Old Assets`, `Use Old Script`, or `Use Old Avatar`.
+3. If only the avatar prompt pack exists but no downloaded avatar video exists, click `Avatar Step`, generate/download the avatar pack, then click `Final Step`.
+4. If only final render failed, click `Final Step` and render again from the saved assets/script/avatar.
+
+Google Vids prompt quality rules:
+
+- Every generated clip is portrait 9:16 for Reels/Shorts.
+- The hook starts in the first 2 seconds with a direct Hinglish line.
+- Tool proof must use real AltFTool/tool screenshots, URL context, or captured screen references.
+- No fake UI, no unsupported features, no private data, and no generic filler.
+- CTA clips mention the caption link, save/share/follow action, and human review before sharing.
 
 ### 2. Tool Capture Agent
 
