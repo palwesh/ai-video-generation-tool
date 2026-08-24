@@ -212,21 +212,24 @@ http://127.0.0.1:4317
 
 The dashboard now opens in `Basic` mode. The existing full control set is under `Advanced Features`, including Excel row selection, modes, Google Vids profiles, queue/history, docs, terminal, and MP4 preview.
 
-Read the docs inside the Basic dashboard:
+Read the docs on the separate Docs page:
 
 ```text
-http://127.0.0.1:4317/#docsSection
+http://127.0.0.1:4317/docs.html
 ```
 
-Use the top `Docs` button, the `Read Docs` button beside Excel import, or the left sidebar `Docs` step. The docs reader supports selected doc, all docs one page, search, refresh, and clickable sections.
+Use the top `Docs` button from Basic mode. The docs reader supports selected doc, all docs one page, search, refresh, and clickable sections without taking space inside the workflow screen.
 
 Basic mode is the recommended one-video workflow:
 
 - `Excel file`: choose an `.xlsx`, `.xls`, or `.csv`, or paste the saved workbook path. The last selected path is remembered.
 - `Tool row`: select the exact Excel row to process; Basic and Advanced row fields stay synced.
+- `Credit Safe`: ON by default. It locks Google Vids avatar/voiceover generation, blocks paid/API voice providers, and requires typing `VIDS` before any Google Vids credit-spending action after you unlock it.
+- `Vids Fallback Profiles`: open the profile checkbox dropdown and select up to 4 logged-in Google Vids profiles for Auto Run. If one profile hits a limit, the queue can try the next selected profile.
 - `Video mode`: keep `Hook Vids + Local` for the best balance: Google Vids creates short avatar moments where useful, then local rendering uses real screenshots/recordings for the body.
 - `Duration`: choose 30, 40, 50, or 60 seconds. Each scene is 10 seconds.
 - `Prepare Assets`: builds script, scene plan, screenshots, recordings, prompts, provider packs, and workbook links without final rendering or Google Vids quota.
+- `Edit Script`: after generating or loading an old script, edit Hook, Body, CTA, caption, hashtags, and scene-wise text, then click `Save Update`. The dashboard rewrites `reel-script.json`, `reel-script.md`, `scenes.json`, and keeps a backup JSON in the same script folder.
 - `Create Quality Reel`: applies the recommended production preset, saves settings, runs one video, streams logs in the black terminal, and previews the final MP4 in the Basic page.
 - `Drive sync folder` and `Update selected Excel after run`: optional, for saving final video/folder links back into your workbook.
 

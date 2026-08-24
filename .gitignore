@@ -2,6 +2,9 @@
 
 # Local dependencies and package/cache output
 node_modules/
+.venv/
+__pycache__/
+*.pyc
 npm-debug.log*
 *.log
 
@@ -25,3 +28,8 @@ public/tool-reel-assets/
 *.wav
 *.aiff
 *.mp3
+
+# Reusable brand/avatar source assets
+!public/avatar/
+!public/avatar/*.png
+!public/avatar/*.md

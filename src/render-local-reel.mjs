@@ -200,9 +200,20 @@ function buildQualityReport({ props, assets, audioAssets, outputPath, sizeBytes,
       : "Add at least one short desktop/mobile recording for a less static reel."
   );
 
-  const voiceoverCount = Array.isArray(audioAssets.voiceovers) ? audioAssets.voiceovers.filter(Boolean).length : 0;
+  const voiceovers = Array.isArray(audioAssets.voiceovers) ? audioAssets.voiceovers : [];
   const hasBodyVoiceoverSource = hasAsset(assets.bodyVoiceoverVideo);
-  const voiceoverReady = voiceoverCount >= Math.max(1, Math.min(3, scenes.length)) || hasBodyVoiceoverSource;
+  const avatarAudioScenes = new Set((assets.vidsClipAudioScenes || [])
+    .map(Number)
+    .filter(Number.isFinite));
+  const voiceoverCoverage = scenes.filter((_, index) => {
+    const sceneNumber = index + 1;
+    return Boolean(
+      voiceovers[index]
+      || avatarAudioScenes.has(sceneNumber)
+      || (hasBodyVoiceoverSource && sceneNumber > 1)
+    );
+  }).length;
+  const voiceoverReady = scenes.length > 0 && voiceoverCoverage >= scenes.length;
   addQualityCheck(
     checks,
     "voiceover",
@@ -210,7 +221,7 @@ function buildQualityReport({ props, assets, audioAssets, outputPath, sizeBytes,
     voiceoverReady,
     14,
     voiceoverReady
-      ? `${voiceoverCount} scene voiceover file(s) found${hasBodyVoiceoverSource ? " plus body voiceover source video" : ""}.`
+      ? `${voiceoverCoverage}/${scenes.length} scene(s) have voiceover coverage from local audio, avatar clips, or body voiceover source.`
       : "Generate natural voiceover files or add manual voice files in the voiceovers folder."
   );
 
@@ -802,6 +813,29 @@ async function mirrorLocalRenderOutputs(report) {
     entries.push(videoEntry);
   }
 
+  const ctaSceneNumber = Array.isArray(scenePlan.scenes) ? scenePlan.scenes.length : 0;
+  const ctaClipRecord = (report.assets?.vidsClipCache?.copiedFiles || []).find((clip) => (
+    Number(clip?.sceneNumber) === ctaSceneNumber
+    && /cta|avatar|scene_clip/i.test(`${clip?.kind || ""} ${clip?.file || ""} ${clip?.note || ""} ${clip?.sourcePath || ""}`)
+  ));
+  const ctaPublicPath = ctaSceneNumber > 0 ? report.assets?.vidsClips?.[ctaSceneNumber - 1] : "";
+  const ctaClipSource = await firstExisting([
+    ctaClipRecord?.sourcePath,
+    ctaClipRecord?.absolutePath,
+    ctaPublicPath ? path.resolve("public", ctaPublicPath) : ""
+  ]);
+  const ctaEntry = await mirrorGeneratedFile({
+    toolDir,
+    sourcePath: ctaClipSource,
+    category: "local-render",
+    fileName: "cta_avatar.mp4",
+    label: "CTA avatar source clip",
+    note: "Reusable CTA avatar clip used by the fullscreen final-scene render."
+  });
+  if (ctaEntry) {
+    entries.push(ctaEntry);
+  }
+
   const propsEntry = await mirrorGeneratedFile({
     toolDir,
     sourcePath: propsPath,
@@ -841,10 +875,13 @@ async function mirrorLocalRenderOutputs(report) {
   report.generatedArchive = {
     folder: archiveDir,
     primaryVideoPath: videoEntry?.destinationPath || "",
+    ctaAvatarPath: ctaEntry?.destinationPath || "",
     files: entries,
     directories
   };
   report.toolFolderOutputPath = videoEntry?.destinationPath || "";
+  report.ctaAvatarSourcePath = ctaClipSource || "";
+  report.ctaAvatarArchivePath = ctaEntry?.destinationPath || "";
   return report.generatedArchive;
 }
 
@@ -904,6 +941,9 @@ try {
   console.log(`Local MP4: ${outputPath}`);
   if (report.toolFolderOutputPath) {
     console.log(`Tool folder MP4: ${report.toolFolderOutputPath}`);
+  }
+  if (report.ctaAvatarArchivePath) {
+    console.log(`CTA avatar clip: ${report.ctaAvatarArchivePath}`);
   }
   console.log(`Report: ${reportPath}`);
 } catch (error) {

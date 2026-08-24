@@ -19,14 +19,27 @@
 Use `http://127.0.0.1:4317` for the simplest one-video workflow.
 
 - The dashboard opens in `Basic` mode and remembers the last Excel path, row, mode, avatar style, duration, Drive folder, and active tab.
-- The Basic page includes a readable Docs section at `http://127.0.0.1:4317/#docsSection` with selected-doc mode, all-docs mode, search, refresh, and section links.
+- The Basic page keeps docs separate at `http://127.0.0.1:4317/docs.html` so the workflow stays clean. The docs page supports selected-doc mode, all-docs mode, search, refresh, and section links.
+- `Credit Safe` is ON by default. In this mode Google Vids avatar/voiceover buttons are locked, and paid/API voice choices are switched back to free voice. Turn it off only when you intentionally want Google Vids generation; the dashboard asks you to type `VIDS` before starting any credit-spending action.
 - `Prepare Assets` runs the quota-free preparation stage: real website capture, asset brief, improved Hook-Body-CTA script, 3-6 scene plan, Google Vids prompts, free provider prompts, and workbook links.
+- `Edit Script` opens the saved script in the dashboard. Update Hook, Body, CTA, caption, hashtags, or scene voiceover/on-screen text, then click `Save Update`; the saved script files are updated before avatar or final render.
 - `Create Quality Reel` runs the recommended production path. If the mode is not a final-render mode, it switches to `Hook Vids + Local` automatically.
 - `Generate Avatar Pack` prepares or generates Google Vids avatar clips for Scene 1 hook, Scene 2 focus break, and the last-scene CTA.
 - `Hook Vids + Local` uses the downloaded hook/focus/CTA clips when available, caches them under `vids-clips/scene-XX.mp4`, then merges the final MP4 locally with real tool screenshots/recordings, voiceover, captions, music, and CTA.
 - Body visuals are selected from the captured assets according to voiceover meaning: workflow lines show screen recording, output lines show result screenshots, before-after lines show comparison screens, and share/review lines show mobile or safety/result screens.
 - `Local MP4 Free` skips Google Vids quota entirely and creates the Reel locally from real assets and local generated presenter-style visuals.
 - The Basic terminal is scrollable and mirrors the Advanced terminal logs.
+
+## General Script Video Flow
+
+This flow is separate from the AltFTool promotion workflow. Use it when you already have a normal script and want a Google Vids avatar video from that script.
+
+- Open `General Script Video` on the Basic dashboard.
+- Paste the script, choose title/topic, language, duration, presenter, Google Vids avatar, primary profile, and fallback profile.
+- Click `Optimize Script` first. This is credit-safe and creates `outputs/script-videos/{title}_{timestamp}/` with `input-script.txt`, `optimized-script.md`, `scene-plan.json`, `manifest.json`, and Google Vids scene prompts.
+- Turn `Credit Safe` off only when you are ready to spend Google Vids credits. The dashboard asks for `VIDS` before generation.
+- Click `Generate in Google Vids`. It opens Google Vids with the selected browser profile, generates 10-second portrait avatar scenes, inserts them, exports the MP4, and saves `final_script_video.mp4` in the same folder.
+- If the primary profile has login/quota issues, the fallback profile is tried automatically when enabled.
 
 ## Google Vids Reality
 

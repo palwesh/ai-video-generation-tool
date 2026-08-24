@@ -22,7 +22,7 @@ from xml.etree import ElementTree as ET
 
 NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 MAX_DATA_ROWS = 10001
-MAX_IDEA_ROWS = 10000
+MAX_IDEA_ROWS = 0
 
 FIELD_ALIASES = {
     "tool_name": ["tool_name", "tool name", "name", "tool", "product", "product_name", "idea name", "idea_name"],
@@ -195,6 +195,30 @@ def parse_first_non_empty_row(zip_file: zipfile.ZipFile) -> tuple[int, dict[int,
     return 0, {}, set()
 
 
+def parse_row_by_number(zip_file: zipfile.ZipFile, target_row_number: int) -> tuple[dict[int, tuple[str, Any]], set[int]]:
+    cells: dict[int, tuple[str, Any]] = {}
+    wanted_strings: set[int] = set()
+    with zip_file.open("xl/worksheets/sheet1.xml") as sheet:
+        for fallback_row_number, (_, row) in enumerate(ET.iterparse(sheet, events=("end",)), start=1):
+            if not row.tag.endswith("}row"):
+                continue
+            row_number = int(row.attrib.get("r", fallback_row_number))
+            if row_number != target_row_number:
+                row.clear()
+                continue
+            for cell in row.findall(f"{NS}c"):
+                col = column_number(cell.attrib.get("r", ""))
+                value = raw_cell_value(cell)
+                if not col or value is None:
+                    continue
+                cells[col] = value
+                if value[0] == "s":
+                    wanted_strings.add(int(value[1]))
+            row.clear()
+            break
+    return cells, wanted_strings
+
+
 def alias_columns(headers_by_col: dict[int, str], canonical: str) -> list[int]:
     aliases = {normalize_header(alias) for alias in FIELD_ALIASES[canonical]}
     return [
@@ -256,7 +280,7 @@ def analyze_ideas_only(input_path: str, base_url: str, limit: int = MAX_IDEA_ROW
                             "priority_value": picked.get(priority_cols[0]) if priority_cols else None,
                         })
                     row.clear()
-                    if len(ideas) >= limit:
+                    if limit > 0 and len(ideas) >= limit:
                         capped = True
                         break
 
@@ -292,6 +316,62 @@ def analyze_ideas_only(input_path: str, base_url: str, limit: int = MAX_IDEA_ROW
             "scannedRows": scanned_rows,
             "headers": [headers_by_col[col] for col in sorted(headers_by_col)],
             "warnings": warnings,
+        },
+    }
+
+
+def analyze_target_row(input_path: str, base_url: str, target_row_number: int) -> dict[str, Any]:
+    with zipfile.ZipFile(input_path) as zip_file:
+        header_row_number, header_cells, header_wanted = parse_first_non_empty_row(zip_file)
+        target_cells, target_wanted = parse_row_by_number(zip_file, target_row_number)
+        wanted_strings = set(header_wanted) | set(target_wanted)
+        shared_strings = parse_shared_strings(zip_file, wanted_strings) if wanted_strings and "xl/sharedStrings.xml" in zip_file.namelist() else {}
+
+    if not header_cells:
+        return {
+            "tools": [],
+            "analysis": {
+                "input": os.path.abspath(input_path),
+                "fileName": os.path.basename(input_path),
+                "targetRow": target_row_number,
+                "warnings": ["Header row was not found."],
+            },
+        }
+
+    header_cols = sorted(header_cells)
+    headers = make_unique_headers([decode_value(header_cells.get(col), shared_strings) for col in header_cols])
+    if not target_cells:
+        return {
+            "tools": [],
+            "analysis": {
+                "input": os.path.abspath(input_path),
+                "fileName": os.path.basename(input_path),
+                "headers": headers,
+                "targetRow": target_row_number,
+                "warnings": [f"Row {target_row_number} was not found."],
+            },
+        }
+
+    obj = {
+        header: decode_value(target_cells.get(col), shared_strings)
+        for header, col in zip(headers, header_cols)
+    }
+    tool = normalize_tool_row(obj, target_row_number, base_url, os.path.basename(input_path))
+    return {
+        "tools": [{
+            **tool,
+            "row": tool["source_row_number"],
+            "name": tool["tool_name"],
+            "url": tool["tool_url"],
+        }],
+        "analysis": {
+            "input": os.path.abspath(input_path),
+            "fileName": os.path.basename(input_path),
+            "headers": headers,
+            "headerRow": header_row_number,
+            "targetRow": target_row_number,
+            "detectedToolRows": 1,
+            "warnings": ["Large workbook target row parsed with lightweight reader."],
         },
     }
 
@@ -436,11 +516,14 @@ def main() -> int:
     parser.add_argument("--base-url", default="")
     parser.add_argument("--full-tools", action="store_true")
     parser.add_argument("--ideas-only", action="store_true")
+    parser.add_argument("--target-row", type=int, default=0)
     parser.add_argument("--ideas-limit", type=int, default=MAX_IDEA_ROWS)
     args = parser.parse_args()
     try:
-        if args.ideas_only:
-            print(json.dumps(analyze_ideas_only(args.input, args.base_url, max(1, args.ideas_limit)), ensure_ascii=False))
+        if args.target_row:
+            print(json.dumps(analyze_target_row(args.input, args.base_url, args.target_row), ensure_ascii=False))
+        elif args.ideas_only:
+            print(json.dumps(analyze_ideas_only(args.input, args.base_url, max(0, args.ideas_limit)), ensure_ascii=False))
         else:
             print(json.dumps(analyze(args.input, args.base_url, args.full_tools), ensure_ascii=False))
         return 0

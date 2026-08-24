@@ -18,7 +18,7 @@ import { generateFallbackScenePlan } from "./lib/fallback.mjs";
 import { optimizeScenePlan, buildReelScriptPackage } from "./lib/scene-optimizer.mjs";
 import { validateScenePlan } from "./lib/scenes-schema.mjs";
 import { roleForScene } from "./lib/reel-planner.mjs";
-import { buildGoogleVidsClipPrompt } from "./lib/vids-master-prompt.mjs";
+import { buildGoogleVidsClipPrompt, buildGoogleVidsMasterPrompt } from "./lib/vids-master-prompt.mjs";
 import { cacheVidsExport, cacheVidsSceneClip, ensureVidsClipCache } from "./lib/vids-clip-cache.mjs";
 import {
   buildViralHookOptions,
@@ -49,8 +49,10 @@ const defaultInput = resolveProjectPath(
   "/Users/palsahu/workplace/projects/n learn/Book1.xlsx"
 );
 const largeXlsxThresholdBytes = Number(process.env.TRF_LARGE_XLSX_THRESHOLD_BYTES || 20 * 1024 * 1024);
-const defaultProfiles = ["work/google-vids-profile", "work/google-vids-profile-2"];
 const googleVidsConfig = appConfig.googleVids || {};
+const defaultProfiles = Array.isArray(googleVidsConfig.defaultProfiles) && googleVidsConfig.defaultProfiles.length
+  ? googleVidsConfig.defaultProfiles
+  : ["work/hr-anslation.com", "work/shejal.sahu-anslation.com-profile", "work/google-vids-profile", "work/google-vids-profile-2"];
 const defaultAvatar = googleVidsConfig.defaultAvatar || "auto";
 const defaultAvatarScenes = googleVidsConfig.defaultAvatarScenes || "1,2,6";
 const defaultIngredientScenes = googleVidsConfig.defaultIngredientScenes || "3,4,5";
@@ -77,6 +79,7 @@ const queues = new Map();
 const assetRuns = new Map();
 const hookAvatarRuns = new Map();
 const finalReelRuns = new Map();
+const scriptVideoRuns = new Map();
 const uiStatePath = path.join(projectRoot, "work", "ui-state.json");
 const trackerWorkbookPath = path.join(projectRoot, "outputs", "work-tracker", "tool-work-tracker.xlsx");
 let stateWrite = Promise.resolve();
@@ -306,6 +309,9 @@ function runLargeXlsxAnalyzer(inputPath, baseUrl = "", options = {}) {
         analyzerArgs.push("--ideas-limit", String(options.ideasLimit));
       }
     }
+    if (options.targetRow) {
+      analyzerArgs.push("--target-row", String(options.targetRow));
+    }
     const child = spawn("python3", analyzerArgs, {
       cwd: projectRoot,
       env: process.env,
@@ -361,8 +367,19 @@ function allSceneList(maxScenes) {
   return Array.from({ length: maxScenes }, (_, index) => String(index + 1)).join(",");
 }
 
+function creditSafeModeEnabled(value) {
+  return value === true || String(value || "").trim().toLowerCase() === "true";
+}
+
+function googleGenerationMode(mode) {
+  return ["google", "google-full", "google-hook"].includes(String(mode || ""));
+}
+
 function normalizeRunBody(body = {}) {
-  const mode = String(body.mode || "local").trim() || "local";
+  let mode = String(body.mode || "local").trim() || "local";
+  if (creditSafeModeEnabled(body.creditSafeMode) && googleGenerationMode(mode)) {
+    mode = "local";
+  }
   const maxScenes = clamp(asFiniteNumber(body.maxScenes, 6), 3, 6);
   const normalized = {
     ...body,
@@ -782,8 +799,18 @@ async function profileIdentity(profilePath) {
 }
 
 function profileDisplayLabel(profile, index) {
+  const alias = {
+    "work/hr-anslation.com": "HR profile",
+    "work/shejal.sahu-anslation.com-profile": "Sejal profile"
+  }[profile.path];
   const prefix = `Profile ${index + 1}`;
   const identity = profile.email || profile.googleName || profile.profileName || "";
+  if (alias && identity) {
+    return `${prefix} - ${alias} (${identity})`;
+  }
+  if (alias) {
+    return `${prefix} - ${alias}`;
+  }
   if (identity) {
     return `${prefix} - ${identity}`;
   }
@@ -917,37 +944,43 @@ async function listProfiles() {
   const removedProfiles = new Set((state.removedProfiles || []).map(normalizeProfilePathOrNull).filter(Boolean));
   const workDir = path.join(projectRoot, "work");
   const found = [];
-  try {
-    const entries = await fs.readdir(workDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory() || !entry.name.startsWith("google-vids-profile")) {
-        continue;
-      }
-      const profilePath = normalizeProfilePath(path.join("work", entry.name));
-      if (!removedProfiles.has(profilePath)) {
-        found.push(profilePath);
-      }
+
+  const pushProfile = (value) => {
+    const profilePath = normalizeProfilePath(value);
+    if (!removedProfiles.has(profilePath) && !found.includes(profilePath)) {
+      found.push(profilePath);
     }
-  } catch {
-    // The work directory is optional; defaults below keep the UI usable.
+  };
+
+  for (const profile of defaultProfiles) {
+    pushProfile(profile);
   }
 
   for (const saved of state.profiles || []) {
     try {
-      const profile = normalizeProfilePath(saved.path || saved);
-      if (!removedProfiles.has(profile) && !found.includes(profile)) {
-        found.push(profile);
-      }
+      pushProfile(saved.path || saved);
     } catch {
       // Ignore invalid profile paths from older local state edits.
     }
   }
 
-  for (const profile of defaultProfiles) {
-    const normalizedProfile = normalizeProfilePath(profile);
-    if (!removedProfiles.has(normalizedProfile) && !found.includes(normalizedProfile)) {
-      found.push(normalizedProfile);
+  try {
+    const entries = await fs.readdir(workDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+      const absoluteCandidate = path.join(workDir, entry.name);
+      const looksLikeBrowserProfile = entry.name.startsWith("google-vids-profile") ||
+        fsSync.existsSync(path.join(absoluteCandidate, "Local State")) ||
+        fsSync.existsSync(path.join(absoluteCandidate, "Default", "Preferences"));
+      if (!looksLikeBrowserProfile) {
+        continue;
+      }
+      pushProfile(path.join("work", entry.name));
     }
+  } catch {
+    // The work directory is optional; defaults above keep the UI usable.
   }
 
   const profiles = [];
@@ -1268,7 +1301,11 @@ function toolOptionsFromTools(tools = []) {
 function ideaNameOptionsFromTools(tools = []) {
   return tools.map((tool) => ({
     row: Number(tool.source_row_number || tool.row || 0),
-    name: tool.tool_name || tool.name || ""
+    name: tool.tool_name || tool.name || "",
+    url: tool.tool_url || tool.url || "",
+    status: tool.status || "",
+    category: tool.category || "",
+    priority: tool.priority || ""
   })).filter((tool) => tool.row && tool.name);
 }
 
@@ -1327,7 +1364,7 @@ async function listToolIdeas(inputPath) {
   if (await shouldUseLargeXlsxReader(resolvedInput)) {
     const ideas = await runLargeXlsxAnalyzer(resolvedInput, config.toolBaseUrl || "", {
       ideasOnly: true,
-      ideasLimit: config.ui?.ideaListLimit || 10000
+      ideasLimit: config.ui?.ideaListLimit || 0
     });
     return {
       input: resolvedInput,
@@ -1438,6 +1475,26 @@ function sortLatestArtifacts(items = []) {
   });
 }
 
+function artifactTime(value = {}) {
+  return value.generatedAt || value.generated_at || value.updatedAt || value.modifiedAt || value.startedAt || value.endedAt || "";
+}
+
+async function existingOutputPath(paths = []) {
+  for (const item of paths) {
+    const candidate = String(item || "").trim();
+    if (!candidate) continue;
+    const resolved = path.resolve(candidate);
+    if (!allowedOutputPath(resolved)) continue;
+    try {
+      await fs.access(resolved);
+      return resolved;
+    } catch {
+      // Keep looking for another saved output.
+    }
+  }
+  return "";
+}
+
 function clipText(value, maxLength = 900) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
   return text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
@@ -1452,10 +1509,10 @@ async function toolRowForInput(inputPath, rowNumber) {
   }
 
   if (await shouldUseLargeXlsxReader(resolvedInput)) {
-    const analyzed = await runLargeXlsxAnalyzer(resolvedInput, config.toolBaseUrl || "", { fullTools: true });
+    const analyzed = await runLargeXlsxAnalyzer(resolvedInput, config.toolBaseUrl || "", { targetRow: sourceRowNumber });
     const row = (analyzed.tools || []).find((tool) => Number(tool.source_row_number || tool.row) === sourceRowNumber);
     if (!row) {
-      throw new Error(`Row ${sourceRowNumber} was not found in the first analyzed rows of this large workbook.`);
+      throw new Error(`Row ${sourceRowNumber} was not found in the workbook.`);
     }
     return {
       ...row,
@@ -1953,6 +2010,860 @@ async function generateReelScript(body) {
   });
 
   return result;
+}
+
+function normalizeEditorScriptText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function normalizeEditorHashtags(value) {
+  const raw = Array.isArray(value)
+    ? value.join(" ")
+    : String(value || "");
+  return raw
+    .split(/[\s,]+/)
+    .map((item) => item.trim().replace(/[.,;:]+$/g, ""))
+    .filter(Boolean)
+    .map((item) => item.startsWith("#") ? item : `#${item.replace(/^#+/, "")}`)
+    .filter((item, index, items) => items.indexOf(item) === index)
+    .slice(0, 30);
+}
+
+function resolveScriptUpdatePath(body = {}) {
+  const fromPath = String(body.scriptPath || "").trim();
+  const fromDir = String(body.scriptDir || body.folder || "").trim();
+  const candidate = fromPath
+    ? path.resolve(fromPath)
+    : path.resolve(fromDir, "reel-script.json");
+  if (path.basename(candidate) !== "reel-script.json") {
+    throw new Error("Only reel-script.json can be updated from the script editor.");
+  }
+  if (!allowedOutputPath(candidate)) {
+    throw new Error("Script path is not allowed.");
+  }
+  return candidate;
+}
+
+function applyScriptEditorUpdate(existing = {}, editor = {}) {
+  const updated = cloneJson(existing);
+  const scenes = Array.isArray(updated.plan?.scenes) ? updated.plan.scenes : [];
+  const incomingScenes = Array.isArray(editor.scenes) ? editor.scenes : [];
+  const incomingByNumber = new Map(incomingScenes.map((scene, index) => [
+    Number(scene.scene_number || index + 1),
+    scene
+  ]));
+  const nextScenes = scenes.map((scene, index) => {
+    const sceneNumber = Number(scene.scene_number || index + 1);
+    const incoming = incomingByNumber.get(sceneNumber) || {};
+    return {
+      ...scene,
+      scene_number: sceneNumber,
+      voiceover: normalizeEditorScriptText(incoming.voiceover ?? scene.voiceover),
+      onscreen_text: normalizeEditorScriptText(incoming.onscreen_text ?? scene.onscreen_text),
+      visual: normalizeEditorScriptText(incoming.visual ?? scene.visual),
+      duration: Number(incoming.duration || scene.duration || 10)
+    };
+  });
+
+  const fallbackBody = nextScenes.slice(1, -1).map((scene) => scene.voiceover).filter(Boolean).join(" ");
+  const hook = normalizeEditorScriptText(editor.hook || nextScenes[0]?.voiceover || "");
+  const body = normalizeEditorScriptText(editor.body || fallbackBody);
+  const cta = normalizeEditorScriptText(editor.cta || nextScenes.at(-1)?.voiceover || "");
+  if (nextScenes.length) {
+    nextScenes[0].voiceover = hook || nextScenes[0].voiceover;
+    nextScenes[nextScenes.length - 1].voiceover = cta || nextScenes[nextScenes.length - 1].voiceover;
+  }
+
+  const scriptPackage = {
+    ...(updated.scriptPackage || updated.plan?.metadata?.script_package || {}),
+    hook,
+    body,
+    cta,
+    final_script: nextScenes.map((scene) => `Scene ${scene.scene_number}: ${scene.voiceover}`).join("\n"),
+    script_language: updated.scriptLanguage || updated.scriptPackage?.script_language || updated.plan?.metadata?.language || "Hinglish",
+    updated_by_dashboard: true,
+    updated_at: new Date().toISOString()
+  };
+  const seo = {
+    ...(updated.seo || {}),
+    instagram_caption: String(editor.caption ?? updated.seo?.instagram_caption ?? "").trim(),
+    hashtags: normalizeEditorHashtags(editor.hashtags ?? updated.seo?.hashtags ?? [])
+  };
+
+  updated.plan = {
+    ...(updated.plan || {}),
+    scenes: nextScenes,
+    metadata: {
+      ...(updated.plan?.metadata || {}),
+      script_package: scriptPackage,
+      scene_count: nextScenes.length,
+      total_duration_seconds: nextScenes.reduce((total, scene) => total + Number(scene.duration || 10), 0),
+      updated_by_dashboard: true,
+      updated_at: new Date().toISOString()
+    }
+  };
+  updated.scriptPackage = scriptPackage;
+  updated.seo = seo;
+  updated.sceneCount = nextScenes.length;
+  updated.totalDurationSeconds = updated.plan.metadata.total_duration_seconds;
+  updated.status = "updated";
+  updated.updatedAt = new Date().toISOString();
+  return updated;
+}
+
+async function updateReelScript(body = {}) {
+  const scriptPath = resolveScriptUpdatePath(body);
+  const scriptDir = path.dirname(scriptPath);
+  const existing = await readJson(scriptPath);
+  if (!existing || typeof existing !== "object") {
+    throw new Error("Existing reel script JSON could not be read.");
+  }
+  const updated = applyScriptEditorUpdate(existing, body.editor || {});
+  const markdownPath = existing.markdownPath || path.join(scriptDir, "reel-script.md");
+  const scenesPath = path.join(scriptDir, "scenes.json");
+  const captionPath = path.join(scriptDir, "instagram-caption.txt");
+  const backupPath = path.join(scriptDir, `reel-script.backup-${timestampSlug()}.json`);
+  await writeJson(backupPath, existing);
+  updated.scriptDir = scriptDir;
+  updated.scriptPath = scriptPath;
+  updated.markdownPath = markdownPath;
+  updated.files = [scriptPath, markdownPath, scenesPath, captionPath, backupPath].map(publicAssetFile);
+  await writeJson(scriptPath, updated);
+  await fs.writeFile(markdownPath, `${scriptMarkdown(updated)}\n`, "utf8");
+  await writeJson(scenesPath, updated.plan);
+  await fs.writeFile(captionPath, `${updated.seo.instagram_caption || ""}\n\n${(updated.seo.hashtags || []).join(" ")}\n`, "utf8");
+
+  await updateUiState((state) => {
+    state.settings = {
+      ...(state.settings || {}),
+      inputPath: updated.input || body.input || state.settings?.inputPath || defaultInput,
+      row: Number(updated.row || body.row || state.settings?.row || 2),
+      lastScriptFolder: scriptDir,
+      lastScriptPath: markdownPath,
+      lastScriptJsonPath: scriptPath,
+      sceneCount: updated.sceneCount || updated.plan?.scenes?.length || state.settings?.sceneCount,
+      scriptLanguage: updated.scriptLanguage || updated.scriptPackage?.script_language || state.settings?.scriptLanguage,
+      updatedAt: new Date().toISOString()
+    };
+  });
+
+  return updated;
+}
+
+function normalizeCustomScriptTitle(body = {}, scriptText = "") {
+  const explicit = scriptTextClean(body.title || body.topic || body.reelTitle || body.videoTitle, "");
+  if (explicit) {
+    return shortScriptPhrase(explicit, "Custom Script Reel", 8, 72);
+  }
+  const firstLine = String(scriptText || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(Boolean) || "";
+  const cleaned = firstLine.replace(/^(hook|title|topic)\s*[:|-]\s*/i, "");
+  return shortScriptPhrase(cleaned, "Custom Script Reel", 8, 72);
+}
+
+function normalizeScriptVideoDuration(body = {}) {
+  const sceneCountFromDuration = Math.round(asFiniteNumber(body.durationSeconds || body.duration, 50) / 10);
+  return clamp(asFiniteNumber(body.sceneCount || body.maxScenes, sceneCountFromDuration), 3, 6) * 10;
+}
+
+function splitScriptSentences(value = "") {
+  const cleaned = String(value || "")
+    .replace(/\r/g, "\n")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(" ");
+  return cleaned
+    .split(/(?<=[.!?।])\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function scriptChunks(value = "", count = 1) {
+  const target = Math.max(1, Number(count || 1));
+  const sentences = splitScriptSentences(value);
+  const source = sentences.length >= target
+    ? sentences
+    : String(value || "").replace(/\s+/g, " ").trim().split(/\s+/).filter(Boolean);
+  if (!source.length) {
+    return Array.from({ length: target }, () => "");
+  }
+  if (source.length <= target) {
+    return Array.from({ length: target }, (_, index) => source[index] || "");
+  }
+  const chunks = [];
+  for (let index = 0; index < target; index += 1) {
+    const start = Math.floor((index * source.length) / target);
+    const end = Math.floor(((index + 1) * source.length) / target);
+    chunks.push(source.slice(start, Math.max(start + 1, end)).join(" ").trim());
+  }
+  return chunks;
+}
+
+function customScriptHook(title, scriptText, language = "Hinglish") {
+  const sentences = splitScriptSentences(scriptText);
+  const firstSentence = sentences[0] || scriptTextClean(scriptText, "");
+  const secondSentence = sentences[1] || "";
+  const clipped = limitScriptWords(firstSentence, 20);
+  const shortStarter = clipped.split(/\s+/).filter(Boolean).length < 6;
+  if (/^(stop|wait|ruk|dekho)\b/i.test(clipped) && shortStarter) {
+    const context = limitScriptWords(secondSentence || `${title} ka simple shortcut dekhna zaroori hai`, 17);
+    return limitScriptWords(`${clipped.replace(/[.!?।]+$/g, "")}. ${context}`, 23);
+  }
+  if (/^(stop|wait|ruk|dekho|agar|ye|this|don't|before|secret|mistake|warning)\b/i.test(clipped)) {
+    return clipped;
+  }
+  if (language === "English") {
+    return limitScriptWords(`Stop scrolling. If this topic matters to you, watch this simple ${title} breakdown till the end.`, 22);
+  }
+  if (language === "Hindi") {
+    return limitScriptWords(`Stop scrolling. Agar ${title} aapke काम ka है, ye short video end tak देखना.`, 22);
+  }
+  return limitScriptWords(`Stop scrolling. Agar ${title} tumhare kaam ka hai, ye short video end tak dekhna.`, 22);
+}
+
+function customScriptCta(title, scriptText, language = "Hinglish") {
+  const sentences = splitScriptSentences(scriptText);
+  const last = sentences.at(-1) || "";
+  if (/\b(comment|follow|save|share|try|link|subscribe|dm|caption)\b/i.test(last)) {
+    return limitScriptWords(last, 24);
+  }
+  if (language === "English") {
+    return limitScriptWords(`If this helped, save it, share it, and follow for the next useful ${title} style reel.`, 24);
+  }
+  if (language === "Hindi") {
+    return limitScriptWords(`Agar ye useful लगा, reel save करो, share करो, aur next helpful video ke liye follow karo.`, 24);
+  }
+  return limitScriptWords(`Agar ye useful laga, reel save karo, share karo, aur next helpful video ke liye follow karo.`, 24);
+}
+
+function customOnscreenText(value, fallback = "Watch this") {
+  return shortScriptPhrase(value, fallback, 7, 52)
+    .replace(/[.!?।]+$/g, "");
+}
+
+function customScriptHashtags(title, language = "Hinglish") {
+  const titleHash = hashtagValue(title);
+  const base = [
+    "#reels",
+    "#instagramreels",
+    "#viralreels",
+    "#aitools",
+    "#productivity",
+    "#learnwithreels",
+    "#contentcreator",
+    "#shortvideo",
+    "#trendingshorts",
+    "#valuecontent",
+    titleHash
+  ].filter(Boolean);
+  if (language === "Hindi") {
+    base.push("#hindireels", "#learninhindi");
+  } else if (language === "Hinglish") {
+    base.push("#hinglishreels", "#hindienglish");
+  }
+  return [...new Set(base)].slice(0, 15);
+}
+
+function buildCustomScriptPlan(body = {}) {
+  const rawScript = String(body.script || body.rawScript || body.videoScript || "").trim();
+  if (!rawScript) {
+    throw new Error("Script text required hai.");
+  }
+  const language = normalizeViralLanguage(body.language || body.scriptLanguage || "Hinglish");
+  const totalDurationSeconds = normalizeScriptVideoDuration(body);
+  const sceneCount = totalDurationSeconds / 10;
+  const title = normalizeCustomScriptTitle(body, rawScript);
+  const tone = String(body.tone || "energetic").trim() || "energetic";
+  const presenter = normalizeHookPresenter(body.presenter || body.hookAvatarStyle || defaultHookAvatarStyle);
+  const hook = customScriptHook(title, rawScript, language);
+  const cta = customScriptCta(title, rawScript, language);
+  const bodySource = splitScriptSentences(rawScript).slice(1, -1).join(" ") || rawScript;
+  const middleChunks = scriptChunks(bodySource, Math.max(1, sceneCount - 2));
+  const topicLine = language === "English"
+    ? `${title} in simple words`
+    : language === "Hindi"
+      ? `${title} simple तरीके से`
+      : `${title} simple way me`;
+
+  const scenes = Array.from({ length: sceneCount }, (_, index) => {
+    const sceneNumber = index + 1;
+    const isHook = sceneNumber === 1;
+    const isCta = sceneNumber === sceneCount;
+    const voiceover = isHook ? hook : isCta ? cta : limitScriptWords(middleChunks[index - 1] || bodySource, 26);
+    const onscreenText = isHook
+      ? customOnscreenText(hook, "Stop scrolling")
+      : isCta
+        ? customOnscreenText(cta, "Save and follow")
+        : customOnscreenText(voiceover, topicLine);
+    const visual = isHook
+      ? `${hookPresenterDirection(presenter)} opens face-to-camera with ${hookToneDirection(tone)}. Realistic portrait creator video, clean desk, phone and laptop as context.`
+      : isCta
+        ? `${hookPresenterDirection(presenter)} closes face-to-camera with a confident save/share/follow CTA. Phone shows a generic social post draft, no real account details.`
+        : `Realistic modern creator explainer scene with ${hookPresenterDirection(presenter)}, subtle laptop/phone b-roll, cursor-like highlights on abstract notes only if useful, clean professional room.`;
+    return {
+      scene_number: sceneNumber,
+      duration: 10,
+      voiceover,
+      visual,
+      onscreen_text: onscreenText,
+      video_prompt: [
+        "Create a 10-second 9:16 vertical video for Instagram Reels.",
+        `Topic: ${title}.`,
+        `Scene ${sceneNumber}/${sceneCount}.`,
+        `Show exactly this: ${visual}`,
+        "Use a realistic human avatar/creator speaking directly to camera with natural Hinglish/Hindi/English delivery based on the script.",
+        "Camera: fast but professional reel pacing, subtle push-in on key lines, clean jump cuts, stable portrait framing.",
+        "Lighting/environment: modern SaaS/UGC desk setup, soft daylight, laptop and phone visible when relevant, no real personal information.",
+        `Voiceover line: ${voiceover}`,
+        `On-screen caption text: ${onscreenText}`,
+        "Avoid fake app UI, avoid unrelated stock footage, keep the same creator/avatar style across scenes."
+      ].join(" ")
+    };
+  });
+
+  const plan = {
+    scenes,
+    metadata: {
+      generated_at: new Date().toISOString(),
+      generator: "custom_script_video",
+      language,
+      script_type: language,
+      scene_count: sceneCount,
+      scene_duration_seconds: 10,
+      total_duration_seconds: totalDurationSeconds,
+      tone,
+      presenter,
+      script_package: {
+        hook,
+        body: middleChunks.join(" "),
+        cta,
+        final_script: scenes.map((scene) => `Scene ${scene.scene_number}: ${scene.voiceover}`).join("\n"),
+        script_language: language,
+        source: "manual_pasted_script"
+      }
+    }
+  };
+  validateScenePlan(plan, { sceneCount });
+  return { plan, title, language, sceneCount, totalDurationSeconds, hook, body: middleChunks.join(" "), cta, tone, presenter };
+}
+
+function customScriptVideoMarkdown(result = {}) {
+  const scenes = result.plan?.scenes || [];
+  const seo = result.seo || {};
+  return [
+    `# ${result.title || "Custom Script Video"}`,
+    "",
+    `- Flow: General script video`,
+    `- Script type: ${result.language || "Hinglish"}`,
+    `- Duration: ${result.totalDurationSeconds || scenes.length * 10} seconds`,
+    `- Folder: ${result.videoDir || ""}`,
+    `- Generated at: ${result.generatedAt || ""}`,
+    "",
+    "## Optimized Hook",
+    "",
+    result.hook || scenes[0]?.voiceover || "",
+    "",
+    "## Body",
+    "",
+    result.body || scenes.slice(1, -1).map((scene) => scene.voiceover).join(" "),
+    "",
+    "## CTA",
+    "",
+    result.cta || scenes.at(-1)?.voiceover || "",
+    "",
+    "## Scene Plan",
+    "",
+    ...scenes.flatMap((scene) => [
+      `### Scene ${scene.scene_number} - ${scene.duration}s`,
+      "",
+      `Voiceover: ${scene.voiceover}`,
+      "",
+      `On-screen text: ${scene.onscreen_text}`,
+      "",
+      `Visual: ${scene.visual}`,
+      "",
+      `Video prompt: ${scene.video_prompt}`,
+      ""
+    ]),
+    "## Caption",
+    "",
+    seo.instagram_caption || "",
+    "",
+    "## Hashtags",
+    "",
+    (seo.hashtags || []).join(" ")
+  ].join("\n");
+}
+
+async function prepareCustomScriptVideo(body = {}) {
+  const build = buildCustomScriptPlan(body);
+  const slug = slugify(build.title || "custom-script-video");
+  const videoDir = body.videoDir && allowedOutputPath(body.videoDir)
+    ? path.resolve(body.videoDir)
+    : path.resolve(projectRoot, "outputs", "script-videos", `${slug}_${timestampSlug()}`);
+  const assetsDir = path.join(videoDir, "assets");
+  const generatedDir = path.join(videoDir, "generated");
+  await ensureDir(videoDir);
+  await ensureDir(assetsDir);
+  await ensureDir(generatedDir);
+
+  const manifest = {
+    tool: {
+      tool_name: build.title,
+      topic: build.title,
+      tool_url: String(body.referenceUrl || body.toolUrl || "").trim(),
+      description: scriptTextClean(body.description || body.context, "Manual script based video."),
+      category: "general_script_video",
+      language: build.language
+    },
+    generated_at: new Date().toISOString(),
+    generator: "custom_script_video",
+    capture: {
+      enabled: false,
+      summary: "Manual script video. No real tool assets required.",
+      files: []
+    },
+    files: {
+      scene_plan: path.join(videoDir, "scene-plan.json"),
+      manifest: path.join(videoDir, "manifest.json"),
+      render_dir: generatedDir
+    }
+  };
+  const seo = {
+    instagram_caption: [
+      build.language === "English"
+        ? `${build.title}: quick, useful breakdown. Save this reel and share it with someone who needs the shortcut.`
+        : build.language === "Hindi"
+          ? `${build.title}: quick aur useful breakdown. Reel save करो aur jise ye help kare uske साथ share करो.`
+          : `${build.title}: quick aur useful breakdown. Reel save karo aur jise ye help kare uske saath share karo.`,
+      String(body.referenceUrl || body.toolUrl || "").trim() ? `Link: ${String(body.referenceUrl || body.toolUrl).trim()}` : ""
+    ].filter(Boolean).join("\n"),
+    hashtags: customScriptHashtags(build.title, build.language)
+  };
+  const result = {
+    id: `script-video-${slug}-${timestampSlug()}`,
+    status: "prepared",
+    kind: "script_video",
+    title: build.title,
+    language: build.language,
+    sceneCount: build.sceneCount,
+    totalDurationSeconds: build.totalDurationSeconds,
+    tone: build.tone,
+    presenter: build.presenter,
+    hook: build.hook,
+    body: build.body,
+    cta: build.cta,
+    rawScript: String(body.script || body.rawScript || body.videoScript || "").trim(),
+    videoDir,
+    assetsDir,
+    generatedDir,
+    scenePlanPath: manifest.files.scene_plan,
+    manifestPath: manifest.files.manifest,
+    markdownPath: path.join(videoDir, "optimized-script.md"),
+    rawScriptPath: path.join(videoDir, "input-script.txt"),
+    masterPromptPath: path.join(videoDir, "google-vids-master-prompt.txt"),
+    generatedAt: new Date().toISOString(),
+    manifest,
+    plan: build.plan,
+    seo,
+    files: []
+  };
+  const masterPrompt = buildGoogleVidsMasterPrompt(build.plan, manifest);
+  await writeJson(result.scenePlanPath, build.plan);
+  await writeJson(result.manifestPath, manifest);
+  await fs.writeFile(result.rawScriptPath, `${result.rawScript}\n`, "utf8");
+  await fs.writeFile(result.markdownPath, `${customScriptVideoMarkdown(result)}\n`, "utf8");
+  await fs.writeFile(result.masterPromptPath, `${masterPrompt}\n`, "utf8");
+  const promptFiles = [];
+  for (const scene of build.plan.scenes) {
+    const promptPath = path.join(videoDir, `google-vids-scene-${String(scene.scene_number).padStart(2, "0")}-prompt.txt`);
+    await fs.writeFile(promptPath, `${buildGoogleVidsClipPrompt(build.plan, scene.scene_number, manifest)}\n`, "utf8");
+    promptFiles.push(promptPath);
+  }
+  result.files = [
+    result.scenePlanPath,
+    result.manifestPath,
+    result.rawScriptPath,
+    result.markdownPath,
+    result.masterPromptPath,
+    ...promptFiles
+  ].map(publicAssetFile);
+
+  await updateUiState((state) => {
+    state.settings = {
+      ...(state.settings || {}),
+      lastScriptVideoFolder: videoDir,
+      lastScriptVideoScenePlan: result.scenePlanPath,
+      lastScriptVideoLanguage: build.language,
+      lastScriptVideoDurationSeconds: build.totalDurationSeconds,
+      updatedAt: new Date().toISOString()
+    };
+  });
+
+  return result;
+}
+
+function publicScriptVideoRun(run) {
+  return {
+    id: run.id,
+    kind: "script_video",
+    status: run.status,
+    body: run.body,
+    result: run.result,
+    error: run.error,
+    outputDir: run.outputDir || "",
+    report: run.report || null,
+    startedAt: run.startedAt,
+    endedAt: run.endedAt,
+    steps: run.steps || [],
+    logs: run.logs.slice(-300)
+  };
+}
+
+function addScriptVideoLog(run, text, stream = "system") {
+  const entry = {
+    at: new Date().toISOString(),
+    stream,
+    text: String(text || "")
+  };
+  run.logs.push(entry);
+  if (run.logs.length > 1600) {
+    run.logs.splice(0, run.logs.length - 1600);
+  }
+  for (const client of run.clients) {
+    sendSse(client, "log", entry);
+  }
+}
+
+function setScriptVideoStep(run, id, label, status = "running", detail = "") {
+  const existing = run.steps.find((step) => step.id === id);
+  const next = {
+    id,
+    label,
+    status,
+    detail: String(detail || ""),
+    updatedAt: new Date().toISOString()
+  };
+  if (existing) {
+    Object.assign(existing, next);
+  } else {
+    run.steps.push(next);
+  }
+  for (const client of run.clients) {
+    sendSse(client, "progress", { active: next, steps: run.steps });
+  }
+  addScriptVideoLog(run, detail ? `${label}: ${detail}` : label, status === "failed" ? "stderr" : "stdout");
+}
+
+function finishScriptVideoRun(run, status, result = null, error = "") {
+  if (run.status !== "running") {
+    return;
+  }
+  run.status = status;
+  run.result = result || run.result;
+  run.error = error;
+  run.endedAt = new Date().toISOString();
+  const data = publicScriptVideoRun(run);
+  for (const client of run.clients) {
+    sendSse(client, "status", data);
+    client.end();
+  }
+  run.clients.clear();
+}
+
+function runScriptVideoNodeScript(run, label, scriptPath, scriptArgs) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [scriptPath, ...scriptArgs], {
+      cwd: projectRoot,
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    run.child = child;
+    addScriptVideoLog(run, `${process.execPath} ${scriptPath} ${scriptArgs.join(" ")}`);
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => {
+      const text = chunk.toString();
+      stdout += text;
+      addScriptVideoLog(run, `[${label}] ${text.trimEnd()}`, "stdout");
+    });
+    child.stderr.on("data", (chunk) => {
+      const text = chunk.toString();
+      stderr += text;
+      addScriptVideoLog(run, `[${label}] ${text.trimEnd()}`, "stderr");
+    });
+    child.on("error", (error) => {
+      run.child = null;
+      reject(error);
+    });
+    child.on("close", (code) => {
+      run.child = null;
+      if (code === 0) {
+        resolve({ code, stdout, stderr });
+        return;
+      }
+      reject(new Error(`${label} failed with exit code ${code}. ${stderr || stdout}`.trim()));
+    });
+  });
+}
+
+async function generateCustomScriptVideoForProfile(prepared, body, run, profile, profileIndex = 0) {
+  const profileLabel = safeHookProfileLabel(profile, profileIndex);
+  const operateDir = path.join(prepared.videoDir, "google-vids", profileLabel, "operate");
+  const exportDir = path.join(prepared.videoDir, "google-vids", profileLabel, "export");
+  await ensureDir(operateDir);
+  await ensureDir(exportDir);
+  const sceneCount = Number(prepared.sceneCount || prepared.plan?.scenes?.length || 5);
+  const sceneList = allSceneList(sceneCount);
+  const afterSubmitWait = clamp(asFiniteNumber(body.afterSubmitWait || body.afterSubmitWaitMs, 120000), 30000, 600000);
+  const manualRecoveryWait = clamp(asFiniteNumber(body.manualRecoveryWait || body.manualRecoveryWaitMs, 600000), 0, 1800000);
+  const requestedAvatar = String(body.avatar || body.googleVidsAvatar || defaultAvatar || "auto");
+  const selectedAvatar = requestedAvatar === "auto_by_reel"
+    ? (normalizeHookPresenter(body.presenter || prepared.presenter) === "male" ? "William" : "Mia")
+    : requestedAvatar;
+  const operateArgs = [
+    "--scenes", prepared.scenePlanPath,
+    "--manifest", prepared.manifestPath,
+    "--all-scenes",
+    "--max-scenes", String(sceneCount),
+    "--output", operateDir,
+    "--profile", profile,
+    "--video-size", "portrait",
+    "--require-portrait",
+    "--avatar", selectedAvatar,
+    "--avatar-scenes", sceneList,
+    "--submit",
+    "--insert",
+    "--after-submit-wait", String(afterSubmitWait),
+    "--manual-recovery-wait", String(manualRecoveryWait)
+  ];
+  if (body.url) {
+    operateArgs.push("--url", String(body.url));
+  }
+
+  setScriptVideoStep(run, "vids", "Google Vids", "running", `Generating ${sceneCount} portrait avatar scene(s) with ${profile}.`);
+  let operateError = null;
+  await runScriptVideoNodeScript(run, `script-video-vids:${profileLabel}`, "src/google-vids-operate.mjs", operateArgs)
+    .catch((error) => {
+      operateError = error;
+    });
+  const vidsReportPath = path.join(operateDir, "vids-operator-report.json");
+  const vidsReport = await readJsonArtifact(vidsReportPath);
+  if (operateError || !vidsReport?.ok) {
+    const message = vidsReport?.manualAction
+      ? `${vidsReport.error || operateError?.message || "Google Vids script video generation did not complete."} Manual action: ${vidsReport.manualAction}`
+      : vidsReport?.error || operateError?.message || "Google Vids script video generation did not complete.";
+    const error = new Error(message);
+    error.report = vidsReport;
+    throw error;
+  }
+
+  const vidsUrl = vidsReport.currentUrl || "";
+  if (body.noExport || body.prepareOnly) {
+    return {
+      ...prepared,
+      status: "generated_in_vids_export_skipped",
+      activeProfile: profile,
+      vidsUrl,
+      vidsReportPath,
+      operateDir,
+      exportDir
+    };
+  }
+
+  setScriptVideoStep(run, "export", "Export MP4", "running", `Downloading final Google Vids MP4 with ${profile}.`);
+  let exportError = null;
+  await runScriptVideoNodeScript(run, `script-video-export:${profileLabel}`, "src/google-vids-export.mjs", [
+    "--url", vidsUrl,
+    "--output", exportDir,
+    "--timeout", String(body.exportTimeout || 600000),
+    "--filename", "script-video-reel.mp4",
+    "--profile", profile,
+    "--manual-recovery-wait", String(manualRecoveryWait)
+  ]).catch((error) => {
+    exportError = error;
+  });
+  const exportReportPath = path.join(exportDir, "google-vids-export-report.json");
+  const exportReport = await readJsonArtifact(exportReportPath);
+  const exportedPath = exportReport?.savedPath || "";
+  if (exportError || !exportReport?.ok || !exportedPath) {
+    const message = exportReport?.manualAction
+      ? `${exportReport.error || exportReport?.failure || exportError?.message || "Google Vids export did not save custom script MP4."} Manual action: ${exportReport.manualAction}`
+      : exportReport?.error || exportReport?.failure || exportError?.message || "Google Vids export did not save custom script MP4.";
+    const error = new Error(message);
+    error.report = exportReport;
+    throw error;
+  }
+
+  const finalPath = path.join(prepared.videoDir, "final_script_video.mp4");
+  await fs.copyFile(exportedPath, finalPath);
+  const cached = await cacheVidsExport({
+    toolDir: prepared.videoDir,
+    sourcePath: finalPath,
+    kind: "custom_script_video",
+    profile,
+    scenes: Array.from({ length: sceneCount }, (_, index) => index + 1),
+    note: "General script video generated/exported from Google Vids.",
+    qualityStatus: "needs_human_review"
+  });
+  await recordProfileAiVideoUse(profile, sceneCount).catch(() => {});
+  const result = {
+    ...prepared,
+    status: "complete",
+    activeProfile: profile,
+    vidsUrl,
+    vidsReportPath,
+    exportReportPath,
+    operateDir,
+    exportDir,
+    exportedPath,
+    videoPath: finalPath,
+    outputPath: finalPath,
+    cachedExportPath: cached?.cachedPath || "",
+    summary: "General script video exported from Google Vids. Human review before posting.",
+    files: [
+      ...(prepared.files || []),
+      finalPath,
+      cached?.cachedPath,
+      vidsReportPath,
+      exportReportPath
+    ].filter(Boolean).map((item) => typeof item === "string" ? publicAssetFile(item) : item)
+  };
+  await writeJson(path.join(prepared.videoDir, "script-video-package.json"), result);
+  return result;
+}
+
+async function generateCustomScriptVideoWithGoogleVids(prepared, body, run) {
+  const profiles = hookProfilesFromBody(body);
+  if (!profiles.length) {
+    throw new Error("At least one Google Vids profile is required.");
+  }
+  const attempts = [];
+  let lastError = null;
+  const quotaState = await loadUiState();
+  for (let index = 0; index < profiles.length; index += 1) {
+    const profile = profiles[index];
+    const canTryNext = index < profiles.length - 1;
+    const quota = profileQuota(quotaState, profile);
+    if (quota.quotaExhausted || quota.limitStatus === "limit_used") {
+      lastError = new Error(`Google Vids profile limit used: ${profile}. Fallback profile try ho sakta hai.`);
+      attempts.push({ profile, ok: false, quotaHit: true, skipped: true, willTryNext: canTryNext, error: lastError.message });
+      addScriptVideoLog(run, `Skipping limit-used profile: ${profile}`, "stderr");
+      if (canTryNext) {
+        continue;
+      }
+      break;
+    }
+    try {
+      const result = await generateCustomScriptVideoForProfile(prepared, body, run, profile, index);
+      attempts.push({
+        profile,
+        ok: true,
+        status: result.status,
+        videoPath: result.videoPath || "",
+        vidsUrl: result.vidsUrl || ""
+      });
+      result.attempts = attempts;
+      return result;
+    } catch (error) {
+      lastError = error;
+      const report = error.report || null;
+      const quotaHit = Boolean(report?.quotaHit) || quotaHitFromText(error.message);
+      attempts.push({
+        profile,
+        ok: false,
+        quotaHit,
+        loginNeeded: Boolean(report?.loginNeeded),
+        requiresManualAction: Boolean(report?.requiresManualAction),
+        manualAction: report?.manualAction || "",
+        willTryNext: canTryNext,
+        error: error.message
+      });
+      addScriptVideoLog(run, `Profile failed: ${profile}. ${error.message}`, "stderr");
+      if (quotaHit) {
+        await markProfileQuotaHit(profile, error.message).catch(() => {});
+      }
+      if (canTryNext) {
+        addScriptVideoLog(run, `Trying fallback profile next: ${profiles[index + 1]}`);
+        continue;
+      }
+    }
+  }
+  const error = lastError || new Error("Google Vids custom script video generation failed.");
+  error.attempts = attempts;
+  throw error;
+}
+
+async function startCustomScriptVideoRun(body = {}) {
+  if (creditSafeModeEnabled(body.creditSafeMode) && !body.prepareOnly) {
+    throw new Error("Credit Safe Mode is ON. Custom script Google Vids generation is blocked.");
+  }
+  const id = `script-video-${timestampSlug()}`;
+  const run = {
+    id,
+    kind: "script_video",
+    status: "running",
+    body,
+    result: null,
+    report: null,
+    error: "",
+    outputDir: "",
+    startedAt: new Date().toISOString(),
+    endedAt: null,
+    steps: [],
+    logs: [],
+    clients: new Set(),
+    child: null
+  };
+  scriptVideoRuns.set(id, run);
+  setScriptVideoStep(run, "start", "Script Video", "running", "Preparing custom script video package.");
+
+  setTimeout(async () => {
+    let prepared = null;
+    try {
+      setScriptVideoStep(run, "script", "Optimize Script", "running", "Cleaning script, hook/body/CTA, and timing.");
+      prepared = await prepareCustomScriptVideo(body);
+      run.outputDir = prepared.videoDir;
+      run.result = prepared;
+      setScriptVideoStep(run, "script", "Optimize Script", "complete", `${prepared.sceneCount} scene(s), ${prepared.totalDurationSeconds}s ready.`);
+      if (body.prepareOnly) {
+        finishScriptVideoRun(run, "complete", prepared);
+        return;
+      }
+      const result = await generateCustomScriptVideoWithGoogleVids(prepared, body, run);
+      run.outputDir = result.videoDir || prepared.videoDir;
+      run.result = result;
+      run.report = {
+        mode: "custom-script-video",
+        toolDir: result.videoDir,
+        mp4Path: result.videoPath || result.outputPath || "",
+        vidsUrl: result.vidsUrl || "",
+        vidsProfile: result.activeProfile || "",
+        vidsProfilesTried: (result.attempts || []).map((attempt) => attempt.profile).filter(Boolean),
+        qaStatus: "Needs human review",
+        error: ""
+      };
+      setScriptVideoStep(run, "done", "Video saved", "complete", result.videoPath || result.videoDir);
+      addScriptVideoLog(run, `Custom script video ready: ${result.videoPath || result.videoDir}`, "stdout");
+      finishScriptVideoRun(run, "complete", result);
+    } catch (error) {
+      setScriptVideoStep(run, "failed", "Script video failed", "failed", error.message);
+      run.report = {
+        mode: "custom-script-video",
+        toolDir: prepared?.videoDir || "",
+        mp4Path: "",
+        qaStatus: "failed",
+        error: error.message
+      };
+      addScriptVideoLog(run, error.message, "stderr");
+      finishScriptVideoRun(run, "failed", run.result, error.message);
+    }
+  }, 0);
+
+  return run;
 }
 
 function normalizeHookPresenter(value) {
@@ -3214,6 +4125,9 @@ async function generateHookAvatarWithGoogleVids(prepared, body, run) {
 }
 
 async function startHookAvatarRun(body = {}) {
+  if (creditSafeModeEnabled(body.creditSafeMode) && !body.prepareOnly) {
+    throw new Error("Credit Safe Mode is ON. Use Prepare Avatar Pack or turn Credit Safe off before Google Vids generation.");
+  }
   const id = `hook-avatar-${timestampSlug()}`;
   const run = {
     id,
@@ -4604,6 +5518,9 @@ async function startFinalReelRun(body = {}) {
 }
 
 async function startRemainingVidsRun(body = {}) {
+  if (creditSafeModeEnabled(body.creditSafeMode)) {
+    throw new Error("Credit Safe Mode is ON. Remaining Google Vids scene generation is blocked.");
+  }
   const id = `remaining-vids-${timestampSlug()}`;
   const run = {
     id,
@@ -4720,6 +5637,9 @@ async function startRemainingVidsRun(body = {}) {
 }
 
 async function startVidsVoiceoverRun(body = {}) {
+  if (creditSafeModeEnabled(body.creditSafeMode)) {
+    throw new Error("Credit Safe Mode is ON. Google Vids Voiceover generation is blocked.");
+  }
   const id = `vids-voiceover-${timestampSlug()}`;
   const run = {
     id,
@@ -4976,6 +5896,122 @@ async function findToolArtifacts(body = {}) {
       ...item,
       hookAvatar: undefined
     }))
+  };
+}
+
+function videoCandidateRow(value = {}) {
+  return Number(
+    value.row
+    || value.selectedRow?.source_row_number
+    || value.selectedRow?.row
+    || value.tool?.source_row_number
+    || value.tool?.row
+    || 0
+  );
+}
+
+function videoCandidateTool(value = {}) {
+  const selectedRow = value.selectedRow || {};
+  const tool = value.tool || {};
+  return {
+    name: tool.tool_name || tool.name || selectedRow.tool_name || selectedRow.name || "",
+    url: tool.tool_url || tool.url || selectedRow.tool_url || selectedRow.url || ""
+  };
+}
+
+function videoPathsFromPackage(value = {}) {
+  const files = Array.isArray(value.files) ? value.files : [];
+  const filePaths = files
+    .filter((file) => String(file?.kind || "").toLowerCase() === "video" || /\.(mp4|webm|mov)$/i.test(String(file?.path || file?.name || "")))
+    .map((file) => file.path || "");
+  return [
+    value.videoPath,
+    value.outputPath,
+    value.mp4Path,
+    value.renderReport?.toolFolderOutputPath,
+    value.renderReport?.outputPath,
+    ...filePaths
+  ];
+}
+
+function videoPathsFromRunReport(value = {}) {
+  const files = Array.isArray(value.files) ? value.files : [];
+  const filePaths = files
+    .filter((file) => String(file?.kind || "").toLowerCase() === "video" || /\.(mp4|webm|mov)$/i.test(String(file?.path || file?.name || "")))
+    .map((file) => file.path || "");
+  return [
+    value.mp4Path,
+    value.videoPath,
+    value.outputPath,
+    value.finalVideoPath,
+    value.localFallback?.mp4Path,
+    value.localFallback?.videoPath,
+    value.rendered?.outputPath,
+    value.renderReport?.toolFolderOutputPath,
+    value.renderReport?.outputPath,
+    ...filePaths
+  ];
+}
+
+async function finalVideoCandidateFromFile(filePath, source) {
+  const data = await readJsonArtifact(filePath);
+  if (!data || typeof data !== "object") return null;
+  const row = videoCandidateRow(data);
+  const tool = videoCandidateTool(data);
+  const videoPath = await existingOutputPath(source === "agent_report"
+    ? videoPathsFromRunReport(data)
+    : videoPathsFromPackage(data));
+  if (!row || !videoPath) return null;
+  const folder = data.finalDir || data.toolDir || data.outputDir || path.dirname(path.dirname(videoPath));
+  const modifiedAt = await fileModifiedAt(filePath);
+  return {
+    row,
+    toolName: tool.name,
+    toolUrl: tool.url,
+    status: data.status || data.qaStatus || "complete",
+    videoPath,
+    videoUrl: `/file?path=${encodeURIComponent(videoPath)}`,
+    folder,
+    folderPath: folder,
+    qualityScore: Number(data.qualityScore || data.renderReport?.qualityScore || data.quality?.score || 0),
+    qualityStatus: data.qualityStatus || data.renderReport?.qualityStatus || data.quality?.status || "",
+    generatedAt: artifactTime(data) || modifiedAt,
+    modifiedAt,
+    source,
+    sourcePath: filePath,
+    sourceUrl: `/file?path=${encodeURIComponent(filePath)}`
+  };
+}
+
+async function listToolVideoStatus(body = {}) {
+  const finalRoot = path.join(projectRoot, "outputs", "final-reels");
+  const runsRoot = path.join(projectRoot, "outputs", "runs");
+  const [finalFiles, runFiles] = await Promise.all([
+    listFilesRecursive(finalRoot),
+    listFilesRecursive(runsRoot)
+  ]);
+  const candidateFiles = [
+    ...finalFiles.filter((item) => path.basename(item) === "final-reel-package.json").map((filePath) => ({ filePath, source: "final_reel" })),
+    ...runFiles.filter((item) => path.basename(item) === "one-video-agent-report.json").map((filePath) => ({ filePath, source: "agent_report" }))
+  ];
+  const candidates = [];
+  for (const item of candidateFiles) {
+    const candidate = await finalVideoCandidateFromFile(item.filePath, item.source);
+    if (candidate) {
+      candidates.push(candidate);
+    }
+  }
+  const byRow = {};
+  for (const candidate of sortLatestArtifacts(candidates)) {
+    if (!byRow[String(candidate.row)]) {
+      byRow[String(candidate.row)] = candidate;
+    }
+  }
+  return {
+    input: String(body.input || defaultInput),
+    count: Object.keys(byRow).length,
+    videos: Object.values(byRow),
+    byRow
   };
 }
 
@@ -5491,6 +6527,127 @@ function runSummary(run) {
   };
 }
 
+const queueStepTemplates = [
+  { key: "assets", label: "Assets" },
+  { key: "script", label: "Script" },
+  { key: "avatar", label: "Avatar" },
+  { key: "voiceover", label: "Voiceover" },
+  { key: "render", label: "Render" },
+  { key: "save", label: "Save" }
+];
+
+const queueStepMatchers = [
+  ["save", /\b(saved|complete|completed|final|mp4|workbook|drive|quality report)\b/i],
+  ["render", /\b(render|remotion|ffmpeg|merge|merged|caption|subtitles|final reel|local reel)\b/i],
+  ["voiceover", /\b(voiceover|voice over|tts|audio|edge-tts|elevenlabs|openai tts|transcrib)\b/i],
+  ["avatar", /\b(avatar|google vids|vids|hook video|cta video|scene clip|character)\b/i],
+  ["script", /\b(script|scene plan|reel script|caption|hashtag|hook|body|cta)\b/i],
+  ["assets", /\b(asset|capture|screenshot|screen record|screen-record|website|browser|playwright|tool url|ui footage)\b/i]
+];
+
+function latestRunLog(run) {
+  const logs = Array.isArray(run?.logs) ? run.logs : [];
+  return [...logs].reverse().find((entry) => String(entry?.text || "").trim()) || null;
+}
+
+function inferQueueActiveStep(run) {
+  const logs = Array.isArray(run?.logs) ? run.logs.slice(-80) : [];
+  for (const entry of [...logs].reverse()) {
+    const text = String(entry?.text || "");
+    for (const [key, matcher] of queueStepMatchers) {
+      if (matcher.test(text)) {
+        return { key, detail: text.trim().slice(0, 260) };
+      }
+    }
+  }
+  if (run?.status === "running") {
+    return { key: "assets", detail: "Run started, preparing tool assets." };
+  }
+  return { key: "save", detail: "" };
+}
+
+function queueItemSteps(item) {
+  const status = item?.status || "pending";
+  const run = item?.runId ? runs.get(item.runId) : null;
+  const report = item?.report || {};
+
+  if (status === "complete") {
+    return queueStepTemplates.map((step) => ({
+      ...step,
+      status: "complete",
+      detail: step.key === "save" ? (report.mp4Path || report.outputDir || "Completed") : ""
+    }));
+  }
+
+  if (["failed", "paused", "canceled"].includes(status)) {
+    const active = run ? inferQueueActiveStep(run).key : "save";
+    const activeIndex = queueStepTemplates.findIndex((step) => step.key === active);
+    return queueStepTemplates.map((step, index) => ({
+      ...step,
+      status: index < activeIndex ? "complete" : index === activeIndex ? status : "pending",
+      detail: index === activeIndex ? (report.error || report.driveSyncError || item?.error || "") : ""
+    }));
+  }
+
+  if (status !== "running" || !run) {
+    const stepStatus = status === "paused" ? "paused" : "pending";
+    return queueStepTemplates.map((step) => ({ ...step, status: stepStatus, detail: "" }));
+  }
+
+  const active = inferQueueActiveStep(run);
+  const activeIndex = Math.max(0, queueStepTemplates.findIndex((step) => step.key === active.key));
+  return queueStepTemplates.map((step, index) => ({
+    ...step,
+    status: index < activeIndex ? "complete" : index === activeIndex ? "running" : "pending",
+    detail: index === activeIndex ? active.detail : ""
+  }));
+}
+
+function addQueueOutput(outputs, label, value, kind = "folder") {
+  const text = String(value || "").trim();
+  if (!text) return;
+  if (/^https?:\/\//i.test(text)) {
+    outputs.push({ label, url: text, kind: "url" });
+    return;
+  }
+  outputs.push({ label, path: text, kind });
+}
+
+function queueItemOutputs(item) {
+  const report = item?.report || {};
+  const run = item?.runId ? runs.get(item.runId) : null;
+  const outputs = [];
+  addQueueOutput(outputs, "Final MP4", report.mp4Path, "video");
+  addQueueOutput(outputs, "Run Folder", report.outputDir || run?.outputDir, "folder");
+  addQueueOutput(outputs, "Google Vids", report.vidsUrl, "url");
+  addQueueOutput(outputs, "Vids Cache", report.vidsClipCacheFolder, "folder");
+  addQueueOutput(outputs, "Generated", report.generatedFolder, "folder");
+  addQueueOutput(outputs, "Drive Video", report.driveVideoPath, "video");
+  addQueueOutput(outputs, "Drive Folder", report.driveFolderPath, "folder");
+  addQueueOutput(outputs, "Workbook", report.preparedWorkbook, "file");
+  addQueueOutput(outputs, "Provider Pack", report.freeVideoProviderPackFolder, "folder");
+  return outputs;
+}
+
+function publicQueueItem(item) {
+  const run = item?.runId ? runs.get(item.runId) : null;
+  const latestLog = latestRunLog(run);
+  const steps = queueItemSteps(item);
+  return {
+    ...item,
+    steps,
+    activeStep: steps.find((step) => step.status === "running") || null,
+    outputs: queueItemOutputs(item),
+    latestLog: latestLog
+      ? {
+          at: latestLog.at || "",
+          stream: latestLog.stream || "",
+          text: String(latestLog.text || "").trim().slice(0, 320)
+        }
+      : null
+  };
+}
+
 function normalizeProgressHeader(value) {
   return String(value || "")
     .trim()
@@ -5590,7 +6747,7 @@ function publicQueue(queue) {
     total: queue.items.length,
     counts,
     quotaEstimate: quotaEstimateFor(queue.options, queue.items.length),
-    items: queue.items
+    items: queue.items.map(publicQueueItem)
   };
 }
 
@@ -6140,6 +7297,16 @@ async function handleApi(req, res, pathname, searchParams) {
       return;
     }
 
+    if (req.method === "GET" && pathname === "/api/tool-video-status") {
+      json(res, 200, {
+        ok: true,
+        ...(await listToolVideoStatus({
+          input: searchParams.get("input") || defaultInput
+        }))
+      });
+      return;
+    }
+
     if (req.method === "GET" && pathname === "/api/input-analysis") {
       const includeToolOptions = ["1", "true", "names", "all"].includes(String(searchParams.get("includeTools") || "").toLowerCase());
       const analyzed = await analyzeInputWorkbookPackage(searchParams.get("input") || defaultInput, { includeToolOptions });
@@ -6174,6 +7341,30 @@ async function handleApi(req, res, pathname, searchParams) {
 
     if (req.method === "POST" && pathname === "/api/scripts/generate") {
       json(res, 201, { ok: true, scriptBuild: await generateReelScript(await readBody(req)) });
+      return;
+    }
+
+    if (req.method === "POST" && pathname === "/api/scripts/update") {
+      json(res, 200, { ok: true, scriptBuild: await updateReelScript(await readBody(req)) });
+      return;
+    }
+
+    if (req.method === "POST" && pathname === "/api/script-video/optimize") {
+      json(res, 201, { ok: true, scriptVideo: await prepareCustomScriptVideo(await readBody(req)) });
+      return;
+    }
+
+    if (req.method === "POST" && pathname === "/api/script-video/runs") {
+      const run = await startCustomScriptVideoRun(await readBody(req));
+      json(res, 201, { ok: true, run: publicScriptVideoRun(run) });
+      return;
+    }
+
+    if (req.method === "GET" && pathname === "/api/script-video/runs") {
+      json(res, 200, {
+        ok: true,
+        runs: Array.from(scriptVideoRuns.values()).map(publicScriptVideoRun).reverse()
+      });
       return;
     }
 
@@ -6279,6 +7470,39 @@ async function handleApi(req, res, pathname, searchParams) {
       });
       run.clients.add(res);
       sendSse(res, "status", publicHookAvatarRun(run));
+      for (const entry of run.logs.slice(-300)) {
+        sendSse(res, "log", entry);
+      }
+      req.on("close", () => run.clients.delete(res));
+      return;
+    }
+
+    const scriptVideoRunMatch = pathname.match(/^\/api\/script-video\/runs\/([^/]+)$/);
+    if (req.method === "GET" && scriptVideoRunMatch) {
+      const run = scriptVideoRuns.get(scriptVideoRunMatch[1]);
+      if (!run) {
+        json(res, 404, { ok: false, error: "Script video run not found." });
+        return;
+      }
+      json(res, 200, { ok: true, run: publicScriptVideoRun(run) });
+      return;
+    }
+
+    const scriptVideoEventsMatch = pathname.match(/^\/api\/script-video\/runs\/([^/]+)\/events$/);
+    if (req.method === "GET" && scriptVideoEventsMatch) {
+      const run = scriptVideoRuns.get(scriptVideoEventsMatch[1]);
+      if (!run) {
+        json(res, 404, { ok: false, error: "Script video run not found." });
+        return;
+      }
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        connection: "keep-alive"
+      });
+      run.clients.add(res);
+      sendSse(res, "status", publicScriptVideoRun(run));
+      sendSse(res, "progress", { steps: run.steps || [], active: run.steps?.at(-1) || null });
       for (const entry of run.logs.slice(-300)) {
         sendSse(res, "log", entry);
       }

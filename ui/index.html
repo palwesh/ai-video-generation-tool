@@ -31,7 +31,7 @@
             <span id="themeToggleIcon" class="mini-icon">D</span>
             <span id="themeToggleText">Dark</span>
           </button>
-          <a id="readDocsTopLink" class="icon-link" href="#docsSection" aria-label="Read automation docs">
+          <a id="readDocsTopLink" class="icon-link" href="/docs.html" aria-label="Read automation docs">
             <span class="mini-icon">?</span>
             <span>Docs</span>
           </a>
@@ -82,15 +82,15 @@
               <strong>Final Reel</strong>
               <small id="finalStepMeta">After hook</small>
             </a>
+            <a id="scriptVideoStepLink" class="step-link" href="#scriptVideo">
+              <span>SV</span>
+              <strong>Script Video</strong>
+              <small id="scriptVideoStepMeta">General flow</small>
+            </a>
             <a id="profileStepLink" class="step-link" href="#profileManager">
               <span>07</span>
               <strong>Profiles</strong>
               <small id="profileStepMeta">Loading</small>
-            </a>
-            <a id="docsStepLink" class="step-link" href="#docsSection">
-              <span>08</span>
-              <strong>Docs</strong>
-              <small id="docsStepMeta">Ready</small>
             </a>
           </nav>
           <a class="version-link" href="/advanced.html">Open Version 1</a>
@@ -115,7 +115,6 @@
               <span data-flow-step="hook">Avatar pack</span>
               <span data-flow-step="final">Final reel</span>
               <span data-flow-step="profile">Profiles</span>
-              <span data-flow-step="docs">Docs</span>
             </div>
 
             <div class="upload-box">
@@ -127,82 +126,151 @@
               <div class="upload-actions">
                 <button id="defaultBtn" class="secondary-action" type="button">Default Excel</button>
                 <button id="openTrackerExcelBtn" class="secondary-action" type="button">Open Tracker</button>
-                <a class="secondary-action download-action" href="#docsSection">Read Docs</a>
                 <a class="secondary-action download-action" href="/api/work-tracker/download" download>Download Excel</a>
                 <button id="importBtn" class="primary-action" type="button" disabled>Import</button>
               </div>
             </div>
           </section>
 
-          <section id="docsSection" class="workflow-section docs-panel" aria-label="Documentation reader">
-            <div class="docs-head">
-              <div>
-                <p class="eyebrow">Docs</p>
-                <h2 id="docTitle">Automation docs</h2>
-                <p id="docStats">Loading docs...</p>
-              </div>
-              <span id="docState" class="state-pill">Loading</span>
-            </div>
-
-            <div class="docs-toolbar">
-              <label class="field-label doc-scope-field" for="docScopeSelect">
-                <span>View</span>
-                <select id="docScopeSelect">
-                  <option value="selected" selected>Selected doc</option>
-                  <option value="all">All docs one page</option>
-                </select>
-              </label>
-              <label class="field-label doc-select-field" for="docSelect">
-                <span>Document</span>
-                <select id="docSelect">
-                  <option>Loading docs...</option>
-                </select>
-              </label>
-              <label class="field-label doc-search-field" for="docSearchInput">
-                <span>Search</span>
-                <input id="docSearchInput" type="search" placeholder="Search docs..." autocomplete="off">
-              </label>
-              <span id="docMatchCount" class="state-pill">Search ready</span>
-              <button id="refreshDocsBtn" class="secondary-action" type="button">Refresh</button>
-            </div>
-
-            <div class="docs-layout">
-              <aside class="doc-toc" aria-label="Doc sections">
-                <strong>Sections</strong>
-                <div id="docToc" class="toc-list">
-                  <span class="empty-note">Loading...</span>
-                </div>
-              </aside>
-              <article id="docContent" class="doc-content">Loading docs...</article>
-            </div>
-          </section>
-
-          <section id="profileManager" class="workflow-section profile-manager-panel" aria-label="Google Vids profile manager">
-            <div class="profile-manager-head">
+          <details id="profileManager" class="workflow-section profile-manager-panel compact-section-drawer" aria-label="Google Vids profile manager">
+            <summary class="profile-manager-head">
               <div>
                 <p class="eyebrow">Google Vids Users</p>
                 <h2>Profile Manager</h2>
                 <p>Add multiple accounts, login, and track which profile can generate avatar clips.</p>
               </div>
               <span id="profileState" class="state-pill">Loading</span>
+            </summary>
+
+            <div class="profile-manager-body">
+              <div class="profile-manager-actions">
+                <label class="field-label profile-name-field" for="newHookProfileName">
+                  <span>New profile name</span>
+                  <input id="newHookProfileName" type="text" placeholder="optional-name" autocomplete="off">
+                </label>
+                <button id="profileRefreshBtn" class="secondary-action" type="button">Refresh</button>
+                <button id="profileAddBtn" class="secondary-action" type="button">Add Profile</button>
+                <button id="profileAddLoginBtn" class="primary-action" type="button">Add + Login</button>
+                <button id="profileLoginSelectedBtn" class="secondary-action" type="button">Login Selected</button>
+              </div>
+
+              <div id="profileManagerSummary" class="profile-manager-summary">
+                <span>Profiles loading...</span>
+              </div>
+              <div id="profileManagerList" class="profile-manager-list">
+                <span class="muted">Profiles loading...</span>
+              </div>
+            </div>
+          </details>
+
+          <section id="scriptVideo" class="workflow-section script-video-panel" aria-label="General script video generator">
+            <div class="script-video-head">
+              <div>
+                <p class="eyebrow">Separate Flow</p>
+                <h2>General Script Video</h2>
+                <p>Paste any script, optimize timing, then generate a portrait avatar video in Google Vids.</p>
+              </div>
+              <span id="scriptVideoState" class="state-pill">Ready</span>
             </div>
 
-            <div class="profile-manager-actions">
-              <label class="field-label profile-name-field" for="newHookProfileName">
-                <span>New profile name</span>
-                <input id="newHookProfileName" type="text" placeholder="optional-name" autocomplete="off">
+            <div class="script-video-grid">
+              <label class="field-label script-video-title" for="customScriptTitleInput">
+                <span>Video title/topic</span>
+                <input id="customScriptTitleInput" type="text" placeholder="Example: 3 AI tools for creators" autocomplete="off">
               </label>
-              <button id="profileRefreshBtn" class="secondary-action" type="button">Refresh</button>
-              <button id="profileAddBtn" class="secondary-action" type="button">Add Profile</button>
-              <button id="profileAddLoginBtn" class="primary-action" type="button">Add + Login</button>
-              <button id="profileLoginSelectedBtn" class="secondary-action" type="button">Login Selected</button>
+              <label class="field-label" for="customScriptLanguageSelect">
+                <span>Script type</span>
+                <select id="customScriptLanguageSelect">
+                  <option value="Hinglish" selected>Hinglish</option>
+                  <option value="Hindi">Hindi</option>
+                  <option value="English">English</option>
+                </select>
+              </label>
+              <label class="field-label" for="customScriptDurationSelect">
+                <span>Timing</span>
+                <select id="customScriptDurationSelect">
+                  <option value="30">30 sec</option>
+                  <option value="40">40 sec</option>
+                  <option value="50" selected>50 sec</option>
+                  <option value="60">60 sec</option>
+                </select>
+              </label>
+              <label class="field-label" for="customScriptPresenterSelect">
+                <span>Presenter</span>
+                <select id="customScriptPresenterSelect">
+                  <option value="female" selected>Female creator</option>
+                  <option value="male">Male creator</option>
+                  <option value="auto">Auto</option>
+                </select>
+              </label>
+              <label class="field-label" for="customScriptAvatarSelect">
+                <span>Vids avatar</span>
+                <select id="customScriptAvatarSelect">
+                  <option value="auto_by_reel" selected>Auto by script</option>
+                  <option value="auto">Google Vids auto</option>
+                </select>
+              </label>
+              <label class="field-label" for="customScriptPrimaryProfileSelect">
+                <span>Primary profile</span>
+                <select id="customScriptPrimaryProfileSelect">
+                  <option value="work/hr-anslation.com">HR profile</option>
+                </select>
+              </label>
+              <label class="field-label script-video-fallback-toggle">
+                <span>Fallback</span>
+                <span class="check-row">
+                  <input id="customScriptFallbackEnabled" type="checkbox" checked>
+                  <span>Use second profile</span>
+                </span>
+              </label>
+              <label class="field-label" for="customScriptFallbackProfileSelect">
+                <span>Fallback profile</span>
+                <select id="customScriptFallbackProfileSelect">
+                  <option value="">No fallback</option>
+                </select>
+              </label>
             </div>
 
-            <div id="profileManagerSummary" class="profile-manager-summary">
-              <span>Profiles loading...</span>
+            <label class="field-label script-video-script" for="customScriptInput">
+              <span>Write or paste script</span>
+              <textarea id="customScriptInput" rows="7" placeholder="Paste your reel script here. The tool will improve hook, split into 10-second scenes, add CTA, captions, and Google Vids prompts."></textarea>
+            </label>
+
+            <div id="scriptVideoCreditGuardNotice" class="credit-guard-notice compact-credit-guard" data-tone="safe">
+              <strong>Credit Safe ON</strong>
+              <span>Optimize is safe. Google Vids generation stays locked until you turn Credit Safe off.</span>
             </div>
-            <div id="profileManagerList" class="profile-manager-list">
-              <span class="muted">Profiles loading...</span>
+
+            <div class="script-video-actions">
+              <button id="customScriptOptimizeBtn" class="secondary-action" type="button">Optimize Script</button>
+              <button id="customScriptGenerateBtn" class="primary-action build-main-action" type="button" disabled>Generate in Google Vids</button>
+              <button id="customScriptOpenFolderBtn" class="secondary-action" type="button" disabled>View Folder</button>
+            </div>
+
+            <div id="scriptVideoPipeline" class="pipeline-mini" aria-live="polite">
+              <span data-status="idle">Waiting for script.</span>
+            </div>
+
+            <div id="scriptVideoResult" class="script-video-result is-hidden">
+              <div class="script-video-result-head">
+                <div>
+                  <p class="eyebrow">Script Video Output</p>
+                  <h2 id="scriptVideoResultTitle">Script video ready</h2>
+                </div>
+                <strong id="scriptVideoResultStatus">Prepared</strong>
+              </div>
+              <p id="scriptVideoFolderPath" class="path-text"></p>
+              <p id="scriptVideoSummary" class="asset-summary"></p>
+              <div class="script-video-preview-grid">
+                <video id="scriptVideoPreview" class="final-video-preview is-hidden" controls playsinline></video>
+                <div>
+                  <div id="scriptVideoParts" class="script-parts"></div>
+                  <strong class="mini-section-title">Scene timing</strong>
+                  <div id="scriptVideoSceneList" class="script-scene-list"></div>
+                  <strong class="mini-section-title">Files</strong>
+                  <div id="scriptVideoFileList" class="asset-file-list"></div>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -221,12 +289,30 @@
                   <span>Search tool name</span>
                   <input id="toolSearchInput" type="search" placeholder="Search idea name..." autocomplete="off">
                 </label>
-                <label class="field-label tool-picker" for="toolSelect">
+                <div class="field-label tool-picker">
                   <span>Tool idea name</span>
-                  <select id="toolSelect">
+                  <select id="toolSelect" class="native-tool-select" aria-label="Tool idea name">
                     <option value="">Load Excel first</option>
                   </select>
-                </label>
+                  <details id="toolIdeaDropdown" class="tool-idea-dropdown checkbox-dropdown" aria-label="Tool idea name selector">
+                    <summary>
+                      <span>
+                        <strong id="toolDropdownLabel">Load Excel first</strong>
+                        <small id="toolDropdownHint">Search and select one tool row</small>
+                      </span>
+                      <span id="selectedRowsCount" class="state-pill">0 rows</span>
+                    </summary>
+                    <div class="checkbox-dropdown-menu">
+                      <div class="multi-row-actions">
+                        <span class="muted">Click a tool name to select that Excel row.</span>
+                        <button id="loadMoreToolRowsBtn" class="secondary-action" type="button" disabled>Load More</button>
+                      </div>
+                      <div id="toolRowChecklist" class="tool-row-checklist">
+                        <span class="muted">Load Excel to select rows.</span>
+                      </div>
+                    </div>
+                  </details>
+                </div>
                 <label class="field-label row-field" for="assetRowInput">
                   <span>Excel row</span>
                   <input id="assetRowInput" type="number" min="2" step="1" value="2">
@@ -234,6 +320,16 @@
               </div>
 
               <div id="selectedToolName" class="selected-tool">No row selected yet.</div>
+              <div class="tool-credit-toolbar">
+                <label class="auto-check-row credit-safe-row">
+                  <input id="creditSafeMode" type="checkbox" checked>
+                  <span>Credit Safe</span>
+                </label>
+                <div id="creditGuardNotice" class="credit-guard-notice" data-tone="safe">
+                  <strong>Credit Safe ON</strong>
+                  <span>No Google Vids generation will run unless you unlock and confirm.</span>
+                </div>
+              </div>
               <div id="artifactNotice" class="artifact-notice is-hidden" data-tone="idle">
                 <div class="artifact-copy">
                   <strong id="artifactNoticeTitle">Checking existing work</strong>
@@ -243,6 +339,49 @@
                   <button id="useExistingAssetsBtn" class="secondary-action" type="button" disabled>Use Old Assets</button>
                   <button id="generateNewAssetsBtn" class="primary-action" type="button" disabled>Generate New Assets</button>
                   <button id="useExistingScriptBtn" class="secondary-action" type="button" disabled>Use Old Script</button>
+                </div>
+              </div>
+
+              <div class="step-flow-panel" aria-label="One by one selected row automation">
+                <div class="step-flow-head">
+                  <div>
+                    <strong>Run Step Flow</strong>
+                    <span id="stepFlowStatus">Select row, choose settings, then run all selected steps.</span>
+                  </div>
+                  <span id="stepFlowState" class="state-pill">Ready</span>
+                </div>
+                <div class="step-flow-options">
+                  <label class="auto-check-row">
+                    <input id="flowRunAssets" type="checkbox" checked>
+                    <span>Assets</span>
+                  </label>
+                  <label class="auto-check-row">
+                    <input id="flowRunScript" type="checkbox" checked>
+                    <span>Script</span>
+                  </label>
+                  <label class="auto-check-row">
+                    <input id="flowRunAvatar" type="checkbox" checked>
+                    <span>Avatar</span>
+                  </label>
+                  <label class="auto-check-row">
+                    <input id="flowUseVidsAvatar" type="checkbox">
+                    <span>Use Vids avatar</span>
+                  </label>
+                  <label class="auto-check-row">
+                    <input id="flowRunVidsVoiceover" type="checkbox">
+                    <span>Vids voiceover</span>
+                  </label>
+                  <label class="auto-check-row">
+                    <input id="flowRunFinal" type="checkbox" checked>
+                    <span>Final reel</span>
+                  </label>
+                </div>
+                <div class="step-flow-actions">
+                  <button id="runStepFlowBtn" class="primary-action" type="button" disabled>Run Selected Steps</button>
+                  <button id="stopStepFlowBtn" class="secondary-action" type="button" disabled>Stop After Current</button>
+                </div>
+                <div id="stepFlowTimeline" class="step-flow-timeline">
+                  <span data-status="idle">Waiting for row selection.</span>
                 </div>
               </div>
             </section>
@@ -335,6 +474,8 @@
                   </select>
                 </label>
                 <button id="generateScriptBtn" class="primary-action build-main-action" type="button" disabled>Generate Script</button>
+                <button id="editScriptBtn" class="secondary-action" type="button" disabled>Edit Script</button>
+                <button id="saveScriptBtn" class="primary-action" type="button" disabled>Save Update</button>
                 <button id="viewScriptFolderBtn" class="secondary-action" type="button" disabled>View Script Folder</button>
               </div>
 
@@ -348,6 +489,46 @@
                 </div>
                 <p id="scriptFolderPath" class="path-text"></p>
                 <div id="scriptParts" class="script-parts"></div>
+                <details id="scriptEditorPanel" class="script-editor-panel">
+                  <summary>
+                    <span>
+                      <strong>Script editor</strong>
+                      <small id="scriptEditorMeta">Edit hook, body, CTA, captions, and scene text.</small>
+                    </span>
+                    <span class="state-pill">Update ready</span>
+                  </summary>
+                  <div class="script-editor-body">
+                    <div class="script-editor-grid">
+                      <label class="field-label script-edit-field" for="scriptHookEditor">
+                        <span>Hook line</span>
+                        <textarea id="scriptHookEditor" rows="3" placeholder="Avatar hook line..."></textarea>
+                      </label>
+                      <label class="field-label script-edit-field" for="scriptCtaEditor">
+                        <span>CTA line</span>
+                        <textarea id="scriptCtaEditor" rows="3" placeholder="Final CTA..."></textarea>
+                      </label>
+                      <label class="field-label script-edit-field wide" for="scriptBodyEditor">
+                        <span>Body voiceover</span>
+                        <textarea id="scriptBodyEditor" rows="5" placeholder="Main body voiceover..."></textarea>
+                      </label>
+                      <label class="field-label script-edit-field wide" for="scriptCaptionEditor">
+                        <span>Instagram caption</span>
+                        <textarea id="scriptCaptionEditor" rows="4" placeholder="Caption with tool link..."></textarea>
+                      </label>
+                      <label class="field-label script-edit-field wide" for="scriptHashtagsEditor">
+                        <span>Hashtags</span>
+                        <textarea id="scriptHashtagsEditor" rows="2" placeholder="#altftool #aitools"></textarea>
+                      </label>
+                    </div>
+                    <div class="script-editor-actions">
+                      <span class="muted">Hook Scene 1 me jayega, CTA last scene me. Body edit karoge to middle scenes auto split honge.</span>
+                      <button id="resetScriptEditorBtn" class="secondary-action" type="button" disabled>Reset Editor</button>
+                    </div>
+                    <div id="scriptSceneEditorList" class="script-scene-editor-list">
+                      <span class="muted">Generate script to edit scene-wise voiceover.</span>
+                    </div>
+                  </div>
+                </details>
                 <details class="scene-drawer">
                   <summary>
                     <strong>Scene-wise script</strong>
@@ -427,6 +608,10 @@
               </div>
               <div id="hookProfileStatus" class="profile-status-strip" aria-live="polite">
                 <span>Profiles loading...</span>
+              </div>
+              <div id="hookCreditGuardNotice" class="credit-guard-notice compact-credit-guard" data-tone="safe">
+                <strong>Credit Safe ON</strong>
+                <span>Use Prepare Avatar Pack for prompts. Google Vids generation is locked until you turn Credit Safe off.</span>
               </div>
 
               <div id="hookResult" class="hook-result is-hidden">

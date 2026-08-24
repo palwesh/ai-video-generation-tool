@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Docs - AI Reel Creator by Prathak</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/home.css">
+  </head>
+  <body>
+    <main class="fresh-shell docs-page-shell">
+      <header class="fresh-topbar" aria-label="AI Reel Creator by Prathak docs">
+        <a class="fresh-brand" href="/">
+          <span class="fresh-brand-icon">
+            <img src="/assets/altf-logo.png" alt="AltF Tool logo">
+          </span>
+          <span>
+            <strong>AI Reel Creator</strong>
+            <small>Docs</small>
+          </span>
+        </a>
+        <div class="task-notice" data-tone="idle" aria-live="polite">
+          <span class="task-dot"></span>
+          <div>
+            <strong>Documentation</strong>
+            <small>Search setup, workflow, and release notes</small>
+          </div>
+        </div>
+        <nav class="fresh-actions" aria-label="Docs navigation">
+          <a class="icon-link" href="/" aria-label="Back to workflow">
+            <span class="mini-icon">&larr;</span>
+            <span>Workflow</span>
+          </a>
+          <a class="icon-link" href="/advanced.html" aria-label="Open old Version 1 tool">
+            <span class="mini-icon">V1</span>
+            <span>Old Tool</span>
+          </a>
+        </nav>
+      </header>
+
+      <section class="docs-page-main" aria-label="Documentation reader page">
+        <section id="docsSection" class="workflow-section docs-panel docs-page-panel" aria-label="Documentation reader">
+          <div class="docs-head">
+            <div>
+              <p class="eyebrow">Docs</p>
+              <h1 id="docTitle">Automation docs</h1>
+              <p id="docStats">Loading docs...</p>
+            </div>
+            <span id="docState" class="state-pill">Loading</span>
+          </div>
+
+          <div class="docs-toolbar">
+            <label class="field-label doc-scope-field" for="docScopeSelect">
+              <span>View</span>
+              <select id="docScopeSelect">
+                <option value="selected" selected>Selected doc</option>
+                <option value="all">All docs one page</option>
+              </select>
+            </label>
+            <label class="field-label doc-select-field" for="docSelect">
+              <span>Document</span>
+              <select id="docSelect">
+                <option>Loading docs...</option>
+              </select>
+            </label>
+            <label class="field-label doc-search-field" for="docSearchInput">
+              <span>Search</span>
+              <input id="docSearchInput" type="search" placeholder="Search docs..." autocomplete="off">
+            </label>
+            <span id="docMatchCount" class="state-pill">Search ready</span>
+            <button id="refreshDocsBtn" class="secondary-action" type="button">Refresh</button>
+          </div>
+
+          <div class="docs-layout">
+            <aside class="doc-toc" aria-label="Doc sections">
+              <strong>Sections</strong>
+              <div id="docToc" class="toc-list">
+                <span class="empty-note">Loading...</span>
+              </div>
+            </aside>
+            <article id="docContent" class="doc-content">Loading docs...</article>
+          </div>
+        </section>
+      </section>
+    </main>
+    <script src="/docs.js" type="module"></script>
+  </body>
+</html>

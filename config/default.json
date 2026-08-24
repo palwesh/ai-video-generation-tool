@@ -46,6 +46,12 @@
     "recordWebm": true
   },
   "googleVids": {
+    "defaultProfiles": [
+      "work/hr-anslation.com",
+      "work/shejal.sahu-anslation.com-profile",
+      "work/google-vids-profile",
+      "work/google-vids-profile-2"
+    ],
     "defaultAvatar": "auto",
     "defaultAvatarScenes": "1,2,6",
     "defaultIngredientScenes": "3,4,5",

@@ -156,7 +156,7 @@ function firstAvailable(...candidates) {
 
 function mediaPurposeLabel(scene, sceneIndex, totalScenes = 6) {
   const text = sceneNarrationText(scene);
-  if (/(before|after|compare|comparison|difference|proof)/.test(text) || sceneIndex === totalScenes - 2) {
+  if (/(before|after|compare|comparison|difference|proof)/.test(text)) {
     return "BEFORE / AFTER";
   }
   if (/(result|output|summary|checklist|warning|next step|review-ready|ready)/.test(text)) {
@@ -174,6 +174,17 @@ function mediaPurposeLabel(scene, sceneIndex, totalScenes = 6) {
   return sceneIndex <= 1 ? "REAL TOOL PAGE" : "REAL TOOL DEMO";
 }
 
+function shouldUseBeforeAfterScene(assets, scene = {}, sceneIndex = 0, totalScenes = 6) {
+  if (sceneIndex !== totalScenes - 2) {
+    return false;
+  }
+  if (!assets?.demoBefore || !assets?.demoAfter) {
+    return false;
+  }
+  const text = sceneNarrationText(scene);
+  return /(before\s*(vs|\/|and)?\s*after|before|after|compare|comparison|difference|proof|pehle|baad|manual.*result|result.*manual|vs\.?|versus)/.test(text);
+}
+
 function toolMediaForScene(assets, scene = {}, sceneIndex = 0, totalScenes = 6) {
   const text = sceneNarrationText(scene);
   if (sceneIndex === 0) {
@@ -188,19 +199,19 @@ function toolMediaForScene(assets, scene = {}, sceneIndex = 0, totalScenes = 6) 
   if (/(before|manual|messy|problem|risk|mistake)/.test(text) && !/(after|result|output)/.test(text)) {
     return firstAvailable(assets.demoBefore, assets.desktop, assets.desktopFull, assets.demoVideo, assets.mobile);
   }
-  if (/(before|after|compare|comparison|difference|proof)/.test(text) || sceneIndex === totalScenes - 2) {
+  if (shouldUseBeforeAfterScene(assets, scene, sceneIndex, totalScenes)) {
     return firstAvailable(assets.demoAfter, assets.demoBefore, assets.demoVideo, assets.desktopFull, assets.desktop);
   }
   if (/(result|output|summary|checklist|warning|next step|review-ready|ready)/.test(text)) {
-    return firstAvailable(assets.demoAfter, assets.desktopFull, assets.demoVideo, assets.desktop, assets.mobileScroll);
+    return firstAvailable(assets.demoAfter, assets.demoVideo, assets.mobileScroll, assets.desktopFull, assets.desktop);
   }
   if (/(input|fill|click|run|workflow|step|demo|use case|use-case|tool page|actual tool)/.test(text)) {
-    return firstAvailable(assets.demoVideo, assets.demoAfter, assets.desktopFull, assets.desktop, assets.mobileScroll);
+    return firstAvailable(assets.demoVideo, assets.mobileScroll, assets.demoAfter, assets.mobile, assets.desktopFull, assets.desktop);
   }
   if (sceneIndex === 1) {
-    return firstAvailable(assets.desktopFull, assets.desktop, assets.demoVideo, assets.demoAfter, assets.mobile);
+    return firstAvailable(assets.demoVideo, assets.mobileScroll, assets.mobile, assets.demoAfter, assets.desktopFull, assets.desktop);
   }
-  return firstAvailable(assets.demoVideo, assets.demoAfter, assets.desktopFull, assets.desktop, assets.mobileScroll, assets.demoBefore, assets.mobile);
+  return firstAvailable(assets.demoVideo, assets.mobileScroll, assets.demoAfter, assets.mobile, assets.desktopFull, assets.desktop, assets.demoBefore);
 }
 
 function firstStrongLine(scene, toolName, sceneIndex) {
@@ -231,17 +242,92 @@ function supportingLine(scene, maxLength = 96) {
   return clampText(scene?.voiceover, maxLength);
 }
 
-function captionChunk(text, frame, fps) {
-  const words = splitWords(text);
-  if (!words.length) {
-    return "";
+function stableHash(value) {
+  const text = cleanText(value, "altftool");
+  let hash = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = ((hash << 5) - hash + text.charCodeAt(index)) | 0;
   }
-  const chunkSize = 5;
-  const chunkIndex = Math.min(
-    Math.floor((frame / fps) / 1.2),
-    Math.max(0, Math.ceil(words.length / chunkSize) - 1)
-  );
-  return words.slice(chunkIndex * chunkSize, chunkIndex * chunkSize + chunkSize).join(" ");
+  return Math.abs(hash);
+}
+
+function visualVariantFor(toolName, sceneIndex, totalScenes = 6) {
+  return stableHash(`${toolName || "tool"}:${sceneIndex}:${totalScenes}`) % 4;
+}
+
+function captionWordWindow(words, activeIndex, windowSize) {
+  if (!words.length) {
+    return [];
+  }
+  const safeIndex = Math.min(words.length - 1, Math.max(0, activeIndex));
+  const halfWindow = Math.floor(windowSize / 2);
+  const start = Math.min(Math.max(0, safeIndex - halfWindow), Math.max(0, words.length - windowSize));
+  return words.slice(start, start + windowSize).map((word, index) => ({
+    word,
+    sourceIndex: start + index,
+    active: start + index === safeIndex
+  }));
+}
+
+function demoLayoutForVariant(variant, portraitLike) {
+  const base = {
+    cardInset: portraitLike ? "96px 38px 320px" : "142px 0 345px",
+    cardRadius: portraitLike ? 34 : 0,
+    cardBorder: portraitLike ? "5px solid rgba(255,255,255,0.92)" : "0 solid transparent",
+    cardShadow: portraitLike ? "0 36px 110px rgba(0,0,0,0.42)" : "none",
+    top: { left: 48, right: 48, top: 48 },
+    chipsTop: portraitLike ? 1360 : 1276,
+    chipsLeft: 58,
+    chipsRight: 58,
+    rotate: "0deg",
+    backgroundAngle: 150
+  };
+
+  if (variant === 1) {
+    return {
+      ...base,
+      cardInset: portraitLike ? "122px 72px 340px" : "178px 36px 365px",
+      cardRadius: 32,
+      cardBorder: "5px solid rgba(255,255,255,0.9)",
+      cardShadow: "0 38px 120px rgba(0,0,0,0.38)",
+      top: { left: 56, right: 210, top: 54 },
+      chipsTop: portraitLike ? 1378 : 1306,
+      chipsLeft: 80,
+      chipsRight: 80,
+      backgroundAngle: 34
+    };
+  }
+
+  if (variant === 2) {
+    return {
+      ...base,
+      cardInset: portraitLike ? "82px 30px 345px" : "116px 34px 375px",
+      cardRadius: portraitLike ? 36 : 24,
+      cardBorder: "4px solid rgba(255,255,255,0.78)",
+      cardShadow: "0 42px 130px rgba(0,0,0,0.34)",
+      top: { left: 210, right: 48, top: 54 },
+      chipsTop: portraitLike ? 1350 : 1284,
+      chipsLeft: 52,
+      chipsRight: 150,
+      backgroundAngle: 214
+    };
+  }
+
+  if (variant === 3) {
+    return {
+      ...base,
+      cardInset: portraitLike ? "112px 52px 300px" : "126px 0 315px",
+      cardRadius: portraitLike ? 30 : 0,
+      top: { left: 48, right: 48, top: 64 },
+      chipsTop: portraitLike ? 1402 : 1326,
+      chipsLeft: 132,
+      chipsRight: 52,
+      rotate: portraitLike ? "-0.8deg" : "0deg",
+      backgroundAngle: 118
+    };
+  }
+
+  return base;
 }
 
 const Palette = {
@@ -307,7 +393,7 @@ function BackgroundWash({ asset, frame, accent }) {
   );
 }
 
-function MediaLayer({ media, fit = "contain", fps, style = {}, crop = false }) {
+function MediaLayer({ media, fit = "contain", fps, style = {}, crop = false, objectPosition = "50% 50%" }) {
   const source = mediaSource(media);
   if (!source) {
     return (
@@ -345,6 +431,7 @@ function MediaLayer({ media, fit = "contain", fps, style = {}, crop = false }) {
           width: "100%",
           height: "100%",
           backgroundColor: "#eef2f7",
+          objectPosition,
           ...style
         }}
       />
@@ -358,6 +445,7 @@ function MediaLayer({ media, fit = "contain", fps, style = {}, crop = false }) {
         width: "100%",
         height: "100%",
         objectFit: fit,
+        objectPosition,
         backgroundColor: "#eef2f7",
         ...style
       }}
@@ -763,96 +851,62 @@ function HostFrame({
   );
 }
 
-function trendCaptionTag(text, sceneIndex) {
-  const source = cleanText(text).toLowerCase();
-  if (/(save|bookmark|remember|keep)/.test(source)) {
-    return "SAVE THIS";
-  }
-  if (/(free|without paying|no cost)/.test(source)) {
-    return "FREE TOOL";
-  }
-  if (/(demo|screen|click|input|run|workflow|step)/.test(source)) {
-    return sceneIndex <= 2 ? "REAL DEMO" : "STEP BY STEP";
-  }
-  if (/(before|after|result|output|proof)/.test(source)) {
-    return "RESULT CHECK";
-  }
-  if (/(review|safe|privacy|data|publish|share)/.test(source)) {
-    return "CHECK FIRST";
-  }
-  return sceneIndex <= 2 ? "WATCH THIS" : "QUICK TIP";
-}
-
-function ReelCaption({ text, frame, fps, accent, compact = false, sceneIndex = 1 }) {
-  const chunk = captionChunk(text, frame, fps);
-  if (!chunk) {
+function ReelCaption({ text, frame, fps, accent, compact = false, sceneDurationFrames = 300, sceneIndex = 1 }) {
+  const words = splitWords(text);
+  if (!words.length) {
     return null;
   }
-  const powerWords = /^(stop|save|comment|tool|real|demo|review|privacy|risk|output|before|after|fast|free|mask|safe|watch|try|human|clear|check|ai|viral|secret|easy|quick|proof|result|workflow|click|time|salary|slip|data|share|post|instagram|reel)$/i;
-  const words = chunk.split(/\s+/).filter(Boolean);
-  const localFrame = frame % Math.max(1, Math.round(fps * 1.2));
+  const windowSize = compact ? 4 : 5;
+  const wordHoldFrames = Math.max(4, sceneDurationFrames / Math.max(1, words.length));
+  const activeIndex = Math.min(words.length - 1, Math.floor(frame / wordHoldFrames));
+  const visibleWords = captionWordWindow(words, activeIndex, windowSize);
+  const localFrame = Math.floor(frame % wordHoldFrames);
+  const enterSettleFrame = Math.min(8, Math.max(1, Math.floor(wordHoldFrames * 0.55)));
   const pop = spring({
     frame: localFrame,
     fps,
-    config: { damping: 180, stiffness: 260, mass: 0.55 }
+    config: { damping: 150, stiffness: 290, mass: 0.48 }
   });
-  const enterY = interpolate(localFrame, [0, Math.round(fps * 0.14), Math.round(fps * 1.2)], [18, 0, 0], {
+  const enterY = interpolate(localFrame, [0, enterSettleFrame, wordHoldFrames], [14, 0, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: Easing.bezier(0.16, 1, 0.3, 1)
   });
-  const shine = interpolate(frame % 72, [0, 36, 72], [0.15, 0.45, 0.15], {
+  const shine = interpolate(frame % 64, [0, 32, 64], [0.08, 0.32, 0.08], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp"
   });
-  const tag = trendCaptionTag(text, sceneIndex);
+  const lineVariant = sceneIndex % 3;
+  const captionBottom = compact ? 185 : lineVariant === 1 ? 146 : 168;
+  const captionWidth = compact ? { left: 104, right: 104 } : lineVariant === 2 ? { left: 86, right: 118 } : { left: 64, right: 64 };
+  const longestWord = visibleWords.reduce((max, item) => Math.max(max, item.word.length), 0);
+  const baseFontSize = compact ? 46 : 58;
+  const fontSize = longestWord > 13 ? baseFontSize - 6 : baseFontSize;
 
   return (
     <div
       style={{
         position: "absolute",
-        left: compact ? 90 : 64,
-        right: compact ? 90 : 64,
-        bottom: compact ? 190 : 160,
-        minHeight: compact ? 124 : 150,
+        ...captionWidth,
+        bottom: captionBottom,
+        minHeight: compact ? 112 : 136,
         display: "grid",
         alignItems: "center",
         justifyItems: "center",
         translate: `0px ${enterY}px`,
-        scale: interpolate(pop, [0, 1], [0.96, 1], {
-          extrapolateLeft: "clamp",
-          extrapolateRight: "clamp"
-        })
+        scale: interpolate(pop, [0, 1], [0.98, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
       }}
     >
       <div
         style={{
-          position: "absolute",
-          top: -31,
-          padding: "11px 19px",
-          borderRadius: 999,
-          backgroundColor: "#FFD700",
-          color: "#111827",
-          border: "4px solid #111827",
-          boxShadow: "0 12px 0 rgba(0,0,0,0.26)",
-          fontSize: compact ? 22 : 24,
-          lineHeight: 1,
-          fontWeight: 980,
-          letterSpacing: 0
-        }}
-      >
-        {tag}
-      </div>
-      <div
-        style={{
           position: "relative",
           width: "100%",
-          minHeight: compact ? 124 : 150,
-          padding: compact ? "31px 32px 26px" : "36px 40px 30px",
-          borderRadius: 26,
-          backgroundColor: "rgba(8, 13, 23, 0.95)",
-          border: `5px solid ${accent}`,
-          boxShadow: "0 28px 0 rgba(0,0,0,0.22), 0 34px 84px rgba(15, 23, 42, 0.42)",
+          minHeight: compact ? 112 : 136,
+          padding: compact ? "24px 28px 22px" : "30px 38px 28px",
+          borderRadius: 24,
+          backgroundColor: "rgba(7, 12, 22, 0.94)",
+          border: "4px solid rgba(255,255,255,0.86)",
+          boxShadow: `0 18px 0 rgba(0,0,0,0.22), 0 32px 90px rgba(0,0,0,0.42), inset 0 0 0 3px ${accent}77`,
           overflow: "hidden",
           display: "flex",
           alignItems: "center",
@@ -864,7 +918,7 @@ function ReelCaption({ text, frame, fps, accent, compact = false, sceneIndex = 1
             position: "absolute",
             inset: 0,
             background: `linear-gradient(110deg, rgba(255,255,255,0) 0%, rgba(255,255,255,${shine}) 42%, rgba(255,255,255,0) 72%)`,
-            translate: `${interpolate(frame % 72, [0, 72], [-520, 520], {
+            translate: `${interpolate(frame % 64, [0, 64], [-520, 520], {
               extrapolateLeft: "clamp",
               extrapolateRight: "clamp"
             })}px 0px`
@@ -874,30 +928,32 @@ function ReelCaption({ text, frame, fps, accent, compact = false, sceneIndex = 1
           style={{
             position: "relative",
             zIndex: 1,
-            fontSize: compact ? 46 : 56,
-            lineHeight: 1.02,
+            fontSize,
+            lineHeight: 1.06,
             fontWeight: 980,
             textAlign: "center",
             textWrap: "balance",
-            textTransform: "uppercase",
-            textShadow: "0 5px 0 #000000, 0 0 18px rgba(0,0,0,0.72)"
+            textShadow: "0 4px 0 #000000, 0 0 18px rgba(0,0,0,0.72)"
           }}
         >
-          {words.map((word, index) => {
-            const normalized = word.replace(/[^\p{L}\p{N}]/gu, "");
-            const highlighted = index === 0 || powerWords.test(normalized);
-            const displayWord = word.toUpperCase();
+          {visibleWords.map((item, index) => {
             return (
-              <React.Fragment key={`${word}-${index}`}>
+              <React.Fragment key={`${item.word}-${item.sourceIndex}`}>
                 <span
                   style={{
-                    color: highlighted ? "#FFD700" : "#ffffff",
-                    WebkitTextStroke: highlighted ? "1.5px #111827" : "0px transparent"
+                    display: "inline-block",
+                    color: item.active ? "#FFD700" : "#ffffff",
+                    scale: item.active ? interpolate(pop, [0, 1], [0.92, 1.12], {
+                      extrapolateLeft: "clamp",
+                      extrapolateRight: "clamp"
+                    }) : 1,
+                    opacity: item.active ? 1 : 0.82,
+                    WebkitTextStroke: item.active ? "1.5px #111827" : "0.5px #111827"
                   }}
                 >
-                  {displayWord}
+                  {item.word}
                 </span>
-                {index < words.length - 1 ? " " : ""}
+                {index < visibleWords.length - 1 ? " " : ""}
               </React.Fragment>
             );
           })}
@@ -907,10 +963,12 @@ function ReelCaption({ text, frame, fps, accent, compact = false, sceneIndex = 1
             position: "absolute",
             left: 22,
             bottom: 16,
-            width: 72,
+            width: `${Math.max(9, ((activeIndex + 1) / words.length) * 100)}%`,
+            maxWidth: "calc(100% - 44px)",
             height: 7,
             borderRadius: 999,
-            backgroundColor: "#FFD700"
+            backgroundColor: "#FFD700",
+            opacity: 0.92
           }}
         />
         <div
@@ -998,6 +1056,290 @@ function CursorCallout({ frame, accent, variant = "demo" }) {
         }}
       />
     </>
+  );
+}
+
+function isMobileLikeMedia(media) {
+  const source = mediaSource(media).toLowerCase();
+  return /mobile|phone|vertical|portrait|scroll/.test(source);
+}
+
+function AltFToolOpenOverlay({ sceneIndex, toolName, toolUrl, assets, frame, fps, accent }) {
+  if (sceneIndex !== 1) {
+    return null;
+  }
+
+  const endFrame = Math.round(fps * 2.4);
+  const opacity = interpolate(frame, [0, 12, endFrame - 12, endFrame], [1, 1, 1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.16, 1, 0.3, 1)
+  });
+  const enter = spring({
+    frame,
+    fps,
+    config: { damping: 150, stiffness: 210, mass: 0.72 }
+  });
+  const domain = compactDomain(toolUrl || "https://www.altftool.com/");
+  const displayDomain = /altftool/i.test(domain) ? "AltFTool.com" : domain;
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 32,
+        opacity,
+        background: `linear-gradient(160deg, #020617 0%, #08111f 52%, ${accent}88 100%)`,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 72,
+        pointerEvents: "none"
+      }}
+    >
+      <div
+        style={{
+          scale: interpolate(enter, [0, 1], [0.88, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp"
+          }),
+          translate: `0px ${interpolate(frame, [0, 24], [44, 0], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+            easing: Easing.bezier(0.16, 1, 0.3, 1)
+          })}px`,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center"
+        }}
+      >
+        <ToolLogoMark toolName={toolName} assets={assets} accent={accent} frame={frame} size={176} />
+        <div
+          style={{
+            marginTop: 42,
+            padding: "13px 22px",
+            borderRadius: 999,
+            backgroundColor: "#FFD700",
+            color: "#111827",
+            fontSize: 25,
+            lineHeight: 1,
+            fontWeight: 980,
+            boxShadow: "0 18px 48px rgba(0,0,0,0.28)"
+          }}
+        >
+          OPEN THIS FIRST
+        </div>
+        <div
+          style={{
+            marginTop: 26,
+            color: "#ffffff",
+            fontSize: 92,
+            lineHeight: 0.96,
+            fontWeight: 980,
+            textAlign: "center",
+            textShadow: "0 8px 0 rgba(0,0,0,0.26), 0 0 42px rgba(0,0,0,0.34)"
+          }}
+        >
+          {displayDomain}
+        </div>
+        <div
+          style={{
+            marginTop: 24,
+            maxWidth: 760,
+            color: "rgba(255,255,255,0.86)",
+            fontSize: 34,
+            lineHeight: 1.12,
+            fontWeight: 760,
+            textAlign: "center",
+            textWrap: "balance"
+          }}
+        >
+          Then search or open {brandedToolDisplay(toolName, 44)} and watch the real demo.
+        </div>
+        <div
+          style={{
+            marginTop: 44,
+            padding: "19px 28px",
+            borderRadius: 999,
+            backgroundColor: "rgba(255,255,255,0.94)",
+            color: Palette.ink,
+            fontSize: 28,
+            lineHeight: 1,
+            fontWeight: 940
+          }}
+        >
+          Real tool screenshots start next
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FullscreenDemoMedia({ media, scene, sceneIndex, totalScenes, toolName, toolUrl, assets, frame, fps, accent }) {
+  const source = mediaSource(media);
+  const portraitLike = isMobileLikeMedia(media);
+  const text = sceneNarrationText(scene);
+  const variant = visualVariantFor(toolName, sceneIndex, totalScenes);
+  const layout = demoLayoutForVariant(variant, portraitLike);
+  const objectPosition = /(result|output|after|review|summary|warning)/.test(text)
+    ? "50% 42%"
+    : /(input|fill|upload|click|run|button|workflow)/.test(text)
+      ? "50% 50%"
+      : "50% 46%";
+  const zoomStart = portraitLike ? 1.02 : variant === 1 ? 1.04 : 1.08;
+  const zoomEnd = portraitLike ? 1.07 : variant === 2 ? 1.16 : 1.2;
+  const zoom = interpolate(frame, [0, Math.round(fps * 10)], [zoomStart, zoomEnd], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.16, 1, 0.3, 1)
+  });
+  const yPan = interpolate(frame, [0, Math.round(fps * 10)], portraitLike ? [0, -24] : variant === 3 ? [8, -22] : [24, -34], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.33, 0, 0.2, 1)
+  });
+  const xPanPoints = variant === 1 ? [-24, 10] : variant === 2 ? [18, -22] : sceneIndex % 2 ? [-16, 16] : [14, -14];
+  const xPan = interpolate(frame, [0, Math.round(fps * 10)], xPanPoints, {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.33, 0, 0.2, 1)
+  });
+  const badge = mediaPurposeLabel(scene, sceneIndex, totalScenes);
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: "#020617", overflow: "hidden" }}>
+      {source && !isVideoAsset(source) ? (
+        <Img
+          src={staticFile(source)}
+          style={{
+            ...fullBleed,
+            objectFit: "cover",
+            objectPosition,
+            scale: 1.18,
+            filter: "blur(24px) saturate(0.9)",
+            opacity: 0.42
+          }}
+        />
+      ) : (
+        <div style={{ ...fullBleed, background: `linear-gradient(${layout.backgroundAngle}deg, #020617 0%, #111827 52%, ${accent}66 100%)` }} />
+      )}
+      <div style={{ ...fullBleed, background: "linear-gradient(180deg, rgba(2,6,23,0.64) 0%, rgba(2,6,23,0.06) 18%, rgba(2,6,23,0.02) 58%, rgba(2,6,23,0.82) 100%)" }} />
+      <div
+        style={{
+          position: "absolute",
+          inset: layout.cardInset,
+          overflow: "hidden",
+          borderRadius: layout.cardRadius,
+          border: layout.cardBorder,
+          boxShadow: layout.cardShadow,
+          backgroundColor: "#0b1020",
+          rotate: layout.rotate
+        }}
+      >
+        <MediaLayer
+          media={media}
+          fit="cover"
+          fps={fps}
+          crop={!portraitLike}
+          objectPosition={objectPosition}
+          style={{
+            ...fullBleed,
+            scale: zoom,
+            translate: `${xPan}px ${yPan}px`
+          }}
+        />
+        <div style={{ ...fullBleed, boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.12)" }} />
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          ...layout.top,
+          minHeight: 82,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 18,
+          padding: "16px 20px",
+          borderRadius: 24,
+          backgroundColor: "rgba(255,255,255,0.94)",
+          border: "3px solid rgba(255,255,255,0.9)",
+          boxShadow: "0 20px 70px rgba(0,0,0,0.28)"
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div style={{ color: accent, fontSize: 22, lineHeight: 1, fontWeight: 980 }}>
+            ACTUAL TOOL DEMO
+          </div>
+          <div style={{ marginTop: 7, color: Palette.ink, fontSize: 31, lineHeight: 1, fontWeight: 940, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {brandedToolDisplay(toolName, 44)}
+          </div>
+        </div>
+        <div
+          style={{
+            flex: "0 0 auto",
+            padding: "13px 17px",
+            borderRadius: 999,
+            backgroundColor: "#111827",
+            color: "#FFD700",
+            fontSize: 20,
+            fontWeight: 960,
+            lineHeight: 1
+          }}
+        >
+          {String(scene.scene_number || sceneIndex + 1).padStart(2, "0")} / {String(totalScenes).padStart(2, "0")}
+        </div>
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          left: layout.chipsLeft,
+          right: layout.chipsRight,
+          top: layout.chipsTop,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12
+        }}
+      >
+        {[badge, "Fictional demo data", compactDomain(toolUrl)].filter(Boolean).map((label, index) => (
+          <div
+            key={`${label}-${index}`}
+            style={{
+              minWidth: 0,
+              flex: index === 0 ? "1.2 1 0" : "1 1 0",
+              padding: "15px 16px",
+              borderRadius: 999,
+              backgroundColor: index === 0 ? accent : "rgba(255,255,255,0.92)",
+              color: index === 0 ? "#ffffff" : Palette.ink,
+              border: index === 0 ? "0 solid transparent" : "3px solid rgba(255,255,255,0.76)",
+              boxShadow: "0 16px 48px rgba(0,0,0,0.22)",
+              fontSize: 21,
+              lineHeight: 1,
+              fontWeight: 930,
+              textAlign: "center",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap"
+            }}
+          >
+            {label}
+          </div>
+        ))}
+      </div>
+      <AltFToolOpenOverlay
+        sceneIndex={sceneIndex}
+        toolName={toolName}
+        toolUrl={toolUrl}
+        assets={assets}
+        frame={frame}
+        fps={fps}
+        accent={accent}
+      />
+    </AbsoluteFill>
   );
 }
 
@@ -1204,6 +1546,86 @@ function HookVideoLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl,
   );
 }
 
+function CtaAvatarLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, generatedClip, frame, fps, accent, sceneDurationFrames, fade }) {
+  const brandOutroStart = Math.max(0, sceneDurationFrames - Math.round(fps * 3.1));
+  const showCtaOverlay = frame < brandOutroStart - 4;
+  const topIn = interpolate(frame, [0, 26], [-42, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.16, 1, 0.3, 1)
+  });
+
+  return (
+    <AbsoluteFill style={{ opacity: fade, overflow: "hidden", backgroundColor: "#020617" }}>
+      <div style={{ ...fullBleed }}>
+        <MediaLayer
+          media={{ ...generatedClip, muted: false, loop: false, objectFit: "cover" }}
+          fit="cover"
+          fps={fps}
+          style={{ ...fullBleed }}
+          objectPosition="50% 42%"
+        />
+      </div>
+      <div style={{ ...fullBleed, background: "linear-gradient(180deg, rgba(2,6,23,0.2) 0%, rgba(2,6,23,0.04) 38%, rgba(2,6,23,0.9) 100%)" }} />
+      <div style={{ ...fullBleed, boxShadow: `inset 0 0 0 18px ${accent}` , opacity: 0.78 }} />
+
+      {showCtaOverlay ? (
+        <>
+          <div
+            style={{
+              position: "absolute",
+              left: 54,
+              right: 54,
+              top: 46,
+              minHeight: 72,
+              padding: "14px 18px",
+              borderRadius: 999,
+              backgroundColor: "rgba(255,255,255,0.94)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 16,
+              boxShadow: "0 20px 70px rgba(0,0,0,0.28)",
+              translate: `0px ${topIn}px`
+            }}
+          >
+            <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ width: 14, height: 14, borderRadius: 999, backgroundColor: "#FFD700", boxShadow: "0 0 24px rgba(255,215,0,0.7)" }} />
+              <div style={{ color: Palette.ink, fontSize: 28, lineHeight: 1, fontWeight: 940, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {brandedToolDisplay(toolName, 42)}
+              </div>
+            </div>
+            <div style={{ flex: "0 0 auto", color: accent, fontSize: 21, lineHeight: 1, fontWeight: 980 }}>
+              {compactDomain(toolUrl)}
+            </div>
+          </div>
+
+          <ReelCaption
+            text={scene.voiceover || `Try ${brandedToolDisplay(toolName, 36)}. Link caption me hai.`}
+            frame={frame}
+            fps={fps}
+            accent="#FFD700"
+            compact
+            sceneDurationFrames={sceneDurationFrames}
+            sceneIndex={sceneIndex}
+          />
+          <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent="#FFD700" />
+        </>
+      ) : null}
+
+      <EndBrandCard
+        toolName={toolName}
+        toolUrl={toolUrl}
+        assets={assets}
+        frame={frame}
+        fps={fps}
+        accent={accent}
+        sceneDurationFrames={sceneDurationFrames}
+      />
+    </AbsoluteFill>
+  );
+}
+
 function IntroScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, toolMedia, generatedClip, frame, fps, accent, sceneDurationFrames, fade }) {
   const enter = spring({ frame, fps, config: { damping: 170, stiffness: 130, mass: 0.8 } });
   const hostX = interpolate(enter, [0, 1], [-70, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -1283,7 +1705,7 @@ function IntroScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
         ))}
       </div>
 
-      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact sceneIndex={sceneIndex} />
+      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact sceneDurationFrames={sceneDurationFrames} sceneIndex={sceneIndex} />
       <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
       <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
         {clampText(toolUrl || "altftool.com", 74)}
@@ -1293,43 +1715,26 @@ function IntroScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
 }
 
 function DemoScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, toolMedia, generatedClip, frame, fps, accent, sceneDurationFrames, fade }) {
-  const enter = spring({ frame, fps, config: { damping: 180, stiffness: 135, mass: 0.75 } });
-  const titleY = interpolate(enter, [0, 1], [34, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const screenScale = interpolate(enter, [0, 1], [0.96, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp"
-  });
   const isWorkflow = sceneIndex > 2;
-  const mediaLabel = mediaPurposeLabel(scene, sceneIndex, totalScenes);
+  const presenterIn = interpolate(frame, [20, 48], [120, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.16, 1, 0.3, 1)
+  });
 
   return (
     <AbsoluteFill style={{ opacity: fade, overflow: "hidden" }}>
-      <BackgroundWash asset={toolMedia || assets.desktop} frame={frame} accent={accent} />
-      <TopStrip scene={scene} sceneIndex={sceneIndex} totalScenes={totalScenes} toolName={toolName} />
-
-      <div style={{ position: "absolute", left: 72, right: 72, top: 155, translate: `0px ${titleY}px` }}>
-        <div style={{ display: "inline-flex", padding: "12px 18px", borderRadius: 999, backgroundColor: "#ecfeff", color: Palette.teal, fontSize: 25, fontWeight: 950 }}>
-          No fake UI
-        </div>
-        <div style={{ marginTop: 20, color: Palette.ink, fontSize: 75, lineHeight: 1.02, fontWeight: 960 }}>
-          {firstStrongLine(scene, toolName, sceneIndex)}
-        </div>
-      </div>
-
-      <BrowserFrame
+      <FullscreenDemoMedia
         media={toolMedia}
+        scene={scene}
+        sceneIndex={sceneIndex}
+        totalScenes={totalScenes}
+        toolName={toolName}
+        toolUrl={toolUrl}
+        assets={assets}
+        frame={frame}
         fps={fps}
         accent={accent}
-        label={mediaLabel || (isWorkflow ? "WORKFLOW RECORDING" : "REAL TOOL DEMO")}
-        large
-        crop
-        style={{
-          left: 58,
-          right: 58,
-          top: 365,
-          height: 950,
-          scale: screenScale
-        }}
       />
       <CursorCallout frame={frame} accent={accent} variant={isWorkflow ? "workflow" : "demo"} />
 
@@ -1343,47 +1748,19 @@ function DemoScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, 
           sublabel="explaining steps"
           presenterStyle={assets.hookAvatarStyle || "female"}
           style={{
-            right: 60,
-            top: 1188,
-            width: 270,
-            height: 355
+            right: 42,
+            top: 1110,
+            width: 220,
+            height: 300,
+            translate: `${presenterIn}px 0px`
           }}
           objectPosition="54% 42%"
         />
       ) : null}
 
-      <div
-        style={{
-          position: "absolute",
-          left: 74,
-          right: generatedClip || assets.avatarHost ? 360 : 74,
-          top: 1346,
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 12
-        }}
-      >
-        {["Input", "Run", "Review"].map((label, index) => (
-          <div
-            key={label}
-            style={{
-              padding: "18px 12px",
-              borderRadius: 18,
-              backgroundColor: index === 1 ? "#ecfdf5" : "#eff6ff",
-              color: index === 1 ? Palette.green : Palette.blue,
-              fontSize: 27,
-              fontWeight: 940,
-              textAlign: "center"
-            }}
-          >
-            {label}
-          </div>
-        ))}
-      </div>
-
-      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} sceneIndex={sceneIndex} />
-      <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
-      <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
+      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} sceneDurationFrames={sceneDurationFrames} sceneIndex={sceneIndex} />
+      <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent="#FFD700" />
+      <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: "rgba(255,255,255,0.78)", fontSize: 22, fontWeight: 700 }}>
         {clampText(toolUrl || "altftool.com", 74)}
       </div>
     </AbsoluteFill>
@@ -1464,7 +1841,7 @@ function ProofScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
         />
       ) : null}
 
-      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} sceneIndex={sceneIndex} />
+      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} sceneDurationFrames={sceneDurationFrames} sceneIndex={sceneIndex} />
       <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
       <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
         {clampText(toolUrl || "altftool.com", 74)}
@@ -1581,7 +1958,7 @@ function CtaScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, t
 
       {showRegularOutroUi ? (
         <>
-          <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact sceneIndex={sceneIndex} />
+          <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact sceneDurationFrames={sceneDurationFrames} sceneIndex={sceneIndex} />
           <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
           <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
             {clampText(toolUrl || "altftool.com", 74)}
@@ -1659,9 +2036,11 @@ export const ReelScene = ({ scene, sceneIndex, totalScenes = 6, sceneDurationSec
     body = <HookVideoLeadScene {...common} />;
   } else if (sceneIndex === 0) {
     body = <HookScene {...common} />;
+  } else if (sceneIndex === totalScenes - 1 && generatedClip) {
+    body = <CtaAvatarLeadScene {...common} />;
   } else if (sceneIndex === totalScenes - 1) {
     body = <CtaScene {...common} />;
-  } else if (sceneIndex === totalScenes - 2) {
+  } else if (shouldUseBeforeAfterScene(rawAssets, scene, sceneIndex, totalScenes)) {
     body = <ProofScene {...common} />;
   } else {
     body = <DemoScene {...common} />;

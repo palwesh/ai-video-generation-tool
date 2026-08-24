@@ -928,16 +928,111 @@ async function clickAvatarPreview(page) {
     : { clicked: false, reason: "AI avatar Preview button could not be clicked.", candidate };
 }
 
+async function clickAvatarGenerate(page) {
+  const candidate = await page.evaluate(() => {
+    document.querySelectorAll("[data-trf-avatar-generate]").forEach((element) => {
+      element.removeAttribute("data-trf-avatar-generate");
+    });
+
+    const clean = (value) => String(value || "").replace(/\s+/g, " ").trim();
+    const viewport = { width: window.innerWidth, height: window.innerHeight };
+    const elements = Array.from(document.querySelectorAll("button, [role='button']"));
+    const matches = elements.map((element, index) => {
+      const rect = element.getBoundingClientRect();
+      const style = window.getComputedStyle(element);
+      const text = clean(element.innerText || element.textContent);
+      const ariaLabel = clean(element.getAttribute("aria-label"));
+      return {
+        index,
+        text,
+        ariaLabel,
+        disabled: element.disabled || element.getAttribute("aria-disabled") === "true",
+        opacity: Number(style.opacity || 1),
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+        centerX: rect.x + rect.width / 2,
+        centerY: rect.y + rect.height / 2,
+        visible: Boolean(rect.width && rect.height && element.getClientRects().length)
+      };
+    }).filter((item) => (
+      item.visible &&
+      /^Generate$/i.test(item.text || item.ariaLabel) &&
+      !item.disabled &&
+      item.opacity > 0.45 &&
+      item.centerX > viewport.width * 0.62 &&
+      item.centerY > viewport.height * 0.62
+    )).sort((a, b) => b.centerY - a.centerY);
+
+    const chosen = matches[0];
+    if (!chosen) {
+      return null;
+    }
+    elements[chosen.index].setAttribute("data-trf-avatar-generate", "true");
+    return chosen;
+  });
+
+  if (!candidate) {
+    return { clicked: false, reason: "AI avatar Generate button was not available." };
+  }
+
+  const locator = page.locator("[data-trf-avatar-generate='true']").first();
+  let clicked = await locator.click({ timeout: 5000, force: true }).then(() => true).catch(() => false);
+  if (!clicked) {
+    await page.mouse.click(candidate.centerX, candidate.centerY).then(() => {
+      clicked = true;
+    }).catch(() => {});
+  }
+  await page.waitForTimeout(1500);
+  return clicked
+    ? { clicked: true, label: "AI avatar Generate", selector: "[data-trf-avatar-generate='true']", candidate }
+    : { clicked: false, reason: "AI avatar Generate button could not be clicked.", candidate };
+}
+
+async function submitAiAvatarPanel(page) {
+  const preview = await clickAvatarPreview(page);
+  if (!preview.clicked) {
+    const generateOnly = await clickAvatarGenerate(page);
+    return generateOnly.clicked
+      ? { ...generateOnly, preview, aiAvatarDirectInsert: true }
+      : { clicked: false, preview, generate: generateOnly, reason: generateOnly.reason || preview.reason };
+  }
+
+  let generate = { clicked: false, reason: "AI avatar Generate button was not available." };
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 45000) {
+    await page.waitForTimeout(3000);
+    generate = await clickAvatarGenerate(page);
+    if (generate.clicked) {
+      break;
+    }
+  }
+  if (!generate.clicked) {
+    return { clicked: false, preview, generate, reason: generate.reason || "AI avatar Generate button was not clicked." };
+  }
+
+  return {
+    clicked: true,
+    label: "AI avatar Preview + Generate",
+    selector: generate.selector,
+    preview,
+    generate,
+    aiAvatarDirectInsert: true
+  };
+}
+
 async function maybeSubmit(page) {
   if (await isAiAvatarPanelActive(page)) {
-    const avatarPreview = await clickAvatarPreview(page);
-    if (avatarPreview.clicked) {
-      return avatarPreview;
+    const avatarSubmit = await submitAiAvatarPanel(page);
+    if (avatarSubmit.clicked) {
+      return avatarSubmit;
     }
+    return avatarSubmit;
   }
 
   const accessibleLabels = ["Generate", "Submit", "Send", "Create video", "Create clip"];
-  const byLabel = await clickByText(page, accessibleLabels, 5000);
+  const byLabel = await clickControlByLabelOrText(page, accessibleLabels, 5000);
   if (byLabel.clicked) {
     return byLabel;
   }
@@ -996,7 +1091,7 @@ async function maybeSubmit(page) {
       item.centerX > viewport.width - 260 &&
       item.centerX < viewport.width - 20 &&
       item.centerY > viewport.height - 140 &&
-      item.centerY < viewport.height - 20 &&
+      item.centerY < viewport.height + 12 &&
       item.width >= 32 &&
       item.height >= 32 &&
       isBlue(item.backgroundColor)
@@ -1010,7 +1105,7 @@ async function maybeSubmit(page) {
       item.centerX > viewport.width - 260 &&
       item.centerX < viewport.width - 20 &&
       item.centerY > viewport.height - 140 &&
-      item.centerY < viewport.height - 20 &&
+      item.centerY < viewport.height + 12 &&
       item.width >= 38 &&
       item.width <= 70 &&
       item.height >= 38 &&
@@ -1025,13 +1120,17 @@ async function maybeSubmit(page) {
   });
 
   if (candidate) {
-    await page.mouse.click(candidate.centerX, candidate.centerY);
+    const viewport = page.viewportSize() || { width: 1365, height: 768 };
+    await page.mouse.click(
+      Math.min(Math.max(candidate.centerX, 8), viewport.width - 8),
+      Math.min(Math.max(candidate.centerY, 8), viewport.height - 18)
+    );
     await page.waitForTimeout(1500);
     return { clicked: true, label: "bottom-right submit icon", selector: "coordinate", candidate };
   }
 
   const viewport = page.viewportSize() || { width: 1365, height: 768 };
-  await page.mouse.click(viewport.width - 140, viewport.height - 60);
+  await page.mouse.click(viewport.width - 140, viewport.height - 24);
   await page.waitForTimeout(1500);
   return { clicked: true, label: "bottom-right fallback", selector: "coordinate" };
 }
@@ -1292,8 +1391,43 @@ function ingredientReport(steps) {
     }));
 }
 
-function avatarArgValue() {
-  const value = args.avatar || args["select-avatar"];
+function avatarMapValue(sceneNumber) {
+  const raw = args["avatar-map"] || args.avatarMap || args["select-avatar-map"];
+  if (!raw || !sceneNumber) {
+    return "";
+  }
+
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    return raw[sceneNumber] || raw[String(sceneNumber)] || "";
+  }
+
+  const text = String(raw).trim();
+  if (!text) {
+    return "";
+  }
+
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === "object") {
+      return parsed[sceneNumber] || parsed[String(sceneNumber)] || "";
+    }
+  } catch {
+    // Fall through to compact comma/pipe syntax.
+  }
+
+  for (const part of text.split(/[|,]/)) {
+    const match = part.trim().match(/^(\d+)\s*[:=]\s*(.+)$/);
+    if (match && Number(match[1]) === Number(sceneNumber)) {
+      return match[2].trim();
+    }
+  }
+
+  return "";
+}
+
+function avatarArgValue(sceneNumber = null) {
+  const mapped = avatarMapValue(sceneNumber);
+  const value = mapped || args.avatar || args["select-avatar"];
   if (!value) {
     return "";
   }
@@ -1304,7 +1438,7 @@ function avatarArgValue() {
 }
 
 function shouldSelectAvatarForScene(sceneNumber) {
-  const avatar = avatarArgValue();
+  const avatar = avatarArgValue(sceneNumber);
   if (!avatar) {
     return false;
   }
@@ -1766,7 +1900,8 @@ try {
       }
 
       if (shouldSelectAvatarForScene(currentSceneNumber)) {
-        const avatar = await selectAvatar(page, avatarArgValue());
+        const selectedAvatarForScene = avatarArgValue(currentSceneNumber);
+        const avatar = await selectAvatar(page, selectedAvatarForScene);
         steps.push({ sceneNumber: currentSceneNumber, name: "select_avatar", ...avatar, screenshot: await screenshot(page, outputDir, shotName("08-avatar")), state: await pageState(page, outputDir, shotName("08-avatar")) });
 
         const reopenAiVideo = await openAiVideoPanel(page);
@@ -1796,7 +1931,9 @@ try {
 
       let submit = { skipped: true };
       if (args.submit) {
+        console.log(`Submitting Scene ${currentSceneNumber}...`);
         submit = await maybeSubmit(page);
+        console.log(`Scene ${currentSceneNumber} submit result: ${submit.clicked ? submit.label || submit.selector || "clicked" : submit.reason || "not clicked"}`);
         await page.waitForTimeout(Number(args["after-submit-wait"] || 45000));
       }
       steps.push({ sceneNumber: currentSceneNumber, name: "submit", ...submit, screenshot: await screenshot(page, outputDir, shotName("10-submit")), state: await pageState(page, outputDir, shotName("10-submit")) });
@@ -1811,7 +1948,18 @@ try {
       }
 
       if (args.insert) {
-        const insert = await clickGeneratedInsert(page);
+        let insert = await clickGeneratedInsert(page);
+        if (!insert.clicked && submit.aiAvatarDirectInsert) {
+          insert = {
+            clicked: true,
+            skipped: true,
+            directInsert: true,
+            insertAttempt: insert,
+            label: "AI avatar result accepted on the selected scene.",
+            reason: "Google Vids AI Avatar flow did not expose a separate Insert button after Generate."
+          };
+        }
+        console.log(`Scene ${currentSceneNumber} insert result: ${insert.clicked ? insert.label || "clicked" : insert.reason || "not clicked"}`);
         steps.push({ sceneNumber: currentSceneNumber, name: "insert_generated_clip", ...insert, screenshot: await screenshot(page, outputDir, shotName("11-insert")), state: await pageState(page, outputDir, shotName("11-insert")) });
         if (!insert.clicked) {
           if (insert.limitHit) {

@@ -2,23 +2,24 @@
 
 Last updated: 2026-08-22
 
-## Latest Avatar Pack And Docs Reader Update
+## Latest Auto Queue, Avatar Pack, And Separate Docs Reader Update
 
-The Basic dashboard now has a readable Docs section on the same page.
+The Basic dashboard now keeps docs on a separate reader page so the workflow stays focused.
 
 Read docs link:
 
 ```text
-http://127.0.0.1:4317/#docsSection
+http://127.0.0.1:4317/docs.html
 ```
 
 Where to find it:
 
 1. Top bar `Docs` button.
-2. Load Excel card `Read Docs` button.
-3. Left sidebar `Docs` step.
+2. Direct `/docs.html` URL.
 
-The Docs section can read one selected doc or all docs in one page. It also includes search, match count, refresh, and a clickable section list.
+The Docs page can read one selected doc or all docs in one page. It also includes search, match count, refresh, and a clickable section list.
+
+Basic mode now focuses on the manual quality flow: load Excel, search tool names, open the `Tool idea name` dropdown, click a tool name, then build assets, generate/edit script, prepare avatar prompts, and render/review the final reel step by step. `Credit Safe` stays ON by default so Google Vids generation cannot start accidentally.
 
 The Google Vids avatar flow is now an `Avatar Pack`:
 
@@ -194,7 +195,8 @@ The dashboard opens in `Basic` mode for one-video production:
 4. Choose `Female presenter`, `Male presenter`, or `Auto presenter`.
 5. Choose 30, 40, 50, or 60 seconds.
 6. Click `Prepare Assets` to build script, screenshots, recordings, prompts, and workbook links without final render.
-7. Click `Create Quality Reel` to generate the recommended Reel: Google Vids avatar hook when quota/profile is available, real tool demo in the body, Edge Hindi voiceover, captions, music, quality report, and final local MP4.
+7. Use `Edit Script` when needed to update Hook, Body, CTA, caption, hashtags, or scene-wise voiceover/on-screen text, then click `Save Update`.
+8. Click `Create Quality Reel` to generate the recommended Reel: Google Vids avatar hook when quota/profile is available, real tool demo in the body, Edge Hindi voiceover, captions, music, quality report, and final local MP4.
 
 The dashboard remembers the last Excel path, selected row, Basic mode, avatar style, duration, Drive sync folder, and selected tab in `work/ui-state.json`.
 
@@ -569,12 +571,12 @@ It does not store your Google password.
 
 ## Docs Menu
 
-The Basic dashboard has an in-page Docs section and the Advanced dashboard has a Docs tab.
+The Basic dashboard has a separate Docs page and the Advanced dashboard has a Docs tab.
 
 Basic docs link:
 
 ```text
-http://127.0.0.1:4317/#docsSection
+http://127.0.0.1:4317/docs.html
 ```
 
 It can read:

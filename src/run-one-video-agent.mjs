@@ -477,6 +477,10 @@ function splitList(value) {
 }
 
 function vidsProfilesFromArgs() {
+  const defaultVidsProfiles = [
+    "work/hr-anslation.com",
+    "work/shejal.sahu-anslation.com-profile"
+  ];
   const profiles = [
     ...splitList(args["vids-profiles"]),
     ...splitList(args["profile"]),
@@ -484,7 +488,7 @@ function vidsProfilesFromArgs() {
   ];
 
   if (!profiles.length) {
-    profiles.push("work/google-vids-profile");
+    profiles.push(...defaultVidsProfiles);
   }
 
   profiles.push(...splitList(args["fallback-profile"]));

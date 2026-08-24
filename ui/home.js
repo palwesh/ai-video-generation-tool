@@ -36,6 +36,7 @@ const els = {
   scriptStepLink: document.getElementById("scriptStepLink"),
   hookStepLink: document.getElementById("hookStepLink"),
   finalStepLink: document.getElementById("finalStepLink"),
+  scriptVideoStepLink: document.getElementById("scriptVideoStepLink"),
   profileStepLink: document.getElementById("profileStepLink"),
   docsStepLink: document.getElementById("docsStepLink"),
   loadStepMeta: document.getElementById("loadStepMeta"),
@@ -44,6 +45,7 @@ const els = {
   scriptStepMeta: document.getElementById("scriptStepMeta"),
   hookStepMeta: document.getElementById("hookStepMeta"),
   finalStepMeta: document.getElementById("finalStepMeta"),
+  scriptVideoStepMeta: document.getElementById("scriptVideoStepMeta"),
   profileStepMeta: document.getElementById("profileStepMeta"),
   docsStepMeta: document.getElementById("docsStepMeta"),
   docState: document.getElementById("docState"),
@@ -58,12 +60,46 @@ const els = {
   refreshDocsBtn: document.getElementById("refreshDocsBtn"),
   toolSearchInput: document.getElementById("toolSearchInput"),
   toolOptionCount: document.getElementById("toolOptionCount"),
+  toolIdeaDropdown: document.getElementById("toolIdeaDropdown"),
+  toolDropdownLabel: document.getElementById("toolDropdownLabel"),
+  toolDropdownHint: document.getElementById("toolDropdownHint"),
   artifactNotice: document.getElementById("artifactNotice"),
   artifactNoticeTitle: document.getElementById("artifactNoticeTitle"),
   artifactNoticeDetail: document.getElementById("artifactNoticeDetail"),
   useExistingAssetsBtn: document.getElementById("useExistingAssetsBtn"),
   generateNewAssetsBtn: document.getElementById("generateNewAssetsBtn"),
   useExistingScriptBtn: document.getElementById("useExistingScriptBtn"),
+  stepFlowState: document.getElementById("stepFlowState"),
+  stepFlowStatus: document.getElementById("stepFlowStatus"),
+  stepFlowTimeline: document.getElementById("stepFlowTimeline"),
+  runStepFlowBtn: document.getElementById("runStepFlowBtn"),
+  stopStepFlowBtn: document.getElementById("stopStepFlowBtn"),
+  flowRunAssets: document.getElementById("flowRunAssets"),
+  flowRunScript: document.getElementById("flowRunScript"),
+  flowRunAvatar: document.getElementById("flowRunAvatar"),
+  flowUseVidsAvatar: document.getElementById("flowUseVidsAvatar"),
+  flowRunVidsVoiceover: document.getElementById("flowRunVidsVoiceover"),
+  flowRunFinal: document.getElementById("flowRunFinal"),
+  autoQueueState: document.getElementById("autoQueueState"),
+  autoVideoCount: document.getElementById("autoVideoCount"),
+  autoRowsInput: document.getElementById("autoRowsInput"),
+  autoStartSelectedRow: document.getElementById("autoStartSelectedRow"),
+  autoUseVidsHook: document.getElementById("autoUseVidsHook"),
+  autoUseVidsHookLabel: document.getElementById("autoUseVidsHookLabel"),
+  autoUpdateWorkbook: document.getElementById("autoUpdateWorkbook"),
+  creditSafeMode: document.getElementById("creditSafeMode"),
+  creditGuardNotice: document.getElementById("creditGuardNotice"),
+  autoRunQueueBtn: document.getElementById("autoRunQueueBtn"),
+  autoStopQueueBtn: document.getElementById("autoStopQueueBtn"),
+  autoOpenProgressBtn: document.getElementById("autoOpenProgressBtn"),
+  autoQueueMeta: document.getElementById("autoQueueMeta"),
+  autoRunTimeline: document.getElementById("autoRunTimeline"),
+  autoQueueList: document.getElementById("autoQueueList"),
+  selectedRowsCount: document.getElementById("selectedRowsCount"),
+  loadMoreToolRowsBtn: document.getElementById("loadMoreToolRowsBtn"),
+  toolRowChecklist: document.getElementById("toolRowChecklist"),
+  autoProfileCount: document.getElementById("autoProfileCount"),
+  autoProfileList: document.getElementById("autoProfileList"),
   assetState: document.getElementById("assetState"),
   scriptState: document.getElementById("scriptState"),
   hookState: document.getElementById("hookState"),
@@ -76,7 +112,18 @@ const els = {
   scriptLanguageSelect: document.getElementById("scriptLanguageSelect"),
   scriptSceneCount: document.getElementById("scriptSceneCount"),
   generateScriptBtn: document.getElementById("generateScriptBtn"),
+  editScriptBtn: document.getElementById("editScriptBtn"),
+  saveScriptBtn: document.getElementById("saveScriptBtn"),
   viewScriptFolderBtn: document.getElementById("viewScriptFolderBtn"),
+  scriptEditorPanel: document.getElementById("scriptEditorPanel"),
+  scriptEditorMeta: document.getElementById("scriptEditorMeta"),
+  scriptHookEditor: document.getElementById("scriptHookEditor"),
+  scriptBodyEditor: document.getElementById("scriptBodyEditor"),
+  scriptCtaEditor: document.getElementById("scriptCtaEditor"),
+  scriptCaptionEditor: document.getElementById("scriptCaptionEditor"),
+  scriptHashtagsEditor: document.getElementById("scriptHashtagsEditor"),
+  resetScriptEditorBtn: document.getElementById("resetScriptEditorBtn"),
+  scriptSceneEditorList: document.getElementById("scriptSceneEditorList"),
   hookPresenterSelect: document.getElementById("hookPresenterSelect"),
   hookCharacterSelect: document.getElementById("hookCharacterSelect"),
   hookToneSelect: document.getElementById("hookToneSelect"),
@@ -85,9 +132,11 @@ const els = {
   hookFallbackEnabled: document.getElementById("hookFallbackEnabled"),
   hookFallbackProfileSelect: document.getElementById("hookFallbackProfileSelect"),
   hookProfileStatus: document.getElementById("hookProfileStatus"),
+  hookCreditGuardNotice: document.getElementById("hookCreditGuardNotice"),
   refreshHookProfilesBtn: document.getElementById("refreshHookProfilesBtn"),
   addHookProfileBtn: document.getElementById("addHookProfileBtn"),
   loginHookProfileBtn: document.getElementById("loginHookProfileBtn"),
+  profileManager: document.getElementById("profileManager"),
   profileState: document.getElementById("profileState"),
   profileManagerSummary: document.getElementById("profileManagerSummary"),
   profileManagerList: document.getElementById("profileManagerList"),
@@ -135,7 +184,31 @@ const els = {
   voiceoverPreviewBox: document.getElementById("voiceoverPreviewBox"),
   voiceoverAudioPreview: document.getElementById("voiceoverAudioPreview"),
   voiceoverPreviewInfo: document.getElementById("voiceoverPreviewInfo"),
-  finalFileList: document.getElementById("finalFileList")
+  finalFileList: document.getElementById("finalFileList"),
+  scriptVideoState: document.getElementById("scriptVideoState"),
+  customScriptTitleInput: document.getElementById("customScriptTitleInput"),
+  customScriptLanguageSelect: document.getElementById("customScriptLanguageSelect"),
+  customScriptDurationSelect: document.getElementById("customScriptDurationSelect"),
+  customScriptPresenterSelect: document.getElementById("customScriptPresenterSelect"),
+  customScriptAvatarSelect: document.getElementById("customScriptAvatarSelect"),
+  customScriptPrimaryProfileSelect: document.getElementById("customScriptPrimaryProfileSelect"),
+  customScriptFallbackEnabled: document.getElementById("customScriptFallbackEnabled"),
+  customScriptFallbackProfileSelect: document.getElementById("customScriptFallbackProfileSelect"),
+  customScriptInput: document.getElementById("customScriptInput"),
+  scriptVideoCreditGuardNotice: document.getElementById("scriptVideoCreditGuardNotice"),
+  customScriptOptimizeBtn: document.getElementById("customScriptOptimizeBtn"),
+  customScriptGenerateBtn: document.getElementById("customScriptGenerateBtn"),
+  customScriptOpenFolderBtn: document.getElementById("customScriptOpenFolderBtn"),
+  scriptVideoPipeline: document.getElementById("scriptVideoPipeline"),
+  scriptVideoResult: document.getElementById("scriptVideoResult"),
+  scriptVideoResultTitle: document.getElementById("scriptVideoResultTitle"),
+  scriptVideoResultStatus: document.getElementById("scriptVideoResultStatus"),
+  scriptVideoFolderPath: document.getElementById("scriptVideoFolderPath"),
+  scriptVideoSummary: document.getElementById("scriptVideoSummary"),
+  scriptVideoPreview: document.getElementById("scriptVideoPreview"),
+  scriptVideoParts: document.getElementById("scriptVideoParts"),
+  scriptVideoSceneList: document.getElementById("scriptVideoSceneList"),
+  scriptVideoFileList: document.getElementById("scriptVideoFileList")
 };
 
 const state = {
@@ -146,6 +219,8 @@ const state = {
   lastAssetRow: 0,
   lastAssetInput: "",
   lastScriptFolder: "",
+  currentScriptBuild: null,
+  scriptEditorOriginal: null,
   lastHookAvatarFolder: "",
   lastHookAvatarVideo: "",
   lastHookAvatarRunId: "",
@@ -159,19 +234,39 @@ const state = {
   currentRow: 0,
   currentInput: "",
   latestArtifacts: null,
+  toolVideoStatusByRow: new Map(),
+  toolVideoStatusLoading: false,
   artifactCheckTimer: null,
   artifactCheckToken: 0,
   assetEventSource: null,
   hookAvatarEventSource: null,
   finalReelEventSource: null,
+  scriptVideoEventSource: null,
+  currentScriptVideo: null,
+  lastScriptVideoFolder: "",
+  lastScriptVideoVideo: "",
+  lastScriptVideoRunId: "",
   hookProfiles: [],
   hookAvatarOptions: [],
+  dashboardDefaults: null,
+  activeAutoQueueId: "",
+  activeAutoQueueRunId: "",
+  autoQueueTimer: null,
+  autoQueueRunning: false,
+  autoQueueProgressWorkbook: "",
+  autoQueueLogCursors: new Map(),
+  selectedAutoProfiles: new Set(),
+  autoProfilesTouched: false,
+  toolRowRenderLimit: 500,
   docs: [],
   docCache: new Map(),
   terminalWidth: 340,
   isResizingTerminal: false,
   resizeStartX: 0,
-  resizeMoved: false
+  resizeMoved: false,
+  stepFlowRunning: false,
+  stepFlowStopRequested: false,
+  stepFlowSteps: []
 };
 
 const TERMINAL_LAYOUT_KEY = "toolReelFactory.terminalWidth.v2";
@@ -179,6 +274,12 @@ const THEME_KEY = "toolReelFactory.theme.v2";
 const DEFAULT_TERMINAL_WIDTH = 340;
 const MIN_TERMINAL_WIDTH = 280;
 const MAX_TERMINAL_WIDTH = 720;
+const TOOL_ROW_RENDER_BATCH = 500;
+const AUTO_PROFILE_LIMIT = 4;
+const CREDIT_SPEND_CONFIRM_WORD = "VIDS";
+const STEP_FLOW_RUN_TIMEOUT_MS = 45 * 60 * 1000;
+const DEFAULT_PRIMARY_PROFILE = "work/hr-anslation.com";
+const DEFAULT_FALLBACK_PROFILE = "work/shejal.sahu-anslation.com-profile";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -217,6 +318,11 @@ function timeLabel(date = new Date()) {
 
 function clampNumber(value, min, max) {
   return Math.min(Math.max(value, min), max);
+}
+
+function finiteClamp(value, fallback, min, max) {
+  const number = Number(value);
+  return clampNumber(Number.isFinite(number) ? number : fallback, min, max);
 }
 
 function readSavedTheme() {
@@ -400,7 +506,6 @@ function hookCharacterLabel(value) {
 }
 
 function renderHookCharacterOptions(options = [], preferred = "") {
-  if (!els.hookCharacterSelect) return;
   const normalized = [
     { label: "Auto by reel", value: "auto_by_reel" },
     ...options.filter((option) => option?.value && option.value !== "auto_by_reel")
@@ -412,13 +517,16 @@ function renderHookCharacterOptions(options = [], preferred = "") {
     seen.add(key);
     return true;
   });
-  const current = preferred || els.hookCharacterSelect.value || "auto_by_reel";
-  els.hookCharacterSelect.innerHTML = state.hookAvatarOptions.map((option) => (
+  const optionsHtml = state.hookAvatarOptions.map((option) => (
     `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label || option.value)}</option>`
   )).join("");
-  els.hookCharacterSelect.value = state.hookAvatarOptions.some((option) => option.value === current)
-    ? current
-    : "auto_by_reel";
+  for (const select of [els.hookCharacterSelect, els.customScriptAvatarSelect].filter(Boolean)) {
+    const current = preferred || select.value || "auto_by_reel";
+    select.innerHTML = optionsHtml;
+    select.value = state.hookAvatarOptions.some((option) => option.value === current)
+      ? current
+      : "auto_by_reel";
+  }
 }
 
 function quotaLimitUsed(quota = {}) {
@@ -436,6 +544,14 @@ function quotaLimitUsed(quota = {}) {
 }
 
 function hookProfileIdentity(profile = {}, index = 0) {
+  const alias = {
+    "work/hr-anslation.com": "HR profile",
+    "work/shejal.sahu-anslation.com-profile": "Sejal profile"
+  }[profile.path];
+  if (alias) {
+    const identity = profile.email || profile.googleName || profile.profileName || "";
+    return identity ? `${alias} (${identity})` : alias;
+  }
   return profile.email || profile.googleName || profile.profileName || profile.label || `Profile ${index + 1}`;
 }
 
@@ -499,35 +615,109 @@ function hookProfileOptionLabel(profile = {}, index = 0) {
 }
 
 function renderHookProfileOptions(preferred = {}) {
-  if (!els.hookPrimaryProfileSelect || !els.hookFallbackProfileSelect) return;
   const profiles = state.hookProfiles.length
     ? state.hookProfiles
-    : [{ path: "work/google-vids-profile", label: "work/google-vids-profile", quota: {} }];
-  const primaryPrevious = preferred.primary || els.hookPrimaryProfileSelect.value || "work/google-vids-profile";
-  const fallbackPrevious = preferred.fallback || els.hookFallbackProfileSelect.value || "";
+    : [{ path: DEFAULT_PRIMARY_PROFILE, label: "HR profile", quota: {} }];
   const options = profiles.map((profile, index) => (
     `<option value="${escapeHtml(profile.path)}">${escapeHtml(hookProfileOptionLabel(profile, index))}</option>`
   )).join("");
-  els.hookPrimaryProfileSelect.innerHTML = options;
-  els.hookFallbackProfileSelect.innerHTML = `<option value="">No fallback</option>${options}`;
-
-  const hasPrimary = profiles.some((profile) => profile.path === primaryPrevious);
-  els.hookPrimaryProfileSelect.value = hasPrimary ? primaryPrevious : (profiles[0]?.path || "");
-  const selectedPrimary = els.hookPrimaryProfileSelect.value;
-  const fallbackCandidate = fallbackPrevious && profiles.some((profile) => profile.path === fallbackPrevious)
-    ? fallbackPrevious
-    : profiles.find((profile) => profile.path !== selectedPrimary && isHookProfileReady(profile))?.path
-      || profiles.find((profile) => profile.path !== selectedPrimary && !quotaLimitUsed(profile.quota))?.path
-      || profiles.find((profile) => profile.path !== selectedPrimary)?.path
-      || "";
-  els.hookFallbackProfileSelect.value = fallbackCandidate;
-  els.hookFallbackProfileSelect.disabled = !els.hookFallbackEnabled?.checked;
+  const applyProfileSelects = (primarySelect, fallbackSelect, fallbackToggle) => {
+    if (!primarySelect || !fallbackSelect) return;
+    const primaryPrevious = preferred.primary || primarySelect.value || DEFAULT_PRIMARY_PROFILE;
+    const fallbackPrevious = preferred.fallback || fallbackSelect.value || DEFAULT_FALLBACK_PROFILE;
+    primarySelect.innerHTML = options;
+    fallbackSelect.innerHTML = `<option value="">No fallback</option>${options}`;
+    const hasPrimary = profiles.some((profile) => profile.path === primaryPrevious);
+    primarySelect.value = hasPrimary ? primaryPrevious : (profiles[0]?.path || "");
+    const selectedPrimary = primarySelect.value;
+    const fallbackCandidate = fallbackPrevious && profiles.some((profile) => profile.path === fallbackPrevious)
+      ? fallbackPrevious
+      : profiles.find((profile) => profile.path !== selectedPrimary && isHookProfileReady(profile))?.path
+        || profiles.find((profile) => profile.path !== selectedPrimary && !quotaLimitUsed(profile.quota))?.path
+        || profiles.find((profile) => profile.path !== selectedPrimary)?.path
+        || "";
+    fallbackSelect.value = fallbackCandidate;
+    fallbackSelect.disabled = !fallbackToggle?.checked;
+  };
+  applyProfileSelects(els.hookPrimaryProfileSelect, els.hookFallbackProfileSelect, els.hookFallbackEnabled);
+  applyProfileSelects(els.customScriptPrimaryProfileSelect, els.customScriptFallbackProfileSelect, els.customScriptFallbackEnabled);
+  renderAutoProfileChecklist();
 }
 
 function selectedHookProfiles() {
-  const primary = els.hookPrimaryProfileSelect?.value || "work/google-vids-profile";
+  const primary = els.hookPrimaryProfileSelect?.value || DEFAULT_PRIMARY_PROFILE;
   const fallback = els.hookFallbackEnabled?.checked ? (els.hookFallbackProfileSelect?.value || "") : "";
   return [primary, fallback].filter(Boolean);
+}
+
+function defaultAutomationProfilePaths() {
+  const profiles = state.hookProfiles || [];
+  const selected = selectedHookProfiles()
+    .filter((profilePath) => {
+      const profile = profiles.find((item) => item.path === profilePath);
+      return profile ? isHookProfileReady(profile) : true;
+    });
+  const ready = profiles
+    .filter(isHookProfileReady)
+    .map((profile) => profile.path);
+  const combined = [...selected, ...ready]
+    .filter((profilePath, index, list) => profilePath && list.indexOf(profilePath) === index)
+    .slice(0, AUTO_PROFILE_LIMIT);
+  if (combined.length) {
+    return combined;
+  }
+  return selected.slice(0, AUTO_PROFILE_LIMIT);
+}
+
+function selectedAutomationProfiles() {
+  const profiles = state.hookProfiles || [];
+  const explicit = [...state.selectedAutoProfiles]
+    .filter((profilePath) => {
+      const profile = profiles.find((item) => item.path === profilePath);
+      return profile ? isHookProfileReady(profile) : true;
+    })
+    .slice(0, AUTO_PROFILE_LIMIT);
+  const selected = explicit.length ? explicit : defaultAutomationProfilePaths();
+  return selected.length ? selected : [DEFAULT_PRIMARY_PROFILE, DEFAULT_FALLBACK_PROFILE].filter(Boolean);
+}
+
+function updateAutoProfileCount() {
+  if (!els.autoProfileCount) return;
+  const selected = selectedAutomationProfiles();
+  els.autoProfileCount.textContent = `${selected.length} selected`;
+  els.autoProfileCount.dataset.tone = selected.length >= 2 ? "success" : "busy";
+}
+
+function renderAutoProfileChecklist() {
+  if (!els.autoProfileList) return;
+  const profiles = state.hookProfiles || [];
+  updateAutoProfileCount();
+  if (!profiles.length) {
+    els.autoProfileList.innerHTML = '<span class="muted">Profiles loading...</span>';
+    return;
+  }
+  const selectedSet = state.selectedAutoProfiles.size
+    ? new Set(selectedAutomationProfiles())
+    : new Set(defaultAutomationProfilePaths());
+  const selectedOrder = [...selectedSet];
+  els.autoProfileList.innerHTML = profiles.map((profile, index) => {
+    const status = hookProfileStatus(profile);
+    const disabled = state.autoQueueRunning || quotaLimitUsed(profile.quota) || !profile.exists || !profile.loggedIn;
+    const checked = selectedSet.has(profile.path) && !disabled;
+    const selectedIndex = selectedOrder.indexOf(profile.path);
+    const role = selectedIndex === 0
+      ? "Primary"
+      : selectedIndex > 0
+        ? `Fallback ${selectedIndex}`
+        : `Profile ${index + 1}`;
+    return `
+      <label class="auto-profile-option ${checked ? "is-selected" : ""}" title="${escapeHtml(profile.path || "")}">
+        <input type="checkbox" data-auto-profile="${escapeHtml(profile.path)}" data-locked="${disabled && !state.autoQueueRunning ? "true" : "false"}" ${checked ? "checked" : ""} ${disabled ? "disabled" : ""}>
+        <span><strong>${escapeHtml(role)}</strong> - ${escapeHtml(hookProfileIdentity(profile, index))} | ${escapeHtml(status.label)} | ${escapeHtml(hookProfileUsage(profile))}</span>
+      </label>
+    `;
+  }).join("");
+  updateAutoProfileCount();
 }
 
 function renderHookProfileStatus() {
@@ -555,6 +745,7 @@ function renderHookProfileStatus() {
     ? `Fallback enabled: ${els.hookFallbackProfileSelect?.value || "not selected"}`
     : "Fallback disabled";
   els.hookProfileStatus.innerHTML = `${chips}<span>${escapeHtml(fallbackText)}</span>`;
+  renderAutoProfileChecklist();
 }
 
 function profileCounts() {
@@ -972,25 +1163,115 @@ function setAssetBusy(isBusy) {
 
 function setScriptBusy(isBusy) {
   const hasRow = Boolean(state.inputPath && Number(els.assetRowInput.value || 0));
+  const hasScript = Boolean(state.currentScriptBuild && state.lastScriptFolder);
   els.generateScriptBtn.disabled = isBusy || !hasRow;
+  if (els.editScriptBtn) {
+    els.editScriptBtn.disabled = isBusy || !hasScript;
+  }
+  if (els.saveScriptBtn) {
+    els.saveScriptBtn.disabled = isBusy || !hasScript;
+  }
+  if (els.resetScriptEditorBtn) {
+    els.resetScriptEditorBtn.disabled = isBusy || !hasScript;
+  }
   els.viewScriptFolderBtn.disabled = isBusy || !state.lastScriptFolder;
   els.generateScriptBtn.textContent = isBusy ? "Generating..." : "Generate Script";
+  if (els.saveScriptBtn) {
+    els.saveScriptBtn.textContent = isBusy ? "Saving..." : "Save Update";
+  }
+}
+
+function creditSafeEnabled() {
+  return els.creditSafeMode ? els.creditSafeMode.checked : true;
+}
+
+function plannedAutoQueueRows() {
+  const requestedCount = Math.floor(finiteClamp(els.autoVideoCount?.value, 1, 1, 50));
+  const explicitRows = parseAutoRows(els.autoRowsInput?.value || "").slice(0, requestedCount);
+  if (explicitRows.length) return explicitRows;
+  const selectedRow = Number(els.assetRowInput?.value || 2);
+  const startRow = els.autoStartSelectedRow?.checked && Number.isFinite(selectedRow) && selectedRow >= 2 ? selectedRow : 2;
+  return Array.from({ length: requestedCount }, (_, index) => startRow + index);
+}
+
+function creditGuardSummary() {
+  const safe = creditSafeEnabled();
+  const useVidsHook = Boolean(els.autoUseVidsHook?.checked);
+  if (safe) {
+    return {
+      tone: "safe",
+      title: "Credit Safe ON",
+      detail: "Google Vids generation locked. Use local/free steps without spending credits."
+    };
+  }
+  if (useVidsHook) {
+    return {
+      tone: "armed",
+      title: "Vids Unlocked",
+      detail: `Google Vids actions are unlocked. You will confirm before any avatar or voiceover generation starts.`
+    };
+  }
+  return {
+    tone: "warn",
+    title: "Vids Unlocked",
+    detail: "Google Vids avatar/voice buttons can spend credits after confirmation."
+  };
+}
+
+function renderCreditGuard() {
+  const summary = creditGuardSummary();
+  for (const notice of [els.creditGuardNotice, els.hookCreditGuardNotice, els.scriptVideoCreditGuardNotice].filter(Boolean)) {
+    notice.dataset.tone = summary.tone;
+    notice.innerHTML = `<strong>${escapeHtml(summary.title)}</strong><span>${escapeHtml(summary.detail)}</span>`;
+  }
+  if (els.autoUseVidsHookLabel) {
+    els.autoUseVidsHookLabel.textContent = creditSafeEnabled()
+      ? "Hook Vids + Local (locked)"
+      : "Hook Vids + Local";
+  }
+  if (creditSafeEnabled() && ["openai", "elevenlabs"].includes(els.finalVoiceProviderSelect?.value || "")) {
+    els.finalVoiceProviderSelect.value = "free";
+    setTerminalStatus("Credit Safe: voice switched to free");
+  }
+}
+
+function confirmCreditSpend(title, detail) {
+  if (creditSafeEnabled()) {
+    renderCreditGuard();
+    setTask("Credit Safe is ON", "Turn Credit Safe off only when you intentionally want Google Vids generation.", "error");
+    setTerminalStatus("Blocked by Credit Safe");
+    appendTerminal(`${title} blocked by Credit Safe Mode.`, "stderr");
+    return false;
+  }
+  const typed = window.prompt(
+    `${title}\n\n${detail}\n\nThis can use Google Vids/API credits. Type ${CREDIT_SPEND_CONFIRM_WORD} to continue.`
+  );
+  const allowed = String(typed || "").trim().toUpperCase() === CREDIT_SPEND_CONFIRM_WORD;
+  if (!allowed) {
+    setTask("Credit action canceled", "No generation started, credits safe.", "idle");
+    setTerminalStatus("Credit action canceled");
+    appendTerminal(`${title} canceled before spending credits.`);
+  }
+  return allowed;
 }
 
 function setHookBusy(isBusy) {
   const hasRow = Boolean(state.inputPath && Number(els.assetRowInput.value || 0));
+  const safe = creditSafeEnabled();
   els.prepareHookAvatarBtn.disabled = isBusy || !hasRow;
-  els.generateHookAvatarBtn.disabled = isBusy || !hasRow;
+  els.generateHookAvatarBtn.disabled = isBusy || !hasRow || safe;
   els.viewHookAvatarBtn.disabled = isBusy || !state.lastHookAvatarFolder;
   els.prepareHookAvatarBtn.textContent = isBusy ? "Preparing..." : "Prepare Avatar Pack";
-  els.generateHookAvatarBtn.textContent = isBusy ? "Generating..." : "Generate Avatar Pack";
+  els.generateHookAvatarBtn.textContent = isBusy ? "Generating..." : safe ? "Unlock Vids to Generate" : "Generate Avatar Pack";
+  renderCreditGuard();
 }
 
 function setFinalBusy(isBusy) {
   const hasRow = Boolean(state.inputPath && Number(els.assetRowInput.value || 0));
+  const safe = creditSafeEnabled();
   if (els.generateRemainingVidsBtn) {
-    els.generateRemainingVidsBtn.disabled = isBusy || !hasRow;
-    els.generateRemainingVidsBtn.textContent = isBusy ? "Working..." : "Generate Vids Voiceover";
+    els.generateRemainingVidsBtn.disabled = isBusy || !hasRow || safe;
+    els.generateRemainingVidsBtn.textContent = isBusy ? "Working..." : safe ? "Unlock Vids Voiceover" : "Generate Vids Voiceover";
   }
   if (els.playVoiceoverBtn) {
     els.playVoiceoverBtn.disabled = isBusy || !state.lastVoiceoverPreviewUrl;
@@ -1002,6 +1283,216 @@ function setFinalBusy(isBusy) {
   if (els.viewFinalFolderBtn) {
     els.viewFinalFolderBtn.disabled = isBusy || !state.lastFinalReelFolder;
   }
+  renderCreditGuard();
+}
+
+function setScriptVideoState(label, tone = "idle") {
+  if (els.scriptVideoState) {
+    els.scriptVideoState.textContent = label;
+    els.scriptVideoState.dataset.tone = tone;
+  }
+  if (els.scriptVideoStepMeta) {
+    els.scriptVideoStepMeta.textContent = label;
+  }
+  if (els.scriptVideoStepLink) {
+    els.scriptVideoStepLink.classList.toggle("busy", tone === "busy");
+    els.scriptVideoStepLink.classList.toggle("done", tone === "success");
+  }
+}
+
+function setScriptVideoBusy(isBusy) {
+  const hasScript = Boolean(els.customScriptInput?.value.trim());
+  const safe = creditSafeEnabled();
+  if (els.customScriptOptimizeBtn) {
+    els.customScriptOptimizeBtn.disabled = isBusy || !hasScript;
+    els.customScriptOptimizeBtn.textContent = isBusy ? "Working..." : "Optimize Script";
+  }
+  if (els.customScriptGenerateBtn) {
+    els.customScriptGenerateBtn.disabled = isBusy || !hasScript || safe;
+    els.customScriptGenerateBtn.textContent = isBusy ? "Generating..." : safe ? "Unlock Vids to Generate" : "Generate in Google Vids";
+  }
+  if (els.customScriptOpenFolderBtn) {
+    els.customScriptOpenFolderBtn.disabled = isBusy || !state.lastScriptVideoFolder;
+  }
+  renderCreditGuard();
+}
+
+function setStepFlowState(label, tone = "idle") {
+  if (!els.stepFlowState) return;
+  els.stepFlowState.textContent = label;
+  els.stepFlowState.dataset.tone = tone;
+}
+
+function stepFlowHasRow() {
+  const row = Number(els.assetRowInput?.value || 0);
+  return Boolean(state.inputPath && Number.isFinite(row) && row >= 2);
+}
+
+function selectedStepFlowOptions() {
+  return {
+    assets: Boolean(els.flowRunAssets?.checked),
+    script: Boolean(els.flowRunScript?.checked),
+    avatar: Boolean(els.flowRunAvatar?.checked),
+    vidsAvatar: Boolean(els.flowUseVidsAvatar?.checked),
+    vidsVoiceover: Boolean(els.flowRunVidsVoiceover?.checked),
+    final: Boolean(els.flowRunFinal?.checked)
+  };
+}
+
+function stepFlowPlan() {
+  const options = selectedStepFlowOptions();
+  const steps = [];
+  if (options.assets) steps.push({ key: "asset", label: "Assets" });
+  if (options.script) steps.push({ key: "script", label: "Script" });
+  if (options.avatar) {
+    steps.push({
+      key: options.vidsAvatar && !creditSafeEnabled() ? "vids-avatar" : "avatar",
+      label: options.vidsAvatar && !creditSafeEnabled() ? "Vids Avatar" : "Avatar Prompt"
+    });
+  }
+  if (options.vidsVoiceover) {
+    steps.push({ key: "vids-voiceover", label: "Vids Voiceover" });
+  }
+  if (options.final) steps.push({ key: "final", label: "Final Reel" });
+  return steps;
+}
+
+function renderStepFlowTimeline(steps = state.stepFlowSteps) {
+  if (!els.stepFlowTimeline) return;
+  if (!steps.length) {
+    els.stepFlowTimeline.innerHTML = '<span data-status="idle">Select at least one step.</span>';
+    return;
+  }
+  els.stepFlowTimeline.innerHTML = steps.map((step) => (
+    `<span data-status="${escapeHtml(step.status || "pending")}" title="${escapeHtml(step.detail || step.label)}">${escapeHtml(step.label)}</span>`
+  )).join("");
+}
+
+function updateStepFlowStep(key, status, detail = "") {
+  state.stepFlowSteps = state.stepFlowSteps.map((step) => (
+    step.key === key ? { ...step, status, detail } : step
+  ));
+  renderStepFlowTimeline();
+}
+
+function refreshStepFlowControls() {
+  const busy = Boolean(state.stepFlowRunning);
+  const hasRow = stepFlowHasRow();
+  const plan = stepFlowPlan();
+  if (els.runStepFlowBtn) {
+    els.runStepFlowBtn.disabled = busy || !hasRow || !plan.length;
+    els.runStepFlowBtn.textContent = busy ? "Running Step Flow..." : "Run Selected Steps";
+  }
+  if (els.stopStepFlowBtn) {
+    els.stopStepFlowBtn.disabled = !busy || state.stepFlowStopRequested;
+    els.stopStepFlowBtn.textContent = state.stepFlowStopRequested ? "Stopping..." : "Stop After Current";
+  }
+  for (const input of [
+    els.flowRunAssets,
+    els.flowRunScript,
+    els.flowRunAvatar,
+    els.flowUseVidsAvatar,
+    els.flowRunVidsVoiceover,
+    els.flowRunFinal
+  ].filter(Boolean)) {
+    input.disabled = busy;
+  }
+  if (els.stepFlowStatus && !busy) {
+    if (!state.inputPath) {
+      els.stepFlowStatus.textContent = "Excel load karo, row select karo, phir selected steps run honge.";
+    } else if (!hasRow) {
+      els.stepFlowStatus.textContent = "Valid tool row select karo.";
+    } else {
+      const row = Number(els.assetRowInput.value || 0);
+      els.stepFlowStatus.textContent = `${plan.length || 0} step(s) ready for row ${row}. Current settings use honge.`;
+    }
+  }
+  if (!busy) {
+    setStepFlowState(hasRow && plan.length ? "Ready" : "Waiting", hasRow && plan.length ? "success" : "idle");
+    if (!state.stepFlowSteps.length) {
+      state.stepFlowSteps = plan.map((step) => ({ ...step, status: "pending" }));
+      renderStepFlowTimeline();
+    }
+  }
+}
+
+function setStepFlowBusy(isBusy) {
+  state.stepFlowRunning = Boolean(isBusy);
+  if (!isBusy) {
+    state.stepFlowStopRequested = false;
+  }
+  refreshStepFlowControls();
+}
+
+function scrollStepIntoView(stepKey) {
+  const targets = {
+    asset: "buildAssets",
+    script: "generateScript",
+    avatar: "hookAvatar",
+    "vids-avatar": "hookAvatar",
+    "vids-voiceover": "finalReel",
+    final: "finalReel"
+  };
+  const id = targets[stepKey] || "selectTool";
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function setAutoQueueState(label, tone = "idle") {
+  if (!els.autoQueueState) return;
+  els.autoQueueState.textContent = label;
+  els.autoQueueState.dataset.tone = tone;
+}
+
+function refreshAutoQueueControls() {
+  if (!els.autoRunQueueBtn) return;
+  const busy = Boolean(state.autoQueueRunning);
+  const hasInput = Boolean(state.inputPath);
+  const safe = creditSafeEnabled();
+  els.autoRunQueueBtn.disabled = busy || !hasInput;
+  els.autoStopQueueBtn.disabled = !busy || !state.activeAutoQueueId;
+  els.autoOpenProgressBtn.disabled = !state.autoQueueProgressWorkbook;
+  els.autoRunQueueBtn.textContent = busy ? "Running..." : safe ? "Run Safe Auto" : "Run Auto";
+  for (const input of [
+    els.autoVideoCount,
+    els.autoRowsInput,
+    els.autoStartSelectedRow,
+    els.autoUseVidsHook,
+    els.autoUpdateWorkbook,
+    els.creditSafeMode
+  ].filter(Boolean)) {
+    input.disabled = busy;
+  }
+  for (const input of document.querySelectorAll("[data-auto-profile]")) {
+    input.disabled = busy || input.dataset.locked === "true";
+  }
+  updateSelectedRowsCount();
+  updateAutoProfileCount();
+  renderCreditGuard();
+}
+
+function setAutoQueueBusy(isBusy) {
+  state.autoQueueRunning = Boolean(isBusy);
+  refreshAutoQueueControls();
+}
+
+function updateAutoQueueHint() {
+  if (!els.autoQueueMeta || state.autoQueueRunning || state.activeAutoQueueId) return;
+  const creditHint = creditSafeEnabled() ? "Credit Safe: local only." : "Vids unlocked.";
+  if (!state.inputPath) {
+    els.autoQueueMeta.textContent = "Load Excel, select tool row, then run automation.";
+    renderCreditGuard();
+    return;
+  }
+  const count = Math.floor(finiteClamp(els.autoVideoCount?.value, 1, 1, 50));
+  const explicitRows = parseAutoRows(els.autoRowsInput?.value || "");
+  const selectedRow = Number(els.assetRowInput?.value || 0);
+  if (explicitRows.length) {
+    els.autoQueueMeta.textContent = `Ready: ${Math.min(count, explicitRows.length)} video(s) for rows ${explicitRows.slice(0, count).join(", ")}. ${creditHint}`;
+    renderCreditGuard();
+    return;
+  }
+  els.autoQueueMeta.textContent = `Ready: ${count} video(s) ${els.autoStartSelectedRow?.checked ? `from selected row ${selectedRow || 2}` : "from row 2"}. ${creditHint}`;
+  renderCreditGuard();
 }
 
 function shortDateTime(value) {
@@ -1038,9 +1529,16 @@ function resetRowOutputs(row) {
   state.lastFinalReelRow = 0;
   state.lastVoiceoverPreviewUrl = "";
   state.lastVoiceoverPreviewName = "";
+  state.currentScriptBuild = null;
+  state.scriptEditorOriginal = null;
   state.latestArtifacts = null;
+  state.stepFlowSteps = [];
   els.assetResult.classList.add("is-hidden");
   els.scriptResult.classList.add("is-hidden");
+  if (els.scriptEditorPanel) els.scriptEditorPanel.open = false;
+  if (els.scriptSceneEditorList) {
+    els.scriptSceneEditorList.innerHTML = '<span class="muted">Generate script to edit scene-wise voiceover.</span>';
+  }
   els.hookResult.classList.add("is-hidden");
   els.hookVideoPreview.classList.add("is-hidden");
   els.hookVideoPreview.removeAttribute("src");
@@ -1189,6 +1687,253 @@ function finalVideoUrl(filePath) {
   return filePath ? `/file?path=${encodeURIComponent(filePath)}` : "";
 }
 
+function selectedScriptVideoProfiles() {
+  const primary = els.customScriptPrimaryProfileSelect?.value || els.hookPrimaryProfileSelect?.value || DEFAULT_PRIMARY_PROFILE;
+  const fallback = els.customScriptFallbackEnabled?.checked
+    ? (els.customScriptFallbackProfileSelect?.value || "")
+    : "";
+  return [primary, fallback].filter(Boolean);
+}
+
+function scriptVideoPayload(extra = {}) {
+  const script = String(els.customScriptInput?.value || "").trim();
+  if (!script) {
+    throw new Error("Pehle script paste/write karo.");
+  }
+  const primaryProfile = els.customScriptPrimaryProfileSelect?.value || DEFAULT_PRIMARY_PROFILE;
+  const fallbackProfile = els.customScriptFallbackEnabled?.checked ? (els.customScriptFallbackProfileSelect?.value || "") : "";
+  return {
+    title: String(els.customScriptTitleInput?.value || "").trim(),
+    script,
+    language: els.customScriptLanguageSelect?.value || "Hinglish",
+    durationSeconds: Number(els.customScriptDurationSelect?.value || 50),
+    presenter: els.customScriptPresenterSelect?.value || "female",
+    avatar: els.customScriptAvatarSelect?.value || "auto_by_reel",
+    avatarLabel: hookCharacterLabel(els.customScriptAvatarSelect?.value || "auto_by_reel"),
+    profile: primaryProfile,
+    primaryProfile,
+    fallbackProfile,
+    fallbackEnabled: Boolean(els.customScriptFallbackEnabled?.checked && fallbackProfile),
+    profiles: selectedScriptVideoProfiles(),
+    creditSafeMode: creditSafeEnabled(),
+    ...extra
+  };
+}
+
+function renderScriptVideoPipeline(steps = []) {
+  if (!els.scriptVideoPipeline) return;
+  if (!steps.length) {
+    els.scriptVideoPipeline.innerHTML = '<span data-status="idle">Waiting for script.</span>';
+    return;
+  }
+  els.scriptVideoPipeline.innerHTML = steps.map((step) => `
+    <span data-status="${escapeHtml(step.status || "idle")}">
+      <strong>${escapeHtml(step.label || step.id || "Step")}</strong>
+      ${step.detail ? `<small>${escapeHtml(step.detail)}</small>` : ""}
+    </span>
+  `).join("");
+}
+
+function renderScriptVideoResult(scriptVideo = {}) {
+  const scenes = scriptVideo.plan?.scenes || [];
+  const videoPath = scriptVideo.videoPath || scriptVideo.outputPath || "";
+  state.currentScriptVideo = scriptVideo;
+  state.lastScriptVideoFolder = scriptVideo.videoDir || scriptVideo.folder || "";
+  state.lastScriptVideoVideo = videoPath;
+  if (els.scriptVideoResult) {
+    els.scriptVideoResult.classList.remove("is-hidden");
+  }
+  if (els.scriptVideoResultTitle) {
+    els.scriptVideoResultTitle.textContent = scriptVideo.title || "Script video ready";
+  }
+  if (els.scriptVideoResultStatus) {
+    els.scriptVideoResultStatus.textContent = [
+      scriptVideo.status || "prepared",
+      scriptVideo.activeProfile || "",
+      `${scriptVideo.totalDurationSeconds || scenes.length * 10 || 0}s`
+    ].filter(Boolean).join(" | ");
+  }
+  if (els.scriptVideoFolderPath) {
+    els.scriptVideoFolderPath.textContent = state.lastScriptVideoFolder || "";
+  }
+  if (els.scriptVideoSummary) {
+    els.scriptVideoSummary.textContent = scriptVideo.summary || "Script optimized into hook, body, CTA, scene timing, captions, and Google Vids prompts.";
+  }
+  const seo = scriptVideo.seo || {};
+  const parts = [
+    ["Script Type", scriptVideo.language || "Hinglish"],
+    ["Hook", scriptVideo.hook || scenes[0]?.voiceover || ""],
+    ["Body", scriptVideo.body || scenes.slice(1, -1).map((scene) => scene.voiceover).join(" ")],
+    ["CTA", scriptVideo.cta || scenes.at(-1)?.voiceover || ""],
+    ["Caption", seo.instagram_caption || ""],
+    ["Hashtags", (seo.hashtags || []).join(" ")]
+  ].filter(([, value]) => value);
+  if (els.scriptVideoParts) {
+    els.scriptVideoParts.innerHTML = parts.map(([label, value]) => `
+      <article class="script-part-card">
+        <span>${escapeHtml(label)}</span>
+        <p>${escapeHtml(value)}</p>
+      </article>
+    `).join("");
+  }
+  if (els.scriptVideoSceneList) {
+    els.scriptVideoSceneList.innerHTML = scenes.map((scene) => `
+      <article class="script-scene-item">
+        <strong>Scene ${escapeHtml(scene.scene_number)} - ${escapeHtml(scene.duration)} sec</strong>
+        <span>${escapeHtml(scene.onscreen_text)}</span>
+        <p>${escapeHtml(scene.voiceover)}</p>
+      </article>
+    `).join("") || '<span class="muted">No scenes yet.</span>';
+  }
+  if (videoPath && els.scriptVideoPreview) {
+    els.scriptVideoPreview.src = finalVideoUrl(videoPath);
+    els.scriptVideoPreview.classList.remove("is-hidden");
+  } else if (els.scriptVideoPreview) {
+    els.scriptVideoPreview.classList.add("is-hidden");
+    els.scriptVideoPreview.removeAttribute("src");
+  }
+  if (els.scriptVideoFileList) {
+    const files = (scriptVideo.files || []).slice(0, 18);
+    els.scriptVideoFileList.innerHTML = files.map((file) => (
+      `<a href="${escapeHtml(file.url)}" target="_blank" rel="noreferrer">${escapeHtml(file.kind)}: ${escapeHtml(file.name)}</a>`
+    )).join("") || '<span class="muted">Prepared files will appear here.</span>';
+  }
+  setScriptVideoState(videoPath ? "Video ready" : "Prepared", "success");
+  setTask(videoPath ? "Script video ready" : "Script optimized", videoPath || state.lastScriptVideoFolder || "", "success");
+  setTerminalStatus(videoPath ? "Custom script MP4 ready" : "Custom script prepared");
+  appendTerminal(`Script video ${scriptVideo.status || "prepared"}: ${videoPath || state.lastScriptVideoFolder}`, "stdout");
+  activeStep("script-video");
+  setScriptVideoBusy(false);
+}
+
+async function optimizeCustomScriptVideo() {
+  const payload = scriptVideoPayload({ prepareOnly: true });
+  setScriptVideoState("Optimizing", "busy");
+  setTask("Optimizing script video", `${payload.durationSeconds}s | ${payload.language}`, "busy");
+  setTerminalStatus("Optimizing custom script");
+  appendTerminal(`POST /api/script-video/optimize duration=${payload.durationSeconds} language=${payload.language}`);
+  renderScriptVideoPipeline([{ id: "script", label: "Optimize Script", status: "running", detail: "Splitting into 10-second scenes." }]);
+  activeStep("script-video");
+  setScriptVideoBusy(true);
+  const data = await readJsonApi("/api/script-video/optimize", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  renderScriptVideoPipeline([{ id: "script", label: "Optimize Script", status: "complete", detail: "Prompt pack ready." }]);
+  renderScriptVideoResult(data.scriptVideo || {});
+  return data.scriptVideo;
+}
+
+function connectScriptVideoRun(runId) {
+  if (state.scriptVideoEventSource) {
+    state.scriptVideoEventSource.close();
+  }
+  if (!runId) {
+    return Promise.reject(new Error("Script video run id missing."));
+  }
+  const source = new EventSource(`/api/script-video/runs/${encodeURIComponent(runId)}/events`);
+  state.scriptVideoEventSource = source;
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      source.close();
+      state.scriptVideoEventSource = null;
+      const message = `Script video run timed out: ${runId}`;
+      appendTerminal(message, "stderr");
+      reject(new Error(message));
+    }, STEP_FLOW_RUN_TIMEOUT_MS);
+    const settle = (handler, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      source.close();
+      state.scriptVideoEventSource = null;
+      handler(value);
+    };
+    source.addEventListener("log", (event) => {
+      const entry = JSON.parse(event.data);
+      appendTerminal(entry.text, entry.stream);
+      setTerminalStatus(entry.text);
+    });
+    source.addEventListener("progress", (event) => {
+      const progress = JSON.parse(event.data);
+      renderScriptVideoPipeline(progress.steps || []);
+      const active = progress.active || {};
+      if (active.label) {
+        const tone = active.status === "failed" ? "error" : active.status === "complete" ? "success" : "busy";
+        setScriptVideoState(active.label, tone);
+        setTask(active.label, active.detail || "Script video workflow", tone);
+      }
+    });
+    source.addEventListener("status", (event) => {
+      const run = JSON.parse(event.data);
+      if (run.status === "running") {
+        renderScriptVideoPipeline(run.steps || []);
+        setTask("Generating script video", `Run ${run.id}`, "busy");
+        setTerminalStatus(`Running: ${run.id}`);
+        return;
+      }
+      renderScriptVideoPipeline(run.steps || []);
+      if (run.status === "complete") {
+        renderScriptVideoResult(run.result || {});
+        appendTerminal(`Script video run complete: ${run.id}`, "stdout");
+        settle(resolve, run.result || {});
+        return;
+      }
+      const message = run.error || "Script video generation failed.";
+      setScriptVideoState("Failed", "error");
+      setTask("Script video failed", message, "error");
+      setTerminalStatus("Script video failed");
+      appendTerminal(message, "stderr");
+      if (run.result) {
+        renderScriptVideoResult(run.result);
+        setScriptVideoState("Failed", "error");
+      }
+      setScriptVideoBusy(false);
+      settle(reject, new Error(message));
+    });
+    source.onerror = () => {
+      appendTerminal(`Script video event stream interrupted for ${runId}.`, "stderr");
+    };
+  });
+}
+
+async function generateCustomScriptVideo() {
+  const payload = scriptVideoPayload({ prepareOnly: false });
+  if (!confirmCreditSpend(
+    "Generate General Script Video",
+    `This can generate/export ${Math.round(Number(payload.durationSeconds || 50) / 10)} Google Vids avatar scene(s). Failed generations can still use credits.`
+  )) {
+    return { canceled: true };
+  }
+  setScriptVideoState("Generating", "busy");
+  setTask("Generating script video", `${payload.durationSeconds}s | ${payload.profiles.join(" -> ")}`, "busy");
+  setTerminalStatus("Starting custom script Google Vids run");
+  appendTerminal(`POST /api/script-video/runs duration=${payload.durationSeconds} profiles=${payload.profiles.join(", ")}`);
+  renderScriptVideoPipeline([{ id: "start", label: "Script Video", status: "running", detail: "Starting Google Vids generation." }]);
+  activeStep("script-video");
+  setScriptVideoBusy(true);
+  const data = await readJsonApi("/api/script-video/runs", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  state.lastScriptVideoRunId = data.run?.id || "";
+  return connectScriptVideoRun(state.lastScriptVideoRunId);
+}
+
+async function openLatestScriptVideoFolder() {
+  if (!state.lastScriptVideoFolder) return;
+  appendTerminal(`POST /api/open ${state.lastScriptVideoFolder}`);
+  const data = await readJsonApi("/api/open", {
+    method: "POST",
+    body: JSON.stringify({ path: state.lastScriptVideoFolder })
+  });
+  setTask("Script video folder opened", data.path || state.lastScriptVideoFolder, "success");
+  setTerminalStatus("Script video folder opened");
+}
+
 function fileUrl(file = {}) {
   return file.url || (file.path ? finalVideoUrl(file.path) : "");
 }
@@ -1317,10 +2062,10 @@ function renderWarnings(warnings = []) {
 }
 
 function activeStep(step) {
-  for (const link of [els.loadStepLink, els.selectStepLink, els.assetStepLink, els.scriptStepLink, els.hookStepLink, els.finalStepLink, els.profileStepLink, els.docsStepLink].filter(Boolean)) {
+  for (const link of [els.loadStepLink, els.selectStepLink, els.assetStepLink, els.scriptStepLink, els.hookStepLink, els.finalStepLink, els.scriptVideoStepLink, els.profileStepLink].filter(Boolean)) {
     link.classList.remove("active");
   }
-  const order = ["load", "select", "asset", "script", "hook", "final", "profile", "docs"];
+  const order = ["load", "select", "asset", "script", "hook", "final", "script-video", "profile"];
   const activeIndex = Math.max(0, order.indexOf(step));
   for (const item of els.flowSteps) {
     const itemIndex = order.indexOf(item.dataset.flowStep || "");
@@ -1337,10 +2082,13 @@ function activeStep(step) {
     els.hookStepLink.classList.add("active");
   } else if (step === "final") {
     els.finalStepLink?.classList.add("active");
+  } else if (step === "script-video") {
+    els.scriptVideoStepLink?.classList.add("active");
   } else if (step === "profile") {
     els.profileStepLink?.classList.add("active");
-  } else if (step === "docs") {
-    els.docsStepLink?.classList.add("active");
+    if (els.profileManager) {
+      els.profileManager.open = true;
+    }
   } else {
     els.loadStepLink.classList.add("active");
   }
@@ -1360,6 +2108,8 @@ function renderAnalysis(upload) {
   state.inputPath = upload.input || analysis.input || upload.relativePath || state.inputPath;
   state.tools = availableTools;
   state.filteredTools = availableTools;
+  state.toolVideoStatusByRow = new Map();
+  state.toolRowRenderLimit = TOOL_ROW_RENDER_BATCH;
   if (preview[0]?.row) {
     els.assetRowInput.value = preview[0].row;
   }
@@ -1389,9 +2139,12 @@ function renderAnalysis(upload) {
   setScriptBusy(false);
   setHookBusy(false);
   updateSelectedTool();
+  refreshAutoQueueControls();
+  updateAutoQueueHint();
   els.selectStepMeta.textContent = `${availableTools.length || analysis.detectedToolRows || 0} tools loaded`;
   els.selectStepLink.classList.add("done");
   activeStep("select");
+  loadToolVideoStatus().catch((error) => appendTerminal(error.message, "stderr"));
 }
 
 function renderIdeaList(data) {
@@ -1400,6 +2153,8 @@ function renderIdeaList(data) {
   state.inputPath = data.input || analysis.input || state.inputPath;
   state.tools = tools;
   state.filteredTools = tools;
+  state.toolVideoStatusByRow = new Map();
+  state.toolRowRenderLimit = TOOL_ROW_RENDER_BATCH;
 
   const firstRow = tools[0]?.row || 2;
   els.assetRowInput.value = firstRow;
@@ -1419,12 +2174,15 @@ function renderIdeaList(data) {
   setScriptBusy(false);
   setHookBusy(false);
   updateSelectedTool();
+  refreshAutoQueueControls();
+  updateAutoQueueHint();
   els.selectStepMeta.textContent = `${tools.length} idea names loaded`;
   els.selectStepLink.classList.add("done");
   appendTerminal(`Loaded ${tools.length} idea names from ${data.fileName || analysis.fileName || "workbook"}.`, "stdout");
   setTask("Idea names loaded", `${tools.length} tools ready to select`, "success");
   setTerminalStatus(`${tools.length} idea names loaded`);
   activeStep("select");
+  loadToolVideoStatus().catch((error) => appendTerminal(error.message, "stderr"));
 }
 
 async function uploadAndAnalyze(file) {
@@ -1474,6 +2232,7 @@ async function loadDashboardDefaults() {
   if (!response.ok || defaults.ok === false) {
     throw new Error(defaults.error || `Defaults failed: ${response.status}`);
   }
+  state.dashboardDefaults = defaults;
   renderHookCharacterOptions(
     defaults.googleVids?.avatarOptions || [{ label: "Google Vids auto", value: "auto" }],
     defaults.settings?.hookAvatarCharacter || "auto_by_reel"
@@ -1541,19 +2300,28 @@ function renderToolOptions(tools = []) {
   state.filteredTools = tools;
   if (!tools.length) {
     els.toolSelect.innerHTML = '<option value="">No matching tool rows</option>';
+    renderToolRowChecklist([]);
     return;
+  }
+  const selectedRow = String(els.assetRowInput.value || "");
+  const hiddenSelectTools = tools.slice(0, 200);
+  const selectedTool = selectedRow
+    ? state.tools.find((tool) => String(toolRowNumber(tool)) === selectedRow)
+    : null;
+  if (selectedTool && !hiddenSelectTools.some((tool) => String(toolRowNumber(tool)) === selectedRow)) {
+    hiddenSelectTools.unshift(selectedTool);
   }
   els.toolSelect.innerHTML = [
     '<option value="">Choose tool idea name</option>',
-    ...tools.map((tool) => {
+    ...hiddenSelectTools.map((tool) => {
       const label = `Row ${tool.row || tool.source_row_number} - ${tool.name || tool.tool_name || "Tool"}`;
       return `<option value="${escapeHtml(tool.row || tool.source_row_number)}">${escapeHtml(label)}</option>`;
     })
   ].join("");
-  const selectedRow = String(els.assetRowInput.value || "");
-  if (selectedRow && tools.some((tool) => String(tool.row || tool.source_row_number) === selectedRow)) {
+  if (selectedRow && hiddenSelectTools.some((tool) => String(tool.row || tool.source_row_number) === selectedRow)) {
     els.toolSelect.value = selectedRow;
   }
+  renderToolRowChecklist(tools);
 }
 
 function filterTools(query) {
@@ -1571,6 +2339,145 @@ function filterTools(query) {
     ].join(" ").toLowerCase();
     return haystack.includes(needle);
   });
+}
+
+function toolRowNumber(tool = {}) {
+  return Number(tool.row || tool.source_row_number || 0);
+}
+
+function toolDisplayName(tool = {}) {
+  return tool.name || tool.tool_name || "Tool";
+}
+
+function normalizedToolName(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function videoStatusForTool(tool = {}) {
+  const row = toolRowNumber(tool);
+  const status = state.toolVideoStatusByRow.get(String(row));
+  if (!status) return null;
+  const statusName = normalizedToolName(status.toolName);
+  const toolName = normalizedToolName(toolDisplayName(tool));
+  if (statusName && toolName && statusName !== toolName) {
+    return null;
+  }
+  return status;
+}
+
+async function loadToolVideoStatus() {
+  if (!state.inputPath || state.toolVideoStatusLoading) return;
+  state.toolVideoStatusLoading = true;
+  appendTerminal(`GET /api/tool-video-status?input=${state.inputPath}`);
+  try {
+    const response = await fetch(`/api/tool-video-status?input=${encodeURIComponent(state.inputPath)}`);
+    const data = await response.json();
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.error || `Video status failed: ${response.status}`);
+    }
+    state.toolVideoStatusByRow = new Map(Object.entries(data.byRow || {}));
+    renderToolRowChecklist();
+    updateToolDropdownSummary();
+    appendTerminal(`Video status loaded: ${data.count || 0} row(s) with final video.`, "stdout");
+  } catch (error) {
+    appendTerminal(`Video status load failed: ${error.message}`, "stderr");
+  } finally {
+    state.toolVideoStatusLoading = false;
+  }
+}
+
+function updateToolDropdownSummary() {
+  if (!els.toolDropdownLabel || !els.toolDropdownHint) return;
+  const selectedRow = Number(els.assetRowInput?.value || 0);
+  const tool = state.tools.find((item) => toolRowNumber(item) === selectedRow);
+  const videoStatus = tool ? videoStatusForTool(tool) : null;
+  if (!state.inputPath) {
+    els.toolDropdownLabel.textContent = "Load Excel first";
+    els.toolDropdownHint.textContent = "Search and select one tool row";
+    return;
+  }
+  if (selectedRow) {
+    els.toolDropdownLabel.textContent = `Row ${selectedRow} - ${tool ? toolDisplayName(tool) : "Tool"}${videoStatus ? " | Video Ready" : ""}`;
+  } else {
+    els.toolDropdownLabel.textContent = "Choose tool idea name";
+  }
+  const visibleRows = (state.filteredTools || state.tools || []).filter((item) => toolRowNumber(item) >= 2).length;
+  els.toolDropdownHint.textContent = visibleRows
+    ? `${visibleRows} matching row(s). ${state.toolVideoStatusByRow.size ? `${state.toolVideoStatusByRow.size} video ready.` : "Video tags loading/empty."}`
+    : "Search and select one tool row.";
+}
+
+function updateSelectedRowsCount() {
+  const rows = (state.filteredTools || state.tools || []).filter((tool) => toolRowNumber(tool) >= 2);
+  if (els.selectedRowsCount) {
+    els.selectedRowsCount.textContent = `${rows.length} rows`;
+    els.selectedRowsCount.dataset.tone = rows.length ? "success" : "idle";
+  }
+  if (els.loadMoreToolRowsBtn) {
+    const availableRows = (state.filteredTools || []).filter((tool) => toolRowNumber(tool) >= 2).length;
+    els.loadMoreToolRowsBtn.disabled = state.autoQueueRunning || availableRows <= state.toolRowRenderLimit;
+  }
+  updateToolDropdownSummary();
+}
+
+function renderToolRowChecklist(tools = state.filteredTools) {
+  if (!els.toolRowChecklist) return;
+  const allVisible = (tools || [])
+    .filter((tool) => toolRowNumber(tool) >= 2);
+  const visible = allVisible.slice(0, state.toolRowRenderLimit);
+  updateSelectedRowsCount();
+  if (!visible.length) {
+    els.toolRowChecklist.innerHTML = '<span class="muted">No matching rows. Search ko adjust karo.</span>';
+    if (els.loadMoreToolRowsBtn) {
+      els.loadMoreToolRowsBtn.disabled = true;
+    }
+    return;
+  }
+  const total = (tools || []).length;
+  const remaining = Math.max(0, allVisible.length - visible.length);
+  if (els.loadMoreToolRowsBtn) {
+    els.loadMoreToolRowsBtn.disabled = !remaining || state.autoQueueRunning;
+    els.loadMoreToolRowsBtn.textContent = remaining ? `Load More (${remaining})` : "All Loaded";
+  }
+  const note = remaining
+    ? `<span class="muted tool-list-note">Showing ${visible.length}; ${remaining} more available. Search se quickly filter karo. ${state.toolVideoStatusByRow.size ? `${state.toolVideoStatusByRow.size} video ready.` : ""}</span>`
+    : `<span class="muted tool-list-note">Showing all ${visible.length} row(s)${total !== visible.length ? ` from ${total} match(es)` : ""}. ${state.toolVideoStatusByRow.size ? `${state.toolVideoStatusByRow.size} video ready.` : "Video tags will appear here."}</span>`;
+  els.toolRowChecklist.innerHTML = `${note}${visible.map((tool) => {
+    const row = toolRowNumber(tool);
+    const selected = Number(els.assetRowInput?.value || 0) === row;
+    const video = videoStatusForTool(tool);
+    const meta = [tool.category, tool.status, tool.priority, tool.url || tool.tool_url].filter(Boolean).join(" | ");
+    const visibleMeta = [tool.category, tool.status, tool.url || tool.tool_url].filter(Boolean).join(" | ");
+    const badges = [
+      video ? `<span class="tool-row-badge video-ready-badge">Video Ready</span>` : "",
+      video?.qualityScore ? `<span class="tool-row-badge">Q ${escapeHtml(video.qualityScore)}/100</span>` : "",
+      tool.status ? `<span class="tool-row-badge">${escapeHtml(tool.status)}</span>` : ""
+    ].filter(Boolean).join("");
+    const videoActions = video
+      ? `<div class="tool-video-actions">
+          <a class="tool-row-action video-action" href="${escapeHtml(finalVideoUrl(video.videoPath))}" target="_blank" rel="noreferrer">Video</a>
+          <button class="tool-row-action" type="button" data-open-video-folder="${escapeHtml(video.folderPath || video.folder || "")}">Folder</button>
+        </div>`
+      : "";
+    return `
+      <div class="tool-row-option ${selected ? "is-selected" : ""} ${video ? "has-video" : ""}" title="${escapeHtml(meta || tool.url || tool.tool_url || "")}">
+        <button class="tool-row-select" type="button" data-select-row="${escapeHtml(row)}">
+          <span class="tool-row-title"><strong>Row ${escapeHtml(row)}</strong><b>${escapeHtml(toolDisplayName(tool))}</b></span>
+          ${visibleMeta ? `<small class="tool-row-meta">${escapeHtml(visibleMeta)}</small>` : ""}
+          ${video ? `<small class="tool-row-video-meta">Final video: ${escapeHtml(shortDateTime(video.generatedAt || video.modifiedAt))}</small>` : ""}
+        </button>
+        <div class="tool-row-side">
+          ${badges ? `<div class="tool-row-badges">${badges}</div>` : ""}
+          ${videoActions}
+        </div>
+      </div>
+    `;
+  }).join("")}`;
 }
 
 function updateSelectedTool() {
@@ -1606,6 +2513,10 @@ function updateSelectedTool() {
   setScriptBusy(false);
   setHookBusy(false);
   setFinalBusy(false);
+  refreshAutoQueueControls();
+  refreshStepFlowControls();
+  updateToolDropdownSummary();
+  updateAutoQueueHint();
   if (selectedRow && state.inputPath) {
     scheduleArtifactCheck(selectedRow);
   }
@@ -1635,11 +2546,160 @@ function renderAssetBuild(assetBuild) {
   setFinalBusy(false);
 }
 
+function normalizeScriptEditorText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function scriptEditorSeed(scriptBuild = {}) {
+  const pkg = scriptBuild.scriptPackage || scriptBuild.plan?.metadata?.script_package || {};
+  const seo = scriptBuild.seo || {};
+  const scenes = scriptBuild.plan?.scenes || [];
+  return {
+    hook: pkg.hook || scenes[0]?.voiceover || "",
+    body: pkg.body || scenes.slice(1, -1).map((scene) => scene.voiceover).filter(Boolean).join(" "),
+    cta: pkg.cta || scenes.at(-1)?.voiceover || "",
+    caption: seo.instagram_caption || "",
+    hashtags: Array.isArray(seo.hashtags) ? seo.hashtags.join(" ") : String(seo.hashtags || "")
+  };
+}
+
+function splitBodyForSceneCount(body, sceneCount) {
+  const count = Math.max(0, Number(sceneCount || 0));
+  const clean = normalizeScriptEditorText(body);
+  if (!count || !clean) {
+    return Array.from({ length: count }, () => "");
+  }
+  const sentences = clean
+    .split(/(?<=[.!?।])\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const source = sentences.length >= count ? sentences : clean.split(/\s+/).filter(Boolean);
+  if (source.length <= count) {
+    return Array.from({ length: count }, (_, index) => source[index] || "");
+  }
+  const chunks = [];
+  for (let index = 0; index < count; index += 1) {
+    const start = Math.floor((index * source.length) / count);
+    const end = Math.floor(((index + 1) * source.length) / count);
+    chunks.push(source.slice(start, Math.max(start + 1, end)).join(" ").trim());
+  }
+  return chunks;
+}
+
+function renderScriptEditor(scriptBuild = {}) {
+  const scenes = scriptBuild.plan?.scenes || [];
+  const seed = scriptEditorSeed(scriptBuild);
+  state.currentScriptBuild = scriptBuild;
+  state.scriptEditorOriginal = seed;
+  if (els.scriptHookEditor) els.scriptHookEditor.value = seed.hook;
+  if (els.scriptBodyEditor) els.scriptBodyEditor.value = seed.body;
+  if (els.scriptCtaEditor) els.scriptCtaEditor.value = seed.cta;
+  if (els.scriptCaptionEditor) els.scriptCaptionEditor.value = seed.caption;
+  if (els.scriptHashtagsEditor) els.scriptHashtagsEditor.value = seed.hashtags;
+  if (els.scriptEditorMeta) {
+    els.scriptEditorMeta.textContent = `${scenes.length || 0} scenes | edit, save, then render with updated script.`;
+  }
+  if (els.scriptSceneEditorList) {
+    els.scriptSceneEditorList.innerHTML = scenes.map((scene, index) => `
+      <article class="script-scene-editor-item" data-editor-scene="${escapeHtml(scene.scene_number || index + 1)}">
+        <div class="script-scene-editor-head">
+          <strong>Scene ${escapeHtml(scene.scene_number || index + 1)}</strong>
+          <span>${escapeHtml(scene.duration || 10)} sec</span>
+        </div>
+        <label class="field-label">
+          <span>Voiceover</span>
+          <textarea data-scene-field="voiceover" rows="3">${escapeHtml(scene.voiceover || "")}</textarea>
+        </label>
+        <label class="field-label">
+          <span>On-screen text</span>
+          <textarea data-scene-field="onscreen_text" rows="2">${escapeHtml(scene.onscreen_text || "")}</textarea>
+        </label>
+        <label class="field-label">
+          <span>Visual notes</span>
+          <textarea data-scene-field="visual" rows="2">${escapeHtml(scene.visual || "")}</textarea>
+        </label>
+      </article>
+    `).join("") || '<span class="muted">No scene script generated.</span>';
+  }
+}
+
+function collectScriptEditorPayload() {
+  const scriptBuild = state.currentScriptBuild || {};
+  const scenes = [...(els.scriptSceneEditorList?.querySelectorAll("[data-editor-scene]") || [])].map((item) => {
+    const field = (name) => item.querySelector(`[data-scene-field="${name}"]`)?.value || "";
+    return {
+      scene_number: Number(item.dataset.editorScene || 0),
+      voiceover: normalizeScriptEditorText(field("voiceover")),
+      onscreen_text: normalizeScriptEditorText(field("onscreen_text")),
+      visual: normalizeScriptEditorText(field("visual"))
+    };
+  });
+  const hook = normalizeScriptEditorText(els.scriptHookEditor?.value || "");
+  const body = normalizeScriptEditorText(els.scriptBodyEditor?.value || "");
+  const cta = normalizeScriptEditorText(els.scriptCtaEditor?.value || "");
+  if (scenes.length) {
+    scenes[0].voiceover = hook || scenes[0].voiceover;
+    scenes[scenes.length - 1].voiceover = cta || scenes[scenes.length - 1].voiceover;
+    const originalBody = normalizeScriptEditorText(state.scriptEditorOriginal?.body || "");
+    if (body && body !== originalBody && scenes.length > 2) {
+      const bodyChunks = splitBodyForSceneCount(body, scenes.length - 2);
+      for (let index = 1; index < scenes.length - 1; index += 1) {
+        scenes[index].voiceover = bodyChunks[index - 1] || scenes[index].voiceover;
+      }
+    }
+  }
+  return {
+    input: state.inputPath,
+    row: Number(els.assetRowInput.value || scriptBuild.row || 0),
+    scriptDir: scriptBuild.scriptDir || state.lastScriptFolder || "",
+    scriptPath: scriptBuild.scriptPath || "",
+    editor: {
+      hook,
+      body,
+      cta,
+      caption: String(els.scriptCaptionEditor?.value || "").trim(),
+      hashtags: String(els.scriptHashtagsEditor?.value || "").trim(),
+      scenes
+    }
+  };
+}
+
+async function saveUpdatedScript() {
+  if (!state.currentScriptBuild || !state.lastScriptFolder) {
+    throw new Error("Pehle script generate ya old script load karo.");
+  }
+  const payload = collectScriptEditorPayload();
+  setScriptState("Saving update", "busy");
+  setTask("Saving script update", `Row ${payload.row}`, "busy");
+  setTerminalStatus("Saving edited script");
+  appendTerminal(`POST /api/scripts/update row=${payload.row}`);
+  setScriptBusy(true);
+  const response = await fetch("/api/scripts/update", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.error || `Script update failed: ${response.status}`);
+  }
+  renderScriptResult(data.scriptBuild || {});
+  if (els.scriptEditorPanel) {
+    els.scriptEditorPanel.open = true;
+  }
+  setScriptState("Updated", "success");
+  setTask("Script updated", data.scriptBuild?.markdownPath || state.lastScriptFolder, "success");
+  setTerminalStatus("Script update saved");
+  appendTerminal(`Updated script saved: ${data.scriptBuild?.markdownPath || state.lastScriptFolder}`, "stdout");
+  scheduleArtifactCheck(payload.row);
+}
+
 function renderScriptResult(scriptBuild) {
   const pkg = scriptBuild.scriptPackage || {};
   const seo = scriptBuild.seo || {};
   const scenes = scriptBuild.plan?.scenes || [];
-  state.lastScriptFolder = scriptBuild.scriptDir || "";
+  state.lastScriptFolder = scriptBuild.scriptDir || scriptBuild.scriptPath?.replace(/[\\/][^\\/]+$/, "") || "";
+  state.currentScriptBuild = scriptBuild;
   els.scriptResult.classList.remove("is-hidden");
   els.scriptToolName.textContent = scriptBuild.tool?.tool_name || scriptBuild.tool?.name || "Reel script ready";
   els.scriptDuration.textContent = `${scriptBuild.totalDurationSeconds || scenes.length * 10 || 0} sec`;
@@ -1672,6 +2732,7 @@ function renderScriptResult(scriptBuild) {
       <p>${escapeHtml(scene.voiceover)}</p>
     </article>
   `).join("") || '<span class="muted">No scene script generated.</span>';
+  renderScriptEditor(scriptBuild);
   setScriptState("Script ready", "success");
   setTask("Script ready", `${scriptBuild.totalDurationSeconds || 0} sec Reel script`, "success");
   setTerminalStatus("Script generation complete");
@@ -1748,6 +2809,7 @@ function hookAvatarPayload(extra = {}) {
     fallbackProfile,
     fallbackEnabled: Boolean(els.hookFallbackEnabled?.checked && fallbackProfile),
     profiles,
+    creditSafeMode: creditSafeEnabled(),
     scriptLanguage: els.scriptLanguageSelect.value || "Hinglish",
     assetsDir: Number(state.lastAssetRow || 0) === row ? state.lastAssetFolder : "",
     ...extra
@@ -1850,47 +2912,76 @@ function connectHookAvatarRun(runId) {
   if (state.hookAvatarEventSource) {
     state.hookAvatarEventSource.close();
   }
+  if (!runId) {
+    return Promise.reject(new Error("Avatar run id missing."));
+  }
   const source = new EventSource(`/api/hook-avatar/runs/${encodeURIComponent(runId)}/events`);
   state.hookAvatarEventSource = source;
-  source.addEventListener("log", (event) => {
-    const entry = JSON.parse(event.data);
-    appendTerminal(entry.text, entry.stream);
-    setTask("Generating avatar pack", entry.text, entry.stream === "stderr" ? "error" : "busy");
-    setTerminalStatus(entry.text);
-  });
-  source.addEventListener("status", (event) => {
-    const run = JSON.parse(event.data);
-    if (run.status === "running") {
-      setTask("Generating avatar pack", `Run ${run.id}`, "busy");
-      setTerminalStatus(`Running: ${run.id}`);
-      return;
-    }
-    source.close();
-    state.hookAvatarEventSource = null;
-    if (run.status === "complete") {
-      renderHookAvatarResult(run.result || {});
-      appendTerminal(`Avatar pack run complete: ${run.id}`, "stdout");
-      scheduleArtifactCheck(Number(run.result?.row || els.assetRowInput.value || 0));
-      return;
-    }
-    const message = run.error || "Avatar pack generation failed.";
-    setHookState("Failed", "error");
-    setTask("Avatar pack failed", message, "error");
-    setTerminalStatus("Avatar pack generation failed");
-    appendTerminal(message, "stderr");
-    if (run.result) {
-      renderHookAvatarResult(run.result);
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      source.close();
+      state.hookAvatarEventSource = null;
+      const message = `Avatar pack run timed out: ${runId}`;
+      appendTerminal(message, "stderr");
+      reject(new Error(message));
+    }, STEP_FLOW_RUN_TIMEOUT_MS);
+    const settle = (handler, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      source.close();
+      state.hookAvatarEventSource = null;
+      handler(value);
+    };
+    source.addEventListener("log", (event) => {
+      const entry = JSON.parse(event.data);
+      appendTerminal(entry.text, entry.stream);
+      setTask("Generating avatar pack", entry.text, entry.stream === "stderr" ? "error" : "busy");
+      setTerminalStatus(entry.text);
+    });
+    source.addEventListener("status", (event) => {
+      const run = JSON.parse(event.data);
+      if (run.status === "running") {
+        setTask("Generating avatar pack", `Run ${run.id}`, "busy");
+        setTerminalStatus(`Running: ${run.id}`);
+        return;
+      }
+      if (run.status === "complete") {
+        renderHookAvatarResult(run.result || {});
+        appendTerminal(`Avatar pack run complete: ${run.id}`, "stdout");
+        scheduleArtifactCheck(Number(run.result?.row || els.assetRowInput.value || 0));
+        settle(resolve, run.result || {});
+        return;
+      }
+      const message = run.error || "Avatar pack generation failed.";
       setHookState("Failed", "error");
-    }
-    setHookBusy(false);
+      setTask("Avatar pack failed", message, "error");
+      setTerminalStatus("Avatar pack generation failed");
+      appendTerminal(message, "stderr");
+      if (run.result) {
+        renderHookAvatarResult(run.result);
+        setHookState("Failed", "error");
+      }
+      setHookBusy(false);
+      settle(reject, new Error(message));
+    });
+    source.onerror = () => {
+      appendTerminal(`Avatar pack event stream interrupted for ${runId}.`, "stderr");
+    };
   });
-  source.onerror = () => {
-    appendTerminal(`Avatar pack event stream interrupted for ${runId}.`, "stderr");
-  };
 }
 
 async function generateHookAvatar() {
   const payload = hookAvatarPayload({ prepareOnly: false });
+  if (!confirmCreditSpend(
+    "Generate Google Vids Avatar Pack",
+    "This can generate/export hook, focus, and CTA avatar clips. Estimate: up to 3 Google Vids clips for this selected row."
+  )) {
+    return { canceled: true };
+  }
   setHookState("Generating", "busy");
   setTask("Generating avatar pack", `Google Vids | Row ${payload.row} | ${payload.profiles.join(" -> ")}`, "busy");
   setTerminalStatus("Starting Google Vids hook+focus+CTA avatar run");
@@ -1907,49 +2998,72 @@ async function generateHookAvatar() {
     throw new Error(data.error || `Avatar pack run failed: ${response.status}`);
   }
   state.lastHookAvatarRunId = data.run?.id || "";
-  connectHookAvatarRun(state.lastHookAvatarRunId);
+  return connectHookAvatarRun(state.lastHookAvatarRunId);
 }
 
 function connectAssetRun(runId) {
   if (state.assetEventSource) {
     state.assetEventSource.close();
   }
+  if (!runId) {
+    return Promise.reject(new Error("Asset run id missing."));
+  }
   const source = new EventSource(`/api/assets/runs/${encodeURIComponent(runId)}/events`);
   state.assetEventSource = source;
-  source.addEventListener("log", (event) => {
-    const entry = JSON.parse(event.data);
-    appendTerminal(entry.text, entry.stream);
-    setTask("Building assets", entry.text, entry.stream === "stderr" ? "error" : "busy");
-    setTerminalStatus(entry.text);
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      source.close();
+      state.assetEventSource = null;
+      const message = `Asset run timed out: ${runId}`;
+      appendTerminal(message, "stderr");
+      reject(new Error(message));
+    }, STEP_FLOW_RUN_TIMEOUT_MS);
+    const settle = (handler, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      source.close();
+      state.assetEventSource = null;
+      handler(value);
+    };
+    source.addEventListener("log", (event) => {
+      const entry = JSON.parse(event.data);
+      appendTerminal(entry.text, entry.stream);
+      setTask("Building assets", entry.text, entry.stream === "stderr" ? "error" : "busy");
+      setTerminalStatus(entry.text);
+    });
+    source.addEventListener("status", (event) => {
+      const run = JSON.parse(event.data);
+      if (run.status === "running") {
+        setTask("Building assets", `Run ${run.id}`, "busy");
+        setTerminalStatus(`Running: ${run.id}`);
+        return;
+      }
+      if (run.status === "complete") {
+        renderAssetBuild(run.result || {});
+        setAssetState("Assets ready", "success");
+        appendTerminal(`Asset run complete: ${run.id}`, "stdout");
+        scheduleArtifactCheck(Number(run.result?.row || els.assetRowInput.value || 0));
+        settle(resolve, run.result || {});
+        return;
+      }
+      const message = run.error || "Asset run failed.";
+      setAssetState("Failed", "error");
+      setTask("Asset build failed", message, "error");
+      setTerminalStatus("Asset build failed");
+      appendTerminal(message, "stderr");
+      els.assetSummary.textContent = message;
+      els.assetResult.classList.remove("is-hidden");
+      setAssetBusy(false);
+      settle(reject, new Error(message));
+    });
+    source.onerror = () => {
+      appendTerminal(`Event stream interrupted for ${runId}.`, "stderr");
+    };
   });
-  source.addEventListener("status", (event) => {
-    const run = JSON.parse(event.data);
-    if (run.status === "running") {
-      setTask("Building assets", `Run ${run.id}`, "busy");
-      setTerminalStatus(`Running: ${run.id}`);
-      return;
-    }
-    source.close();
-    state.assetEventSource = null;
-    if (run.status === "complete") {
-      renderAssetBuild(run.result || {});
-      setAssetState("Assets ready", "success");
-      appendTerminal(`Asset run complete: ${run.id}`, "stdout");
-      scheduleArtifactCheck(Number(run.result?.row || els.assetRowInput.value || 0));
-      return;
-    }
-    const message = run.error || "Asset run failed.";
-    setAssetState("Failed", "error");
-    setTask("Asset build failed", message, "error");
-    setTerminalStatus("Asset build failed");
-    appendTerminal(message, "stderr");
-    els.assetSummary.textContent = message;
-    els.assetResult.classList.remove("is-hidden");
-    setAssetBusy(false);
-  });
-  source.onerror = () => {
-    appendTerminal(`Event stream interrupted for ${runId}.`, "stderr");
-  };
 }
 
 async function buildAssets() {
@@ -1975,7 +3089,7 @@ async function buildAssets() {
   if (!response.ok || data.ok === false) {
     throw new Error(data.error || `Asset build failed: ${response.status}`);
   }
-  connectAssetRun(data.run?.id);
+  return connectAssetRun(data.run?.id);
 }
 
 async function runAssetBuildFromUi() {
@@ -2068,6 +3182,7 @@ function finalReelPayload(extra = {}) {
     fallbackProfile,
     fallbackEnabled: Boolean(els.hookFallbackEnabled?.checked && fallbackProfile),
     profiles,
+    creditSafeMode: creditSafeEnabled(),
     ...extra
   };
 }
@@ -2170,58 +3285,94 @@ function connectFinalReelRun(runId) {
   if (state.finalReelEventSource) {
     state.finalReelEventSource.close();
   }
+  if (!runId) {
+    return Promise.reject(new Error("Final reel run id missing."));
+  }
   const source = new EventSource(`/api/final-reel/runs/${encodeURIComponent(runId)}/events`);
   state.finalReelEventSource = source;
-  source.addEventListener("log", (event) => {
-    const entry = JSON.parse(event.data);
-    appendTerminal(entry.text, entry.stream);
-    setTerminalStatus(entry.text);
-  });
-  source.addEventListener("progress", (event) => {
-    const progress = JSON.parse(event.data);
-    renderFinalPipeline(progress.steps || []);
-    const active = progress.active || {};
-    if (active.label) {
-      const tone = active.status === "failed" ? "error" : active.status === "complete" ? "success" : "busy";
-      setTask(active.label, active.detail || "Final reel workflow", tone);
-      setFinalState(active.label, tone);
-    }
-  });
-  source.addEventListener("status", (event) => {
-    const run = JSON.parse(event.data);
-    if (run.status === "running") {
-      setTask("Rendering final reel", `Run ${run.id}`, "busy");
-      setTerminalStatus(`Running: ${run.id}`);
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      source.close();
+      state.finalReelEventSource = null;
+      const message = `Final reel run timed out: ${runId}`;
+      appendTerminal(message, "stderr");
+      reject(new Error(message));
+    }, STEP_FLOW_RUN_TIMEOUT_MS);
+    const settle = (handler, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      source.close();
+      state.finalReelEventSource = null;
+      handler(value);
+    };
+    source.addEventListener("log", (event) => {
+      const entry = JSON.parse(event.data);
+      appendTerminal(entry.text, entry.stream);
+      setTerminalStatus(entry.text);
+    });
+    source.addEventListener("progress", (event) => {
+      const progress = JSON.parse(event.data);
+      renderFinalPipeline(progress.steps || []);
+      const active = progress.active || {};
+      if (active.label) {
+        const tone = active.status === "failed" ? "error" : active.status === "complete" ? "success" : "busy";
+        setTask(active.label, active.detail || "Final reel workflow", tone);
+        setFinalState(active.label, tone);
+      }
+    });
+    source.addEventListener("status", (event) => {
+      const run = JSON.parse(event.data);
+      if (run.status === "running") {
+        setTask("Rendering final reel", `Run ${run.id}`, "busy");
+        setTerminalStatus(`Running: ${run.id}`);
+        renderFinalPipeline(run.steps || []);
+        return;
+      }
       renderFinalPipeline(run.steps || []);
-      return;
-    }
-    source.close();
-    state.finalReelEventSource = null;
-    renderFinalPipeline(run.steps || []);
-    if (run.status === "complete") {
-      renderFinalReelResult(run.result || {});
-      appendTerminal(`Final reel run complete: ${run.id}`, "stdout");
-      scheduleArtifactCheck(Number(run.result?.row || els.assetRowInput.value || 0));
-      return;
-    }
-    const message = run.error || "Final reel render failed.";
-    setFinalState("Failed", "error");
-    setTask("Final reel failed", message, "error");
-    setTerminalStatus("Final reel render failed");
-    appendTerminal(message, "stderr");
-    if (run.result) {
-      renderFinalReelResult(run.result);
+      if (run.status === "complete") {
+        renderFinalReelResult(run.result || {});
+        appendTerminal(`Final reel run complete: ${run.id}`, "stdout");
+        scheduleArtifactCheck(Number(run.result?.row || els.assetRowInput.value || 0));
+        settle(resolve, run.result || {});
+        return;
+      }
+      const message = run.error || "Final reel render failed.";
       setFinalState("Failed", "error");
-    }
-    setFinalBusy(false);
+      setTask("Final reel failed", message, "error");
+      setTerminalStatus("Final reel render failed");
+      appendTerminal(message, "stderr");
+      if (run.result) {
+        renderFinalReelResult(run.result);
+        setFinalState("Failed", "error");
+      }
+      setFinalBusy(false);
+      settle(reject, new Error(message));
+    });
+    source.onerror = () => {
+      appendTerminal(`Final reel event stream interrupted for ${runId}.`, "stderr");
+    };
   });
-  source.onerror = () => {
-    appendTerminal(`Final reel event stream interrupted for ${runId}.`, "stderr");
-  };
 }
 
 async function renderFinalReel() {
   const payload = finalReelPayload();
+  if (creditSafeEnabled() && ["openai", "elevenlabs"].includes(payload.voiceoverProvider || "")) {
+    payload.voiceoverProvider = "free";
+    if (els.finalVoiceProviderSelect) {
+      els.finalVoiceProviderSelect.value = "free";
+    }
+    appendTerminal("Credit Safe switched final voiceover provider to free.", "stdout");
+  } else if (["openai", "elevenlabs"].includes(payload.voiceoverProvider || "")) {
+    const ok = confirmCreditSpend(
+      "Use paid/API voiceover provider",
+      `Selected voice provider: ${payload.voiceoverProvider}. This can use external API credits.`
+    );
+    if (!ok) return;
+  }
   setFinalState("Rendering", "busy");
   setTask("Rendering final reel", `Row ${payload.row} | ${payload.voiceoverProvider}`, "busy");
   setTerminalStatus("Starting final reel render");
@@ -2239,7 +3390,7 @@ async function renderFinalReel() {
     throw new Error(data.error || `Final render failed: ${response.status}`);
   }
   state.lastFinalReelRunId = data.run?.id || "";
-  connectFinalReelRun(state.lastFinalReelRunId);
+  return connectFinalReelRun(state.lastFinalReelRunId);
 }
 
 async function generateVidsVoiceover() {
@@ -2248,6 +3399,12 @@ async function generateVidsVoiceover() {
     remainingFromScene: 2,
     voiceoverProvider: "google-vids-voiceover"
   });
+  if (!confirmCreditSpend(
+    "Generate Google Vids Voiceover",
+    "This opens Google Vids Voiceover tab, generates narration for body/CTA scenes, and exports MP4/audio. It can use Google Vids credits."
+  )) {
+    return { canceled: true };
+  }
   setFinalState("Generating voice", "busy");
   setTask("Generating Vids voiceover", `Hook skipped | Row ${payload.row} | ${payload.profiles.join(" -> ")}`, "busy");
   setTerminalStatus("Starting Google Vids Voiceover tab run");
@@ -2265,7 +3422,7 @@ async function generateVidsVoiceover() {
     throw new Error(data.error || `Vids voiceover run failed: ${response.status}`);
   }
   state.lastFinalReelRunId = data.run?.id || "";
-  connectFinalReelRun(state.lastFinalReelRunId);
+  return connectFinalReelRun(state.lastFinalReelRunId);
 }
 
 async function openLatestFinalFolder() {
@@ -2280,6 +3437,439 @@ async function openLatestFinalFolder() {
   if (!response.ok || data.ok === false) {
     throw new Error(data.error || `Open final folder failed: ${response.status}`);
   }
+}
+
+async function executeStepFlowStep(step) {
+  scrollStepIntoView(step.key);
+  if (step.key === "asset") {
+    activeStep("asset");
+    await buildAssets();
+    return;
+  }
+  if (step.key === "script") {
+    activeStep("script");
+    await generateReelScript();
+    return;
+  }
+  if (step.key === "avatar") {
+    activeStep("hook");
+    await prepareHookAvatar();
+    return;
+  }
+  if (step.key === "vids-avatar") {
+    activeStep("hook");
+    const result = await generateHookAvatar();
+    if (result?.canceled) {
+      throw new Error("Vids avatar generation canceled before credits were used.");
+    }
+    return;
+  }
+  if (step.key === "vids-voiceover") {
+    if (creditSafeEnabled()) {
+      appendTerminal("Skipped Vids voiceover because Credit Safe is ON.", "stdout");
+      return { skipped: true, reason: "Credit Safe ON" };
+    }
+    activeStep("final");
+    const result = await generateVidsVoiceover();
+    if (result?.canceled) {
+      throw new Error("Vids voiceover generation canceled before credits were used.");
+    }
+    return;
+  }
+  if (step.key === "final") {
+    activeStep("final");
+    await renderFinalReel();
+  }
+}
+
+async function runStepFlow() {
+  if (state.stepFlowRunning) return;
+  if (!stepFlowHasRow()) {
+    setStepFlowState("Waiting", "error");
+    if (els.stepFlowStatus) {
+      els.stepFlowStatus.textContent = "Excel load karo aur valid tool row select karo.";
+    }
+    setTask("Step flow blocked", "Excel/row missing.", "error");
+    return;
+  }
+  const row = Number(els.assetRowInput.value || 0);
+  const plan = stepFlowPlan();
+  if (!plan.length) {
+    setStepFlowState("No steps", "error");
+    if (els.stepFlowStatus) {
+      els.stepFlowStatus.textContent = "Kam se kam ek step select karo.";
+    }
+    return;
+  }
+  state.stepFlowSteps = plan.map((step) => ({ ...step, status: "pending" }));
+  renderStepFlowTimeline();
+  setStepFlowBusy(true);
+  setStepFlowState("Running", "busy");
+  if (els.stepFlowStatus) {
+    els.stepFlowStatus.textContent = `Row ${row}: ${plan.length} selected step(s) one by one run ho rahe hain.`;
+  }
+  setTask("Step flow running", `Row ${row} | ${plan.map((step) => step.label).join(" -> ")}`, "busy");
+  setTerminalStatus("Step flow started");
+  appendTerminal(`Step flow started row=${row} steps=${plan.map((step) => step.key).join(",")}`);
+
+  try {
+    for (const step of plan) {
+      if (state.stepFlowStopRequested) {
+        updateStepFlowStep(step.key, "stopped", "Stopped before this step.");
+        appendTerminal(`Step flow stopped before ${step.label}.`, "stdout");
+        continue;
+      }
+      updateStepFlowStep(step.key, "running", "Running now");
+      if (els.stepFlowStatus) {
+        els.stepFlowStatus.textContent = `Running: ${step.label}. Output niche section me update hoga.`;
+      }
+      setTask(`Running ${step.label}`, `Row ${row}`, "busy");
+      setTerminalStatus(`Step flow: ${step.label}`);
+      appendTerminal(`Step flow -> ${step.label}`, "stdout");
+      const result = await executeStepFlowStep(step);
+      updateStepFlowStep(step.key, result?.skipped ? "skipped" : "complete", result?.reason || "Complete");
+      appendTerminal(`Step flow complete -> ${step.label}`, "stdout");
+    }
+
+    const stopped = state.stepFlowStopRequested;
+    const completeCount = state.stepFlowSteps.filter((step) => step.status === "complete" || step.status === "skipped").length;
+    setStepFlowState(stopped ? "Stopped" : "Complete", stopped ? "error" : "success");
+    if (els.stepFlowStatus) {
+      els.stepFlowStatus.textContent = stopped
+        ? `Stopped after current step. ${completeCount}/${plan.length} step(s) done.`
+        : `All selected steps complete. ${completeCount}/${plan.length} step(s) done.`;
+    }
+    setTask(stopped ? "Step flow stopped" : "Step flow complete", `Row ${row} | ${completeCount}/${plan.length} done`, stopped ? "error" : "success");
+    setTerminalStatus(stopped ? "Step flow stopped" : "Step flow complete");
+  } catch (error) {
+    const running = state.stepFlowSteps.find((step) => step.status === "running");
+    if (running) {
+      updateStepFlowStep(running.key, "failed", error.message);
+    }
+    setStepFlowState("Failed", "error");
+    if (els.stepFlowStatus) {
+      els.stepFlowStatus.textContent = error.message;
+    }
+    setTask("Step flow failed", error.message, "error");
+    setTerminalStatus("Step flow failed");
+    appendTerminal(error.message, "stderr");
+  } finally {
+    setStepFlowBusy(false);
+  }
+}
+
+function parseAutoRows(value) {
+  return String(value || "")
+    .split(",")
+    .flatMap((part) => {
+      const trimmed = part.trim();
+      if (!trimmed) return [];
+      const range = trimmed.match(/^(\d+)\s*-\s*(\d+)$/);
+      if (!range) {
+        const row = Number(trimmed);
+        return Number.isInteger(row) && row >= 2 ? [row] : [];
+      }
+      const start = Number(range[1]);
+      const end = Number(range[2]);
+      const low = Math.max(2, Math.min(start, end));
+      const high = Math.max(start, end);
+      return Array.from({ length: Math.max(0, high - low + 1) }, (_, index) => low + index);
+    })
+    .filter((row, index, rows) => rows.indexOf(row) === index)
+    .slice(0, 50);
+}
+
+function buildAutoQueueBody() {
+  if (!state.inputPath) {
+    throw new Error("Excel file pehle load karo.");
+  }
+  const selectedRow = Number(els.assetRowInput.value || 0);
+  if (!Number.isFinite(selectedRow) || selectedRow < 2) {
+    throw new Error("Valid tool row select karo.");
+  }
+  const requestedCount = Math.floor(finiteClamp(els.autoVideoCount?.value, 1, 1, 50));
+  const count = requestedCount;
+  const explicitRows = parseAutoRows(els.autoRowsInput?.value || "").slice(0, count);
+  const startRow = els.autoStartSelectedRow?.checked ? selectedRow : 2;
+  const safe = creditSafeEnabled();
+  const useVidsHook = Boolean(els.autoUseVidsHook?.checked) && !safe;
+  const defaults = state.dashboardDefaults || {};
+  const ai = defaults.ai || {};
+  const voiceover = defaults.voiceover || {};
+  const aiProvider = ai.hasGeminiKey ? "gemini" : (ai.defaultProvider || "openai");
+  const aiModel = aiProvider === "gemini"
+    ? (ai.defaultGeminiModel || "gemini-2.5-pro")
+    : (ai.defaultModel || "gpt-5-mini");
+
+  return {
+    input: state.inputPath,
+    row: startRow,
+    startRow,
+    queueLimit: count,
+    rows: explicitRows.length ? explicitRows : "",
+    mode: useVidsHook ? "google-hook" : "local",
+    creditSafeMode: safe,
+    maxScenes: Math.floor(finiteClamp(els.scriptSceneCount?.value, 5, 3, 6)),
+    scriptLanguage: els.scriptLanguageSelect?.value || "Hinglish",
+    freeVideoProviders: "capcut,pika,runway,canva,did,shotstack",
+    useAiScript: Boolean(ai.hasOpenAiKey || ai.hasGeminiKey),
+    aiProvider,
+    aiModel,
+    ttsProvider: "free",
+    ttsModel: "edge-tts",
+    ttsVoice: voiceover.edgeVoice || "hi-IN-SwaraNeural",
+    hookAvatarStyle: els.hookPresenterSelect?.value || "female",
+    useAvatar: true,
+    avatar: els.hookCharacterSelect?.value || "auto_by_reel",
+    avatarScenes: useVidsHook ? "1" : "",
+    useIngredients: true,
+    ingredients: "auto",
+    ingredientScenes: "3,4,5",
+    profiles: selectedAutomationProfiles(),
+    reuseUrlOnFallback: true,
+    noLocalFallback: false,
+    updateSourceWorkbook: Boolean(els.autoUpdateWorkbook?.checked)
+  };
+}
+
+function autoQueueTone(status) {
+  if (status === "complete") return "success";
+  if (["complete_with_failures", "failed", "paused_quota", "canceled"].includes(status)) return "error";
+  if (["queued", "running", "canceling"].includes(status)) return "busy";
+  return "idle";
+}
+
+function shortPath(value) {
+  const text = String(value || "");
+  if (!text) return "";
+  if (/^https?:\/\//i.test(text)) {
+    try {
+      const url = new URL(text);
+      return `${url.hostname}${url.pathname === "/" ? "" : url.pathname}`;
+    } catch {
+      return text;
+    }
+  }
+  return text.split(/[\\/]/).filter(Boolean).slice(-3).join(" / ") || text;
+}
+
+function queueItemTitle(item = {}) {
+  const report = item.report || {};
+  return report.toolName || item.toolName || `Row ${item.row || ""}`.trim();
+}
+
+function renderQueueSteps(steps = []) {
+  if (!steps.length) {
+    return '<span class="auto-step-pill" data-status="pending">Waiting</span>';
+  }
+  return steps.map((step) => {
+    const status = step.status || "pending";
+    const title = [step.label || step.key || "Step", step.detail || ""].filter(Boolean).join(": ");
+    return `<span class="auto-step-pill" data-status="${escapeHtml(status)}" title="${escapeHtml(title)}">${escapeHtml(step.label || step.key || "Step")}</span>`;
+  }).join("");
+}
+
+function renderQueueOutputs(outputs = []) {
+  if (!outputs.length) {
+    return '<span class="auto-output-empty">Output yaha appear hoga.</span>';
+  }
+  return outputs.map((output) => {
+    const label = output.label || "Output";
+    const location = output.url || output.path || "";
+    if (!location) return "";
+    if (output.url) {
+      return `<a class="auto-output-link" href="${escapeHtml(output.url)}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a>`;
+    }
+    const previewLink = ["video", "file"].includes(output.kind)
+      ? `<a class="auto-output-link" href="${escapeHtml(finalVideoUrl(output.path))}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a>`
+      : "";
+    return `${previewLink}<button class="auto-output-link" type="button" data-open-output-path="${escapeHtml(output.path)}" data-open-output-label="${escapeHtml(label)}">Open ${escapeHtml(label)}</button>`;
+  }).join("");
+}
+
+function renderAutoTimeline(queue, activeItem, done) {
+  if (!els.autoRunTimeline) return;
+  if (!queue?.items?.length) {
+    els.autoRunTimeline.innerHTML = '<span class="muted">Automation steps will appear here.</span>';
+    return;
+  }
+  const counts = queue.counts || {};
+  const title = activeItem
+    ? `Row ${activeItem.row} - ${queueItemTitle(activeItem)}`
+    : queue.status === "complete"
+      ? "Automation complete"
+      : queue.status === "queued"
+        ? "Automation queued"
+        : "Automation status";
+  const activeStep = activeItem?.activeStep;
+  const detail = activeItem?.latestLog?.text || activeStep?.detail || queue.note || "";
+  const completeCount = Number(counts.complete || 0);
+  const failedCount = Number(counts.failed || 0);
+  els.autoRunTimeline.innerHTML = `
+    <div class="auto-live-head">
+      <strong>${escapeHtml(title)}</strong>
+      <span>${escapeHtml(done)}/${escapeHtml(queue.total || 0)} done${failedCount ? ` | ${escapeHtml(failedCount)} failed` : ""}${completeCount ? ` | ${escapeHtml(completeCount)} ready` : ""}</span>
+    </div>
+    <div class="auto-step-strip">${renderQueueSteps(activeItem?.steps || [])}</div>
+    <div class="auto-live-detail">${escapeHtml(detail || "Waiting for next automation update...")}</div>
+  `;
+}
+
+function renderAutoQueue(queue) {
+  if (!queue || !els.autoQueueMeta) return;
+  state.activeAutoQueueId = ["queued", "running", "canceling"].includes(queue.status) ? queue.id : "";
+  state.autoQueueProgressWorkbook = queue.progressWorkbook || state.autoQueueProgressWorkbook || "";
+  const counts = queue.counts || {};
+  const done = ["complete", "failed", "canceled", "paused"].reduce((total, key) => total + Number(counts[key] || 0), 0);
+  const activeItem = (queue.items || []).find((item) => item.status === "running");
+  const tone = autoQueueTone(queue.status);
+  setAutoQueueState(queue.status === "paused_quota" ? "Quota paused" : queue.status, tone);
+  els.autoQueueMeta.textContent = [
+    `Queue ${queue.id}`,
+    `${done}/${queue.total || 0} rows done`,
+    activeItem ? `Active row ${activeItem.row}` : "",
+    queue.note || "",
+    queue.progressWorkbook ? `Progress: ${queue.progressWorkbook}` : ""
+  ].filter(Boolean).join(" | ");
+  renderAutoTimeline(queue, activeItem, done);
+  if (els.autoQueueList) {
+    els.autoQueueList.innerHTML = (queue.items || []).map((item) => {
+      const report = item.report || {};
+      const label = queueItemTitle(item);
+      const output = report.mp4Path || report.outputDir || item.outputs?.[0]?.path || item.outputs?.[0]?.url || "";
+      const activeStep = item.activeStep?.label ? ` | ${item.activeStep.label}` : "";
+      const latest = item.latestLog?.text || item.activeStep?.detail || report.error || report.driveSyncError || "";
+      return `
+        <div class="auto-queue-item" data-status="${escapeHtml(item.status || "pending")}">
+          <div class="auto-queue-item-head">
+            <strong>Row ${escapeHtml(item.row)} - ${escapeHtml(label)}</strong>
+            <span>${escapeHtml(item.status || "pending")}${escapeHtml(activeStep)}</span>
+          </div>
+          <div class="auto-step-strip">${renderQueueSteps(item.steps || [])}</div>
+          <div class="auto-output-list">${renderQueueOutputs(item.outputs || [])}</div>
+          <span class="auto-queue-log">${escapeHtml(latest || (output ? shortPath(output) : "Waiting..."))}</span>
+        </div>
+      `;
+    }).join("") || '<span class="muted">Queue rows will appear here.</span>';
+  }
+  const active = ["queued", "running", "canceling"].includes(queue.status);
+  setAutoQueueBusy(active);
+  refreshAutoQueueControls();
+  if (!active) {
+    const finalTone = queue.status === "complete" ? "success" : tone;
+    setTask(
+      queue.status === "complete" ? "Auto queue complete" : "Auto queue stopped",
+      queue.note || `${done}/${queue.total || 0} rows processed`,
+      finalTone
+    );
+    setTerminalStatus(`Auto queue ${queue.status}`);
+  }
+}
+
+function appendAutoRunLogs(run) {
+  if (!run?.id) return;
+  const logs = run.logs || [];
+  const seen = state.autoQueueLogCursors.get(run.id) || 0;
+  if (logs.length <= seen) return;
+  for (const entry of logs.slice(seen)) {
+    appendTerminal(entry.text, entry.stream || "system");
+  }
+  state.autoQueueLogCursors.set(run.id, logs.length);
+}
+
+async function pollAutoQueue() {
+  if (state.autoQueueTimer) {
+    clearTimeout(state.autoQueueTimer);
+    state.autoQueueTimer = null;
+  }
+  if (!state.activeAutoQueueId) return;
+  try {
+    const data = await readJsonApi(`/api/queues/${encodeURIComponent(state.activeAutoQueueId)}`);
+    const queue = data.queue;
+    renderAutoQueue(queue);
+    if (queue?.activeRunId) {
+      state.activeAutoQueueRunId = queue.activeRunId;
+      const runData = await readJsonApi(`/api/runs/${encodeURIComponent(queue.activeRunId)}`);
+      appendAutoRunLogs(runData.run);
+    }
+    const active = ["queued", "running", "canceling"].includes(queue?.status);
+    if (active) {
+      state.autoQueueTimer = setTimeout(() => {
+        pollAutoQueue().catch((error) => {
+          appendTerminal(error.message, "stderr");
+        });
+      }, 2500);
+    }
+  } catch (error) {
+    appendTerminal(`Auto queue poll failed: ${error.message}`, "stderr");
+    state.autoQueueTimer = setTimeout(() => {
+      pollAutoQueue().catch((nextError) => {
+        appendTerminal(nextError.message, "stderr");
+      });
+    }, 4000);
+  }
+}
+
+async function startAutoQueue() {
+  const body = buildAutoQueueBody();
+  if (!body.creditSafeMode && (body.mode === "google-hook" || body.mode === "google" || body.mode === "google-full")) {
+    const rows = parseAutoRows(body.rows || "").length ? parseAutoRows(body.rows || "") : plannedAutoQueueRows();
+    const clips = body.mode === "google-hook" ? rows.length : rows.length * Number(body.maxScenes || 1);
+    const ok = confirmCreditSpend(
+      "Run Auto with Google Vids unlocked",
+      `Rows: ${rows.join(", ")}. Estimate: about ${clips} Google Vids scene job${clips === 1 ? "" : "s"}. Failed generations may still consume quota.`
+    );
+    if (!ok) return;
+  }
+  state.autoQueueLogCursors.clear();
+  state.autoQueueProgressWorkbook = "";
+  setAutoQueueState("Starting", "busy");
+  setAutoQueueBusy(true);
+  setTask("Auto queue starting", `${body.queueLimit} video(s) from row ${body.startRow}`, "busy");
+  setTerminalStatus("Starting auto queue");
+  appendTerminal(`POST /api/queues startRow=${body.startRow} limit=${body.queueLimit} mode=${body.mode}`);
+  const data = await readJsonApi("/api/queues", {
+    method: "POST",
+    body: JSON.stringify(body)
+  });
+  state.activeAutoQueueId = data.queue.id;
+  renderAutoQueue(data.queue);
+  await pollAutoQueue();
+}
+
+async function stopAutoQueue() {
+  if (!state.activeAutoQueueId) return;
+  setAutoQueueState("Stopping", "busy");
+  setTask("Stopping auto queue", state.activeAutoQueueId, "busy");
+  setTerminalStatus("Stopping auto queue");
+  appendTerminal(`POST /api/queues/${state.activeAutoQueueId}/stop`);
+  const data = await readJsonApi(`/api/queues/${encodeURIComponent(state.activeAutoQueueId)}/stop`, {
+    method: "POST",
+    body: "{}"
+  });
+  renderAutoQueue(data.queue);
+}
+
+async function openAutoProgressWorkbook() {
+  if (!state.autoQueueProgressWorkbook) return;
+  appendTerminal(`POST /api/open ${state.autoQueueProgressWorkbook}`);
+  const data = await readJsonApi("/api/open", {
+    method: "POST",
+    body: JSON.stringify({ path: state.autoQueueProgressWorkbook })
+  });
+  setTask("Progress workbook opened", data.path || state.autoQueueProgressWorkbook, "success");
+  setTerminalStatus("Progress workbook opened");
+}
+
+async function openAutomationOutput(outputPath, label = "Output") {
+  if (!outputPath) return;
+  appendTerminal(`POST /api/open ${outputPath}`);
+  const data = await readJsonApi("/api/open", {
+    method: "POST",
+    body: JSON.stringify({ path: outputPath })
+  });
+  setTask(`${label} opened`, data.path || outputPath, "success");
+  setTerminalStatus(`${label} opened`);
 }
 
 els.fileInput.addEventListener("change", () => {
@@ -2396,6 +3986,7 @@ els.toolSelect.addEventListener("change", () => {
 });
 
 els.toolSearchInput.addEventListener("input", () => {
+  state.toolRowRenderLimit = TOOL_ROW_RENDER_BATCH;
   const matches = filterTools(els.toolSearchInput.value);
   renderToolOptions(matches);
   els.toolOptionCount.textContent = `${matches.length} match${matches.length === 1 ? "" : "es"}`;
@@ -2420,8 +4011,14 @@ els.scriptLanguageSelect.addEventListener("change", () => {
 });
 
 els.finalVoiceProviderSelect?.addEventListener("change", () => {
+  if (creditSafeEnabled() && ["openai", "elevenlabs"].includes(els.finalVoiceProviderSelect.value || "")) {
+    els.finalVoiceProviderSelect.value = "free";
+    setTask("Credit Safe voice guard", "Paid/API voice blocked. Free voice selected.", "success");
+    appendTerminal("Credit Safe blocked paid/API voice provider selection.", "stdout");
+  }
   setFinalState(`${els.finalVoiceProviderSelect.value} voice`, "idle");
   setTerminalStatus(`Final voice provider: ${els.finalVoiceProviderSelect.value}`);
+  renderCreditGuard();
 });
 
 for (const control of [
@@ -2431,11 +4028,20 @@ for (const control of [
   els.hookDurationSelect,
   els.hookPrimaryProfileSelect,
   els.hookFallbackProfileSelect,
-  els.hookFallbackEnabled
+  els.hookFallbackEnabled,
+  els.customScriptPresenterSelect,
+  els.customScriptAvatarSelect,
+  els.customScriptPrimaryProfileSelect,
+  els.customScriptFallbackProfileSelect,
+  els.customScriptFallbackEnabled,
+  els.customScriptLanguageSelect,
+  els.customScriptDurationSelect
 ].filter(Boolean)) {
   control.addEventListener("change", () => {
     setHookState("Ready", "idle");
     setHookBusy(false);
+    setScriptVideoState("Ready", "idle");
+    setScriptVideoBusy(false);
     renderHookProfileStatus();
     renderProfileManager();
     setTerminalStatus(`Hook setup: ${els.hookPresenterSelect.value}, ${hookCharacterLabel(els.hookCharacterSelect?.value)}, ${els.hookToneSelect.value}, ${els.hookDurationSelect.value}s`);
@@ -2449,8 +4055,18 @@ els.hookFallbackEnabled?.addEventListener("change", () => {
   if (els.hookFallbackProfileSelect) {
     els.hookFallbackProfileSelect.disabled = !els.hookFallbackEnabled.checked;
   }
+  if (els.customScriptFallbackProfileSelect) {
+    els.customScriptFallbackProfileSelect.disabled = !els.customScriptFallbackEnabled?.checked;
+  }
   renderHookProfileStatus();
   renderProfileManager();
+});
+
+els.customScriptFallbackEnabled?.addEventListener("change", () => {
+  if (els.customScriptFallbackProfileSelect) {
+    els.customScriptFallbackProfileSelect.disabled = !els.customScriptFallbackEnabled.checked;
+  }
+  setScriptVideoBusy(false);
 });
 
 els.refreshHookProfilesBtn?.addEventListener("click", async () => {
@@ -2626,6 +4242,83 @@ els.generateScriptBtn.addEventListener("click", async () => {
   }
 });
 
+els.customScriptInput?.addEventListener("input", () => {
+  setScriptVideoState(els.customScriptInput.value.trim() ? "Ready" : "Waiting", els.customScriptInput.value.trim() ? "idle" : "idle");
+  setScriptVideoBusy(false);
+});
+
+els.customScriptTitleInput?.addEventListener("input", () => {
+  setScriptVideoState("Ready", "idle");
+  setScriptVideoBusy(false);
+});
+
+els.customScriptOptimizeBtn?.addEventListener("click", async () => {
+  try {
+    await optimizeCustomScriptVideo();
+  } catch (error) {
+    setScriptVideoState("Failed", "error");
+    setTask("Script optimize failed", error.message, "error");
+    setTerminalStatus("Script video optimize failed");
+    appendTerminal(error.message, "stderr");
+    els.scriptVideoResult?.classList.remove("is-hidden");
+    setScriptVideoBusy(false);
+  }
+});
+
+els.customScriptGenerateBtn?.addEventListener("click", async () => {
+  try {
+    await generateCustomScriptVideo();
+  } catch (error) {
+    setScriptVideoState("Failed", "error");
+    setTask("Script video failed", error.message, "error");
+    setTerminalStatus("Script video generation failed");
+    appendTerminal(error.message, "stderr");
+    els.scriptVideoResult?.classList.remove("is-hidden");
+    setScriptVideoBusy(false);
+  }
+});
+
+els.customScriptOpenFolderBtn?.addEventListener("click", async () => {
+  try {
+    await openLatestScriptVideoFolder();
+  } catch (error) {
+    setScriptVideoState("Open failed", "error");
+    setTask("Script video folder failed", error.message, "error");
+    setTerminalStatus("Script video folder open failed");
+    appendTerminal(error.message, "stderr");
+  }
+});
+
+els.editScriptBtn?.addEventListener("click", () => {
+  if (!state.currentScriptBuild) return;
+  renderScriptEditor(state.currentScriptBuild);
+  if (els.scriptEditorPanel) {
+    els.scriptEditorPanel.open = true;
+    els.scriptEditorPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  setTask("Script editor open", "Modify text, then Save Update.", "idle");
+  setTerminalStatus("Script editor ready");
+});
+
+els.resetScriptEditorBtn?.addEventListener("click", () => {
+  if (!state.currentScriptBuild) return;
+  renderScriptEditor(state.currentScriptBuild);
+  setTask("Script editor reset", "Latest saved script restored in editor.", "idle");
+  setTerminalStatus("Script editor reset");
+});
+
+els.saveScriptBtn?.addEventListener("click", async () => {
+  try {
+    await saveUpdatedScript();
+  } catch (error) {
+    setScriptState("Save failed", "error");
+    setTask("Script save failed", error.message, "error");
+    setTerminalStatus("Script update failed");
+    appendTerminal(error.message, "stderr");
+    setScriptBusy(false);
+  }
+});
+
 els.prepareHookAvatarBtn.addEventListener("click", async () => {
   try {
     await prepareHookAvatar();
@@ -2697,6 +4390,186 @@ els.renderFinalReelBtn?.addEventListener("click", async () => {
   }
 });
 
+els.runStepFlowBtn?.addEventListener("click", async () => {
+  await runStepFlow();
+});
+
+els.stopStepFlowBtn?.addEventListener("click", () => {
+  if (!state.stepFlowRunning) return;
+  state.stepFlowStopRequested = true;
+  refreshStepFlowControls();
+  setStepFlowState("Stopping", "busy");
+  if (els.stepFlowStatus) {
+    els.stepFlowStatus.textContent = "Current step complete hone ke baad flow stop ho jayega.";
+  }
+  setTask("Step flow stopping", "Current step finish hone do, next step skip hoga.", "busy");
+  setTerminalStatus("Step flow stop requested");
+  appendTerminal("Step flow stop requested. Current step will finish first.", "stdout");
+});
+
+els.autoRunQueueBtn?.addEventListener("click", async () => {
+  try {
+    await startAutoQueue();
+  } catch (error) {
+    setAutoQueueState("Failed", "error");
+    setAutoQueueBusy(false);
+    setTask("Auto queue failed", error.message, "error");
+    setTerminalStatus("Auto queue failed");
+    appendTerminal(error.message, "stderr");
+    if (els.autoQueueMeta) {
+      els.autoQueueMeta.textContent = error.message;
+    }
+  }
+});
+
+els.autoStopQueueBtn?.addEventListener("click", async () => {
+  try {
+    await stopAutoQueue();
+  } catch (error) {
+    setAutoQueueState("Stop failed", "error");
+    setTask("Stop failed", error.message, "error");
+    setTerminalStatus("Auto queue stop failed");
+    appendTerminal(error.message, "stderr");
+  }
+});
+
+els.autoOpenProgressBtn?.addEventListener("click", async () => {
+  try {
+    await openAutoProgressWorkbook();
+  } catch (error) {
+    setAutoQueueState("Open failed", "error");
+    setTask("Progress open failed", error.message, "error");
+    setTerminalStatus("Progress workbook open failed");
+    appendTerminal(error.message, "stderr");
+  }
+});
+
+els.autoQueueList?.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-open-output-path]");
+  if (!button) return;
+  try {
+    await openAutomationOutput(button.dataset.openOutputPath || "", button.dataset.openOutputLabel || "Output");
+  } catch (error) {
+    setTask("Output open failed", error.message, "error");
+    setTerminalStatus("Output open failed");
+    appendTerminal(error.message, "stderr");
+  }
+});
+
+els.toolRowChecklist?.addEventListener("click", (event) => {
+  const folderButton = event.target.closest("[data-open-video-folder]");
+  if (folderButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    openAutomationOutput(folderButton.dataset.openVideoFolder || "", "Video folder").catch((error) => {
+      setTask("Video folder open failed", error.message, "error");
+      setTerminalStatus("Video folder open failed");
+      appendTerminal(error.message, "stderr");
+    });
+    return;
+  }
+  const button = event.target.closest("[data-select-row]");
+  if (!button) return;
+  const row = Number(button.dataset.selectRow || 0);
+  if (!Number.isInteger(row) || row < 2) return;
+  els.assetRowInput.value = String(row);
+  els.toolSelect.value = String(row);
+  updateSelectedTool();
+  updateToolDropdownSummary();
+  if (els.toolIdeaDropdown) {
+    els.toolIdeaDropdown.open = false;
+  }
+});
+
+els.loadMoreToolRowsBtn?.addEventListener("click", () => {
+  state.toolRowRenderLimit += TOOL_ROW_RENDER_BATCH;
+  renderToolRowChecklist();
+  updateToolDropdownSummary();
+  setTerminalStatus(`Showing ${Math.min(state.toolRowRenderLimit, state.filteredTools.length)} tool rows`);
+});
+
+els.autoProfileList?.addEventListener("change", (event) => {
+  const input = event.target.closest("input[data-auto-profile]");
+  if (!input) return;
+  const profilePath = input.dataset.autoProfile || "";
+  if (!profilePath) return;
+  if (!state.autoProfilesTouched && !state.selectedAutoProfiles.size) {
+    for (const profile of defaultAutomationProfilePaths()) {
+      state.selectedAutoProfiles.add(profile);
+    }
+  }
+  state.autoProfilesTouched = true;
+  if (input.checked) {
+    const selected = selectedAutomationProfiles();
+    if (selected.length >= AUTO_PROFILE_LIMIT && !state.selectedAutoProfiles.has(profilePath)) {
+      input.checked = false;
+      setTask("Profile limit", `Auto Run me max ${AUTO_PROFILE_LIMIT} profiles select kar sakte ho.`, "error");
+      setTerminalStatus("Auto profile limit reached");
+      appendTerminal(`Auto profile limit: max ${AUTO_PROFILE_LIMIT}`, "stderr");
+      return;
+    }
+    state.selectedAutoProfiles.add(profilePath);
+  } else {
+    state.selectedAutoProfiles.delete(profilePath);
+  }
+  renderAutoProfileChecklist();
+  updateAutoQueueHint();
+});
+
+for (const autoInput of [
+  els.autoVideoCount,
+  els.autoRowsInput,
+  els.autoStartSelectedRow,
+  els.autoUseVidsHook,
+  els.autoUpdateWorkbook,
+  els.creditSafeMode
+].filter(Boolean)) {
+  autoInput.addEventListener("input", updateAutoQueueHint);
+  autoInput.addEventListener("change", () => {
+    updateAutoQueueHint();
+    setHookBusy(false);
+    setFinalBusy(false);
+    setScriptVideoBusy(false);
+    state.stepFlowSteps = stepFlowPlan().map((step) => ({ ...step, status: "pending" }));
+    refreshStepFlowControls();
+    renderStepFlowTimeline();
+  });
+}
+
+for (const flowInput of [
+  els.flowRunAssets,
+  els.flowRunScript,
+  els.flowRunAvatar,
+  els.flowUseVidsAvatar,
+  els.flowRunVidsVoiceover,
+  els.flowRunFinal
+].filter(Boolean)) {
+  flowInput.addEventListener("change", () => {
+    state.stepFlowSteps = stepFlowPlan().map((step) => ({ ...step, status: "pending" }));
+    refreshStepFlowControls();
+    renderStepFlowTimeline();
+    setTerminalStatus(`Step flow selected: ${stepFlowPlan().map((step) => step.label).join(", ") || "none"}`);
+  });
+}
+
+for (const dropdown of document.querySelectorAll(".checkbox-dropdown")) {
+  dropdown.addEventListener("toggle", () => {
+    if (!dropdown.open) return;
+    for (const other of document.querySelectorAll(".checkbox-dropdown[open]")) {
+      if (other !== dropdown) {
+        other.open = false;
+      }
+    }
+  });
+}
+
+document.addEventListener("click", (event) => {
+  if (event.target.closest(".checkbox-dropdown")) return;
+  for (const dropdown of document.querySelectorAll(".checkbox-dropdown[open]")) {
+    dropdown.open = false;
+  }
+});
+
 els.clearTerminalBtn.addEventListener("click", () => {
   els.terminalOutput.textContent = "Terminal cleared.\n";
   setTerminalStatus("Cleared");
@@ -2759,7 +4632,12 @@ els.viewFinalFolderBtn?.addEventListener("click", async () => {
 activeStep("load");
 applyTheme(readSavedTheme());
 renderFinalPipeline([]);
+renderScriptVideoPipeline([]);
 renderHookCharacterOptions([{ label: "Google Vids auto", value: "auto" }], "auto_by_reel");
+refreshAutoQueueControls();
+refreshStepFlowControls();
+setScriptVideoBusy(false);
+updateAutoQueueHint();
 initWorkspaceResizer();
 loadDashboardDefaults().catch((error) => {
   appendTerminal(error.message, "stderr");
