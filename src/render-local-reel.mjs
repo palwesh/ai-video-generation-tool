@@ -719,6 +719,8 @@ const totalDurationSeconds = Number(scenePlan.metadata?.total_duration_seconds |
 
 const desktopTop = captureFiles.find((file) => file.endsWith("desktop-top.png"));
 const desktopFull = captureFiles.find((file) => file.endsWith("desktop-full-page.png"));
+const desktopLanding = captureFiles.find((file) => file.endsWith("desktop-landing.png"));
+const toolReadable = captureFiles.find((file) => file.endsWith("tool-readable.png"));
 const mobileTop = captureFiles.find((file) => file.endsWith("mobile-top.png"));
 const desktopDemoBefore = captureFiles.find((file) => file.endsWith("desktop-demo-before.png"));
 const desktopDemoAfter = captureFiles.find((file) => file.endsWith("desktop-demo-after.png"));
@@ -735,6 +737,8 @@ const avatarHostImage = args["avatar-host"]
 
 const assets = {
   brandLogo: "brand/altf-logo.png",
+  landing: await copyAsset(desktopLanding, assetDir, "desktop-landing"),
+  toolReadable: await copyAsset(toolReadable, assetDir, "tool-readable"),
   desktop: await copyAsset(desktopTop, assetDir, "desktop-top"),
   desktopFull: await copyAsset(desktopFull, assetDir, "desktop-full-page"),
   mobile: await copyAsset(mobileTop, assetDir, "mobile-top"),

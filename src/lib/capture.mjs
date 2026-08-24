@@ -28,6 +28,92 @@ async function visibleText(page) {
   }
 }
 
+function siteRootUrl(value) {
+  try {
+    const url = new URL(value);
+    return `${url.protocol}//${url.host}/`;
+  } catch {
+    return value;
+  }
+}
+
+async function settleVisualPage(page) {
+  await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+  await page.evaluate(() => document.fonts?.ready).catch(() => {});
+  await page.waitForTimeout(700);
+}
+
+async function focusCaptureArea(page, mode = "tool") {
+  await page.evaluate((captureMode) => {
+    const clean = (value) => String(value || "").replace(/\s+/g, " ").trim();
+    const isVisible = (element) => {
+      const rect = element.getBoundingClientRect();
+      const style = window.getComputedStyle(element);
+      return Boolean(rect.width > 30 && rect.height > 20 && element.getClientRects().length && style.visibility !== "hidden" && style.display !== "none");
+    };
+    const textFor = (element) => clean(`${element.innerText || element.textContent || ""} ${element.getAttribute?.("aria-label") || ""}`);
+    const nodes = Array.from(document.querySelectorAll([
+      "main",
+      "section",
+      "form",
+      "textarea",
+      "input",
+      "button",
+      "[role='button']",
+      "[role='textbox']",
+      "[contenteditable='true']",
+      "[class*='tool' i]",
+      "[class*='result' i]",
+      "[class*='output' i]"
+    ].join(","))).filter(isVisible);
+
+    const mode = String(captureMode || "tool");
+    const actionMatch = /generate|convert|process|run|create|check|scan|review|summari[sz]e|extract|remove|submit|upload|choose/i;
+    const resultMatch = /result|output|summary|download|copy|warning|success|completed|ready|generated|after|next step/i;
+    const toolMatch = /tool|generator|converter|checker|analy[sz]er|input|textarea|upload|file|demo/i;
+
+    let best = null;
+    let bestScore = -Infinity;
+    for (const element of nodes) {
+      const rect = element.getBoundingClientRect();
+      const text = textFor(element);
+      const tag = element.tagName.toLowerCase();
+      let score = 0;
+      if (mode === "landing") {
+        if (tag === "main") score += 75;
+        if (tag === "section") score += 55;
+        if (element.querySelector?.("h1")) score += 80;
+        if (/alt\s*f|altftool|tool/i.test(text)) score += 35;
+        score -= Math.max(0, rect.top) * 0.02;
+      } else if (mode === "result") {
+        if (resultMatch.test(text)) score += 105;
+        if (element.querySelector?.("pre,code,table,textarea,[class*='result' i],[class*='output' i]")) score += 35;
+        if (tag === "main" || tag === "section") score += 20;
+      } else {
+        if (toolMatch.test(text)) score += 80;
+        if (element.querySelector?.("textarea,input,button,[role='button'],[contenteditable='true']")) score += 75;
+        if (actionMatch.test(text)) score += 35;
+        if (tag === "form") score += 80;
+      }
+      score += Math.min(90, rect.height * 0.045);
+      score += Math.min(70, rect.width * 0.025);
+      if (rect.top < 120) score += 12;
+      if (score > bestScore) {
+        bestScore = score;
+        best = element;
+      }
+    }
+
+    if (best) {
+      best.scrollIntoView({ block: mode === "landing" ? "start" : "center", inline: "center" });
+      window.scrollBy(0, mode === "landing" ? -24 : -84);
+    } else {
+      window.scrollTo({ top: 0, left: 0 });
+    }
+  }, mode).catch(() => {});
+  await page.waitForTimeout(700);
+}
+
 function demoTextFor(row) {
   const toolName = row.tool_name || "AltF Tool";
   return [
@@ -328,6 +414,9 @@ export async function captureToolWebsite(row, runDir, config) {
   await ensureDir(screenshotDir);
   await ensureDir(videoDir);
   await ensureDir(demoDir);
+  const desktopViewport = captureConfig.desktopViewport || { width: 1365, height: 768 };
+  const readableViewport = captureConfig.readableViewport || { width: 1080, height: 1440 };
+  const demoViewport = captureConfig.demoViewport || readableViewport;
 
   const { chromium } = await import("playwright");
   const launchOptions = {
@@ -341,13 +430,13 @@ export async function captureToolWebsite(row, runDir, config) {
 
   try {
     const desktop = await browser.newPage({
-      viewport: captureConfig.desktopViewport || { width: 1365, height: 768 }
+      viewport: desktopViewport
     });
     await desktop.goto(row.tool_url, {
       waitUntil: "domcontentloaded",
       timeout: captureConfig.timeoutMs || 45000
     });
-    await desktop.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+    await settleVisualPage(desktop);
 
     const title = await pageTitle(desktop);
     const text = (await visibleText(desktop)).replace(/\s+/g, " ").slice(0, 1200);
@@ -359,14 +448,37 @@ export async function captureToolWebsite(row, runDir, config) {
     const fullPageShot = path.join(screenshotDir, "desktop-full-page.png");
     await desktop.screenshot({ path: fullPageShot, fullPage: true });
     files.push(fullPageShot);
+
+    await desktop.setViewportSize(readableViewport).catch(() => {});
+    await focusCaptureArea(desktop, "tool");
+    const readableToolShot = path.join(screenshotDir, "tool-readable.png");
+    await desktop.screenshot({ path: readableToolShot, fullPage: false });
+    files.push(readableToolShot);
     await desktop.close();
+
+    const landing = await browser.newPage({ viewport: readableViewport });
+    await landing.goto(siteRootUrl(row.tool_url), {
+      waitUntil: "domcontentloaded",
+      timeout: captureConfig.timeoutMs || 45000
+    }).catch(async () => {
+      await landing.goto(row.tool_url, {
+        waitUntil: "domcontentloaded",
+        timeout: captureConfig.timeoutMs || 45000
+      });
+    });
+    await settleVisualPage(landing);
+    await focusCaptureArea(landing, "landing");
+    const landingShot = path.join(screenshotDir, "desktop-landing.png");
+    await landing.screenshot({ path: landingShot, fullPage: false });
+    files.push(landingShot);
+    await landing.close();
 
     const demoFiles = await createDemoUploadFiles(browser, demoDir, row);
     const demoContext = await browser.newContext({
-      viewport: captureConfig.desktopViewport || { width: 1365, height: 768 },
+      viewport: demoViewport,
       recordVideo: captureConfig.recordWebm === false ? undefined : {
         dir: videoDir,
-        size: captureConfig.desktopViewport || { width: 1365, height: 768 }
+        size: demoViewport
       }
     });
     const demoPage = await demoContext.newPage();
@@ -374,7 +486,8 @@ export async function captureToolWebsite(row, runDir, config) {
       waitUntil: "domcontentloaded",
       timeout: captureConfig.timeoutMs || 45000
     });
-    await demoPage.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+    await settleVisualPage(demoPage);
+    await focusCaptureArea(demoPage, "tool");
 
     const demoBeforeShot = path.join(screenshotDir, "desktop-demo-before.png");
     await demoPage.screenshot({ path: demoBeforeShot, fullPage: false });
@@ -385,6 +498,7 @@ export async function captureToolWebsite(row, runDir, config) {
     }));
 
     const demoAfterShot = path.join(screenshotDir, "desktop-demo-after.png");
+    await focusCaptureArea(demoPage, "result");
     await demoPage.screenshot({ path: demoAfterShot, fullPage: false });
     files.push(demoAfterShot);
 

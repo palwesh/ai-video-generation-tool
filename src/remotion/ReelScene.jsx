@@ -178,40 +178,48 @@ function shouldUseBeforeAfterScene(assets, scene = {}, sceneIndex = 0, totalScen
   if (sceneIndex !== totalScenes - 2) {
     return false;
   }
-  if (!assets?.demoBefore || !assets?.demoAfter) {
+  if (!(assets?.demoBefore || assets?.demoFocusBefore) || !(assets?.demoAfter || assets?.demoFocusAfter)) {
     return false;
   }
   const text = sceneNarrationText(scene);
-  return /(before\s*(vs|\/|and)?\s*after|before|after|compare|comparison|difference|proof|pehle|baad|manual.*result|result.*manual|vs\.?|versus)/.test(text);
+  return /(before\s*(vs|\/|and)?\s*after|before|after|compare|comparison|difference|proof|pehle|baad|manual.*result|result.*manual|vs\.?|versus|benefit|save|faster|result|output)/.test(text);
+}
+
+function beforeDemoAsset(assets = {}) {
+  return firstAvailable(assets.demoFocusBefore, assets.demoBefore, assets.toolReadable, assets.desktop, assets.landing);
+}
+
+function afterDemoAsset(assets = {}) {
+  return firstAvailable(assets.demoFocusAfter, assets.demoAfter, assets.toolReadable, assets.desktopFull, assets.desktop, assets.landing);
 }
 
 function toolMediaForScene(assets, scene = {}, sceneIndex = 0, totalScenes = 6) {
   const text = sceneNarrationText(scene);
   if (sceneIndex === 0) {
-    return firstAvailable(assets.desktop, assets.demoBefore, assets.desktopFull, assets.mobile, assets.demoAfter);
+    return firstAvailable(assets.landing, assets.toolReadable, assets.desktop, assets.demoBefore, assets.desktopFull, assets.mobile, assets.demoAfter);
   }
   if (sceneIndex === totalScenes - 1) {
-    return firstAvailable(assets.demoAfter, assets.desktopFull, assets.demoVideo, assets.desktop, assets.mobile);
-  }
-  if (/(mobile|phone|scroll|instagram|caption|share|post|publish)/.test(text)) {
-    return firstAvailable(assets.mobileScroll, assets.mobile, assets.demoAfter, assets.demoVideo, assets.desktopFull, assets.desktop);
-  }
-  if (/(before|manual|messy|problem|risk|mistake)/.test(text) && !/(after|result|output)/.test(text)) {
-    return firstAvailable(assets.demoBefore, assets.desktop, assets.desktopFull, assets.demoVideo, assets.mobile);
-  }
-  if (shouldUseBeforeAfterScene(assets, scene, sceneIndex, totalScenes)) {
-    return firstAvailable(assets.demoAfter, assets.demoBefore, assets.demoVideo, assets.desktopFull, assets.desktop);
-  }
-  if (/(result|output|summary|checklist|warning|next step|review-ready|ready)/.test(text)) {
-    return firstAvailable(assets.demoAfter, assets.demoVideo, assets.mobileScroll, assets.desktopFull, assets.desktop);
-  }
-  if (/(input|fill|click|run|workflow|step|demo|use case|use-case|tool page|actual tool)/.test(text)) {
-    return firstAvailable(assets.demoVideo, assets.mobileScroll, assets.demoAfter, assets.mobile, assets.desktopFull, assets.desktop);
+    return firstAvailable(afterDemoAsset(assets), assets.demoVideo, assets.desktop, assets.mobile);
   }
   if (sceneIndex === 1) {
-    return firstAvailable(assets.demoVideo, assets.mobileScroll, assets.mobile, assets.demoAfter, assets.desktopFull, assets.desktop);
+    return firstAvailable(assets.landing, assets.toolReadable, assets.desktop, assets.demoVideo, assets.mobileScroll, assets.demoAfter);
   }
-  return firstAvailable(assets.demoVideo, assets.mobileScroll, assets.demoAfter, assets.mobile, assets.desktopFull, assets.desktop, assets.demoBefore);
+  if (/(mobile|phone|scroll|instagram|caption|share|post|publish)/.test(text)) {
+    return firstAvailable(assets.mobileScroll, assets.mobile, afterDemoAsset(assets), assets.demoVideo, assets.toolReadable, assets.desktop);
+  }
+  if (/(before|manual|messy|problem|risk|mistake)/.test(text) && !/(after|result|output)/.test(text)) {
+    return firstAvailable(beforeDemoAsset(assets), assets.demoVideo, assets.mobile);
+  }
+  if (shouldUseBeforeAfterScene(assets, scene, sceneIndex, totalScenes)) {
+    return firstAvailable(afterDemoAsset(assets), beforeDemoAsset(assets), assets.demoVideo);
+  }
+  if (/(result|output|summary|checklist|warning|next step|review-ready|ready)/.test(text)) {
+    return firstAvailable(afterDemoAsset(assets), assets.demoVideo, assets.mobileScroll, assets.toolReadable, assets.desktop);
+  }
+  if (/(input|fill|click|run|workflow|step|demo|use case|use-case|tool page|actual tool)/.test(text)) {
+    return firstAvailable(assets.demoVideo, assets.toolReadable, assets.mobileScroll, beforeDemoAsset(assets), assets.mobile, afterDemoAsset(assets));
+  }
+  return firstAvailable(assets.demoVideo, assets.toolReadable, assets.mobileScroll, afterDemoAsset(assets), assets.mobile, assets.desktop, beforeDemoAsset(assets));
 }
 
 function firstStrongLine(scene, toolName, sceneIndex) {
@@ -271,10 +279,10 @@ function captionWordWindow(words, activeIndex, windowSize) {
 
 function demoLayoutForVariant(variant, portraitLike) {
   const base = {
-    cardInset: portraitLike ? "96px 38px 320px" : "142px 0 345px",
-    cardRadius: portraitLike ? 34 : 0,
-    cardBorder: portraitLike ? "5px solid rgba(255,255,255,0.92)" : "0 solid transparent",
-    cardShadow: portraitLike ? "0 36px 110px rgba(0,0,0,0.42)" : "none",
+    cardInset: portraitLike ? "96px 38px 320px" : "154px 28px 350px",
+    cardRadius: portraitLike ? 34 : 28,
+    cardBorder: "5px solid rgba(255,255,255,0.9)",
+    cardShadow: "0 36px 110px rgba(0,0,0,0.34)",
     top: { left: 48, right: 48, top: 48 },
     chipsTop: portraitLike ? 1360 : 1276,
     chipsLeft: 58,
@@ -286,7 +294,7 @@ function demoLayoutForVariant(variant, portraitLike) {
   if (variant === 1) {
     return {
       ...base,
-      cardInset: portraitLike ? "122px 72px 340px" : "178px 36px 365px",
+      cardInset: portraitLike ? "122px 72px 340px" : "164px 34px 360px",
       cardRadius: 32,
       cardBorder: "5px solid rgba(255,255,255,0.9)",
       cardShadow: "0 38px 120px rgba(0,0,0,0.38)",
@@ -301,7 +309,7 @@ function demoLayoutForVariant(variant, portraitLike) {
   if (variant === 2) {
     return {
       ...base,
-      cardInset: portraitLike ? "82px 30px 345px" : "116px 34px 375px",
+      cardInset: portraitLike ? "82px 30px 345px" : "146px 34px 365px",
       cardRadius: portraitLike ? 36 : 24,
       cardBorder: "4px solid rgba(255,255,255,0.78)",
       cardShadow: "0 42px 130px rgba(0,0,0,0.34)",
@@ -316,7 +324,7 @@ function demoLayoutForVariant(variant, portraitLike) {
   if (variant === 3) {
     return {
       ...base,
-      cardInset: portraitLike ? "112px 52px 300px" : "126px 0 315px",
+      cardInset: portraitLike ? "112px 52px 300px" : "150px 28px 330px",
       cardRadius: portraitLike ? 30 : 0,
       top: { left: 48, right: 48, top: 64 },
       chipsTop: portraitLike ? 1402 : 1326,
@@ -1183,13 +1191,18 @@ function FullscreenDemoMedia({ media, scene, sceneIndex, totalScenes, toolName, 
   const text = sceneNarrationText(scene);
   const variant = visualVariantFor(toolName, sceneIndex, totalScenes);
   const layout = demoLayoutForVariant(variant, portraitLike);
+  const lowerSource = source.toLowerCase();
+  const readableScreen = /(tool-readable|desktop-landing|desktop-demo|desktop-top|desktop-full-page|mobile-top|mobile-scroll)/.test(lowerSource);
+  const mediaFit = lowerSource.includes("mobile") && !lowerSource.includes("scroll") ? "cover" : "contain";
   const objectPosition = /(result|output|after|review|summary|warning)/.test(text)
     ? "50% 42%"
     : /(input|fill|upload|click|run|button|workflow)/.test(text)
       ? "50% 50%"
-      : "50% 46%";
-  const zoomStart = portraitLike ? 1.02 : variant === 1 ? 1.04 : 1.08;
-  const zoomEnd = portraitLike ? 1.07 : variant === 2 ? 1.16 : 1.2;
+      : sceneIndex === 1
+        ? "50% 18%"
+        : "50% 46%";
+  const zoomStart = readableScreen ? 1 : portraitLike ? 1.01 : 1.04;
+  const zoomEnd = readableScreen ? 1.045 : portraitLike ? 1.06 : 1.1;
   const zoom = interpolate(frame, [0, Math.round(fps * 10)], [zoomStart, zoomEnd], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -1240,9 +1253,9 @@ function FullscreenDemoMedia({ media, scene, sceneIndex, totalScenes, toolName, 
       >
         <MediaLayer
           media={media}
-          fit="cover"
+          fit={mediaFit}
           fps={fps}
-          crop={!portraitLike}
+          crop={false}
           objectPosition={objectPosition}
           style={{
             ...fullBleed,
@@ -1768,6 +1781,8 @@ function DemoScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, 
 }
 
 function ProofScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, generatedClip, frame, fps, accent, sceneDurationFrames, fade }) {
+  const beforeMedia = beforeDemoAsset(assets);
+  const afterMedia = afterDemoAsset(assets);
   const leftIn = interpolate(frame, [8, 32], [-54, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -1793,18 +1808,93 @@ function ProofScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
         </div>
       </div>
 
-      <div style={{ position: "absolute", left: 58, right: 58, top: 415, height: 840, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-        <div style={{ position: "relative", borderRadius: 24, overflow: "hidden", border: `3px solid ${Palette.line}`, backgroundColor: "#fff1f2", boxShadow: "0 28px 80px rgba(15, 23, 42, 0.17)", translate: `${leftIn}px 0px` }}>
-          <MediaLayer media={assets.demoBefore || assets.desktop} fit="contain" fps={fps} />
-          <div style={{ position: "absolute", left: 24, top: 24, padding: "12px 18px", borderRadius: 999, backgroundColor: Palette.red, color: "#ffffff", fontSize: 25, fontWeight: 950 }}>Before</div>
+      <div
+        style={{
+          position: "absolute",
+          left: 48,
+          right: 48,
+          top: 392,
+          height: 910,
+          borderRadius: 32,
+          overflow: "hidden",
+          border: `5px solid ${Palette.line}`,
+          backgroundColor: "#0b1020",
+          boxShadow: "0 36px 110px rgba(15, 23, 42, 0.28)",
+          translate: `${rightIn}px 0px`
+        }}
+      >
+        <MediaLayer
+          media={afterMedia}
+          fit="contain"
+          fps={fps}
+          objectPosition="50% 42%"
+          style={{
+            ...fullBleed,
+            scale: interpolate(frame, [0, sceneDurationFrames], [1, 1.04], {
+              extrapolateLeft: "clamp",
+              extrapolateRight: "clamp"
+            })
+          }}
+        />
+        <div style={{ ...fullBleed, boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.16)" }} />
+        <div
+          style={{
+            position: "absolute",
+            left: 28,
+            top: 28,
+            padding: "14px 20px",
+            borderRadius: 999,
+            backgroundColor: Palette.green,
+            color: "#ffffff",
+            fontSize: 27,
+            lineHeight: 1,
+            fontWeight: 980,
+            boxShadow: "0 16px 44px rgba(22, 163, 74, 0.34)"
+          }}
+        >
+          AFTER: READY OUTPUT
         </div>
-        <div style={{ position: "relative", borderRadius: 24, overflow: "hidden", border: `3px solid ${Palette.line}`, backgroundColor: "#ecfdf5", boxShadow: "0 28px 80px rgba(15, 23, 42, 0.17)", translate: `${rightIn}px 0px` }}>
-          <MediaLayer media={assets.demoAfter || assets.desktopFull || assets.desktop} fit="contain" fps={fps} />
-          <div style={{ position: "absolute", left: 24, top: 24, padding: "12px 18px", borderRadius: 999, backgroundColor: Palette.green, color: "#ffffff", fontSize: 25, fontWeight: 950 }}>After</div>
+        <div
+          style={{
+            position: "absolute",
+            left: 30,
+            bottom: 30,
+            width: 432,
+            height: 298,
+            borderRadius: 22,
+            overflow: "hidden",
+            border: "5px solid #ffffff",
+            backgroundColor: "#fff1f2",
+            boxShadow: "0 28px 72px rgba(0,0,0,0.34)",
+            translate: `${leftIn}px 0px`
+          }}
+        >
+          <MediaLayer media={beforeMedia} fit="cover" fps={fps} objectPosition="50% 48%" />
+          <div style={{ position: "absolute", left: 18, top: 18, padding: "10px 15px", borderRadius: 999, backgroundColor: Palette.red, color: "#ffffff", fontSize: 21, fontWeight: 950 }}>
+            BEFORE
+          </div>
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            right: 28,
+            bottom: 30,
+            padding: "16px 20px",
+            borderRadius: 22,
+            backgroundColor: "rgba(255,255,255,0.95)",
+            color: Palette.ink,
+            fontSize: 28,
+            lineHeight: 1.08,
+            fontWeight: 930,
+            maxWidth: 452,
+            boxShadow: "0 24px 70px rgba(0,0,0,0.24)"
+          }}
+        >
+          Real demo proof from {brandedToolDisplay(toolName, 34)}
         </div>
       </div>
 
-      <div style={{ position: "absolute", left: 74, right: generatedClip || assets.avatarHost ? 362 : 74, top: 1300, display: "grid", gap: 13 }}>
+      <div style={{ position: "absolute", left: 74, right: generatedClip || assets.avatarHost ? 362 : 74, top: 1334, display: "grid", gap: 13 }}>
         {["Less manual guesswork", "Clearer next step", "Human review stays final"].map((label, index) => (
           <div
             key={label}
@@ -1834,7 +1924,7 @@ function ProofScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
           presenterStyle={assets.hookAvatarStyle || "female"}
           style={{
             right: 60,
-            top: 1278,
+            top: 1318,
             width: 274,
             height: 362
           }}
