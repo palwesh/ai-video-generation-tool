@@ -129,6 +129,10 @@ const queueProgressHeaders = [
   "TRF Queue Free Provider Pack Path",
   "TRF Queue Google Vids",
   "TRF Queue Google Vids URL",
+  "TRF Queue Vids Primary Profile",
+  "TRF Queue Vids Fallback Profiles",
+  "TRF Queue Vids Active Profile",
+  "TRF Queue Vids Profiles Tried",
   "TRF Queue Prepared Workbook",
   "TRF Queue Run Folder",
   "TRF Queue Error",
@@ -655,6 +659,9 @@ function historyEntryForRun(run) {
     qualityStatus: report.qualityStatus || "",
     qualityWarnings: report.qualityWarnings || [],
     qaStatus: report.qaStatus || "",
+    vidsConfiguredProfiles: report.vidsConfiguredProfiles || [],
+    vidsPrimaryProfile: report.vidsPrimaryProfile || report.vidsConfiguredProfiles?.[0] || "",
+    vidsFallbackProfiles: report.vidsFallbackProfiles || [],
     vidsProfile: report.vidsProfile || "",
     vidsProfilesTried: report.vidsProfilesTried || [],
     fallback: report.fallback || "",
@@ -1070,6 +1077,22 @@ async function removeProfile(body) {
     if (state.quotas && typeof state.quotas === "object") {
       delete state.quotas[profilePath];
     }
+    if (state.settings && typeof state.settings === "object") {
+      for (const key of [
+        "lastHookAvatarProfile",
+        "hookPrimaryProfile",
+        "hookFallbackProfile",
+        "scriptVideoPrimaryProfile",
+        "scriptVideoFallbackProfile",
+        "globalPrimaryProfile",
+        "globalFallbackProfile"
+      ]) {
+        if (state.settings[key] === profilePath) {
+          state.settings[key] = "";
+        }
+      }
+      state.settings.updatedAt = new Date().toISOString();
+    }
   });
 
   return {
@@ -1162,7 +1185,15 @@ async function renameProfile(body) {
       delete state.quotas[fromProfile];
     }
     if (state.settings && typeof state.settings === "object") {
-      for (const key of ["lastHookAvatarProfile", "hookPrimaryProfile", "hookFallbackProfile"]) {
+      for (const key of [
+        "lastHookAvatarProfile",
+        "hookPrimaryProfile",
+        "hookFallbackProfile",
+        "scriptVideoPrimaryProfile",
+        "scriptVideoFallbackProfile",
+        "globalPrimaryProfile",
+        "globalFallbackProfile"
+      ]) {
         if (state.settings[key] === fromProfile) {
           state.settings[key] = toProfile;
         }
@@ -6692,6 +6723,14 @@ function queueProgressValues(item) {
     report.freeVideoProviderPackFolder || "",
     report.vidsUrl ? hyperlinkFormula(report.vidsUrl, "Open Google Vids") : "",
     report.vidsUrl || "",
+    report.vidsPrimaryProfile || report.vidsConfiguredProfiles?.[0] || "",
+    Array.isArray(report.vidsFallbackProfiles)
+      ? report.vidsFallbackProfiles.join("\n")
+      : report.vidsFallbackProfiles || "",
+    report.vidsProfile || "",
+    Array.isArray(report.vidsProfilesTried)
+      ? report.vidsProfilesTried.join("\n")
+      : report.vidsProfilesTried || "",
     report.preparedWorkbook ? fileHyperlink(report.preparedWorkbook, "Open workbook") : "",
     report.outputDir ? folderHyperlink(report.outputDir, "Open run") : "",
     report.error || report.driveSyncError || "",
@@ -7100,10 +7139,20 @@ async function saveSettingsState(body) {
     "basicWorkflowMode",
     "hookAvatarStyle",
     "hookAvatarCharacter",
+    "hookPrimaryProfile",
+    "hookFallbackProfile",
+    "hookFallbackEnabled",
+    "scriptVideoPrimaryProfile",
+    "scriptVideoFallbackProfile",
+    "scriptVideoFallbackEnabled",
+    "globalPrimaryProfile",
+    "globalFallbackProfile",
+    "globalFallbackEnabled",
     "sceneCount",
     "driveSyncDir",
     "updateSourceWorkbook",
-    "featureTab"
+    "featureTab",
+    "workspaceTab"
   ];
   const saved = await updateUiState((state) => {
     const current = state.settings && typeof state.settings === "object" ? state.settings : {};
@@ -7118,6 +7167,8 @@ async function saveSettingsState(body) {
         next.sceneCount = clamp(asFiniteNumber(body.sceneCount, current.sceneCount || 6), 3, 6);
       } else if (key === "updateSourceWorkbook") {
         next.updateSourceWorkbook = Boolean(body.updateSourceWorkbook);
+      } else if (["hookFallbackEnabled", "scriptVideoFallbackEnabled", "globalFallbackEnabled"].includes(key)) {
+        next[key] = Boolean(body[key]);
       } else if (key === "basicWorkflowMode") {
         const mode = String(body.basicWorkflowMode || "").trim();
         next.basicWorkflowMode = ["google-hook", "local", "prep", "free-providers"].includes(mode) ? mode : (current.basicWorkflowMode || "google-hook");
@@ -7129,6 +7180,9 @@ async function saveSettingsState(body) {
         next.hookAvatarCharacter = character || (current.hookAvatarCharacter || "auto_by_reel");
       } else if (key === "featureTab") {
         next.featureTab = body.featureTab === "advanced" ? "advanced" : "basic";
+      } else if (key === "workspaceTab") {
+        const workspaceTab = String(body.workspaceTab || "").trim();
+        next.workspaceTab = ["tool-promo", "script-video", "profiles"].includes(workspaceTab) ? workspaceTab : (current.workspaceTab || "tool-promo");
       } else {
         next[key] = String(body[key] || "").trim().slice(0, 2000);
       }
@@ -7158,8 +7212,17 @@ async function handleApi(req, res, pathname, searchParams) {
           basicWorkflowMode: savedSettings.basicWorkflowMode || "google-hook",
           hookAvatarStyle: savedSettings.hookAvatarStyle || defaultHookAvatarStyle,
           hookAvatarCharacter: savedSettings.hookAvatarCharacter || "auto_by_reel",
+          hookPrimaryProfile: savedSettings.hookPrimaryProfile || savedSettings.globalPrimaryProfile || defaultProfiles[0] || "",
+          hookFallbackProfile: savedSettings.hookFallbackProfile || savedSettings.globalFallbackProfile || defaultProfiles[1] || "",
+          hookFallbackEnabled: typeof savedSettings.hookFallbackEnabled === "boolean" ? savedSettings.hookFallbackEnabled : true,
+          scriptVideoPrimaryProfile: savedSettings.scriptVideoPrimaryProfile || savedSettings.hookPrimaryProfile || savedSettings.globalPrimaryProfile || defaultProfiles[0] || "",
+          scriptVideoFallbackProfile: savedSettings.scriptVideoFallbackProfile || savedSettings.hookFallbackProfile || savedSettings.globalFallbackProfile || defaultProfiles[1] || "",
+          scriptVideoFallbackEnabled: typeof savedSettings.scriptVideoFallbackEnabled === "boolean"
+            ? savedSettings.scriptVideoFallbackEnabled
+            : (typeof savedSettings.hookFallbackEnabled === "boolean" ? savedSettings.hookFallbackEnabled : true),
           sceneCount: savedSettings.sceneCount || 6,
-          featureTab: savedSettings.featureTab || "basic"
+          featureTab: savedSettings.featureTab || "basic",
+          workspaceTab: savedSettings.workspaceTab || "tool-promo"
         },
         profiles: quota.profiles,
         quota,

@@ -23,6 +23,13 @@ const els = {
   themeToggleIcon: document.getElementById("themeToggleIcon"),
   themeToggleText: document.getElementById("themeToggleText"),
   workspace: document.querySelector(".clean-workspace"),
+  workspaceTabButtons: [...document.querySelectorAll("[data-workspace-tab-button]")],
+  workspacePanels: [...document.querySelectorAll("[data-workspace-panel]")],
+  globalProfileStrip: document.getElementById("globalProfileStrip"),
+  globalProfileSummary: document.getElementById("globalProfileSummary"),
+  globalPrimaryProfileLabel: document.getElementById("globalPrimaryProfileLabel"),
+  globalFallbackProfileLabel: document.getElementById("globalFallbackProfileLabel"),
+  manageProfilesTabBtn: document.getElementById("manageProfilesTabBtn"),
   flowSteps: [...document.querySelectorAll("[data-flow-step]")],
   workspaceResizer: document.getElementById("workspaceResizer"),
   terminalPane: document.getElementById("terminalPane"),
@@ -257,6 +264,7 @@ const state = {
   autoQueueLogCursors: new Map(),
   selectedAutoProfiles: new Set(),
   autoProfilesTouched: false,
+  activeWorkspaceTab: "tool-promo",
   toolRowRenderLimit: 500,
   docs: [],
   docCache: new Map(),
@@ -271,6 +279,7 @@ const state = {
 
 const TERMINAL_LAYOUT_KEY = "toolReelFactory.terminalWidth.v2";
 const THEME_KEY = "toolReelFactory.theme.v2";
+const WORKSPACE_TAB_KEY = "toolReelFactory.workspaceTab.v2";
 const DEFAULT_TERMINAL_WIDTH = 340;
 const MIN_TERMINAL_WIDTH = 280;
 const MAX_TERMINAL_WIDTH = 720;
@@ -360,6 +369,68 @@ function applyTheme(theme) {
   if (els.themeToggleText) {
     els.themeToggleText.textContent = isDark ? "Light" : "Dark";
   }
+}
+
+function validWorkspaceTab(tab = "") {
+  return ["tool-promo", "script-video", "profiles"].includes(tab) ? tab : "tool-promo";
+}
+
+function workspaceTabForHash(hash = window.location.hash || "") {
+  if (hash === "#scriptVideo") return "script-video";
+  if (hash === "#profileManager") return "profiles";
+  if (["#loadExcel", "#selectTool", "#buildAssets", "#generateScript", "#hookAvatar", "#finalReel", "#analysisResults"].includes(hash)) {
+    return "tool-promo";
+  }
+  return "";
+}
+
+function readSavedWorkspaceTab() {
+  try {
+    return localStorage.getItem(WORKSPACE_TAB_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function saveWorkspaceTab(tab) {
+  try {
+    localStorage.setItem(WORKSPACE_TAB_KEY, tab);
+  } catch {
+    // Ignore storage failures; the live tab still changes.
+  }
+  fetch("/api/settings", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ workspaceTab: tab })
+  }).catch((error) => {
+    appendTerminal(error.message, "stderr");
+  });
+}
+
+function setWorkspaceTab(tab = "tool-promo", options = {}) {
+  const nextTab = validWorkspaceTab(tab);
+  state.activeWorkspaceTab = nextTab;
+  document.documentElement.dataset.workspaceTab = nextTab;
+
+  for (const button of els.workspaceTabButtons || []) {
+    const active = button.dataset.workspaceTabButton === nextTab;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  }
+
+  for (const panel of els.workspacePanels || []) {
+    panel.classList.toggle("is-tab-hidden", panel.dataset.workspacePanel !== nextTab);
+  }
+
+  if (options.persist !== false) {
+    saveWorkspaceTab(nextTab);
+  }
+}
+
+function workspaceTabFromStep(step = "") {
+  if (step === "script-video") return "script-video";
+  if (step === "profile") return "profiles";
+  return "tool-promo";
 }
 
 function escapeRegExp(value) {
@@ -591,6 +662,85 @@ function profileNameFromPath(profilePath = "") {
   return String(profilePath || "").split(/[\\/]+/).filter(Boolean).pop() || "";
 }
 
+function profileByPath(profilePath = "") {
+  return (state.hookProfiles || []).find((profile) => profile.path === profilePath) || null;
+}
+
+function profileFriendlyName(profilePath = "", fallback = "Not selected") {
+  const profile = profileByPath(profilePath);
+  if (!profile) {
+    return profilePath || fallback;
+  }
+  const index = Math.max(0, (state.hookProfiles || []).findIndex((item) => item.path === profilePath));
+  return hookProfileIdentity(profile, index);
+}
+
+function currentGlobalProfiles(source = "hook") {
+  const useScript = source === "script-video";
+  const primarySelect = useScript ? els.customScriptPrimaryProfileSelect : els.hookPrimaryProfileSelect;
+  const fallbackSelect = useScript ? els.customScriptFallbackProfileSelect : els.hookFallbackProfileSelect;
+  const fallbackToggle = useScript ? els.customScriptFallbackEnabled : els.hookFallbackEnabled;
+  const fallbackEnabled = Boolean(fallbackToggle?.checked);
+  return {
+    primary: primarySelect?.value || DEFAULT_PRIMARY_PROFILE,
+    fallback: fallbackEnabled ? (fallbackSelect?.value || "") : "",
+    fallbackEnabled
+  };
+}
+
+function applyGlobalProfileSelection(selection = {}) {
+  const primary = selection.primary || DEFAULT_PRIMARY_PROFILE;
+  const fallbackEnabled = Boolean(selection.fallbackEnabled);
+  const fallback = selection.fallback || "";
+  for (const primarySelect of [els.hookPrimaryProfileSelect, els.customScriptPrimaryProfileSelect].filter(Boolean)) {
+    if ([...primarySelect.options].some((option) => option.value === primary)) {
+      primarySelect.value = primary;
+    }
+  }
+  for (const fallbackToggle of [els.hookFallbackEnabled, els.customScriptFallbackEnabled].filter(Boolean)) {
+    fallbackToggle.checked = fallbackEnabled;
+  }
+  for (const fallbackSelect of [els.hookFallbackProfileSelect, els.customScriptFallbackProfileSelect].filter(Boolean)) {
+    fallbackSelect.disabled = !fallbackEnabled;
+    if ([...fallbackSelect.options].some((option) => option.value === fallback)) {
+      fallbackSelect.value = fallback;
+    } else if (!fallbackEnabled) {
+      fallbackSelect.value = "";
+    }
+  }
+}
+
+function renderGlobalProfileStrip() {
+  const counts = profileCounts();
+  const selection = currentGlobalProfiles("hook");
+  if (els.globalProfileSummary) {
+    els.globalProfileSummary.textContent = `${counts.available}/${counts.total} available | ${counts.limitUsed} limit used | ${counts.loginNeeded} login needed`;
+  }
+  if (els.globalPrimaryProfileLabel) {
+    els.globalPrimaryProfileLabel.textContent = `Primary: ${profileFriendlyName(selection.primary, "Not selected")}`;
+    els.globalPrimaryProfileLabel.title = selection.primary || "";
+  }
+  if (els.globalFallbackProfileLabel) {
+    els.globalFallbackProfileLabel.textContent = selection.fallbackEnabled && selection.fallback
+      ? `Fallback: ${profileFriendlyName(selection.fallback, "Not selected")}`
+      : "Fallback: off";
+    els.globalFallbackProfileLabel.title = selection.fallback || "";
+  }
+}
+
+function syncGlobalProfiles(source = "hook", options = {}) {
+  const selection = currentGlobalProfiles(source);
+  applyGlobalProfileSelection(selection);
+  renderHookProfileStatus();
+  renderProfileManager();
+  renderGlobalProfileStrip();
+  if (options.persist !== false) {
+    saveHookSettings().catch((error) => {
+      appendTerminal(error.message, "stderr");
+    });
+  }
+}
+
 function setProfileState(label, tone = "idle") {
   if (els.profileState) {
     els.profileState.textContent = label;
@@ -623,8 +773,22 @@ function renderHookProfileOptions(preferred = {}) {
   )).join("");
   const applyProfileSelects = (primarySelect, fallbackSelect, fallbackToggle) => {
     if (!primarySelect || !fallbackSelect) return;
-    const primaryPrevious = preferred.primary || primarySelect.value || DEFAULT_PRIMARY_PROFILE;
-    const fallbackPrevious = preferred.fallback || fallbackSelect.value || DEFAULT_FALLBACK_PROFILE;
+    const settings = state.dashboardDefaults?.settings || {};
+    const primaryPrevious = preferred.primary
+      || settings.hookPrimaryProfile
+      || settings.globalPrimaryProfile
+      || primarySelect.value
+      || DEFAULT_PRIMARY_PROFILE;
+    const fallbackPrevious = preferred.fallback
+      || settings.hookFallbackProfile
+      || settings.globalFallbackProfile
+      || fallbackSelect.value
+      || DEFAULT_FALLBACK_PROFILE;
+    const fallbackEnabled = typeof preferred.fallbackEnabled === "boolean"
+      ? preferred.fallbackEnabled
+      : typeof settings.hookFallbackEnabled === "boolean"
+        ? settings.hookFallbackEnabled
+        : Boolean(fallbackToggle?.checked ?? true);
     primarySelect.innerHTML = options;
     fallbackSelect.innerHTML = `<option value="">No fallback</option>${options}`;
     const hasPrimary = profiles.some((profile) => profile.path === primaryPrevious);
@@ -637,11 +801,15 @@ function renderHookProfileOptions(preferred = {}) {
         || profiles.find((profile) => profile.path !== selectedPrimary)?.path
         || "";
     fallbackSelect.value = fallbackCandidate;
-    fallbackSelect.disabled = !fallbackToggle?.checked;
+    if (fallbackToggle) {
+      fallbackToggle.checked = fallbackEnabled;
+    }
+    fallbackSelect.disabled = !fallbackEnabled;
   };
   applyProfileSelects(els.hookPrimaryProfileSelect, els.hookFallbackProfileSelect, els.hookFallbackEnabled);
   applyProfileSelects(els.customScriptPrimaryProfileSelect, els.customScriptFallbackProfileSelect, els.customScriptFallbackEnabled);
   renderAutoProfileChecklist();
+  renderGlobalProfileStrip();
 }
 
 function selectedHookProfiles() {
@@ -763,6 +931,7 @@ function renderProfileManager() {
   const profiles = state.hookProfiles || [];
   const counts = profileCounts();
   setProfileState(`${counts.available}/${counts.total} available`, profiles.length ? "success" : "idle");
+  renderGlobalProfileStrip();
   els.profileManagerSummary.innerHTML = [
     ["Total", counts.total],
     ["Available", counts.available],
@@ -855,8 +1024,7 @@ async function addHookProfile(options = {}) {
   }
   state.hookProfiles = data.profiles || [];
   renderHookProfileOptions({ primary: data.profile?.path, fallback: els.hookFallbackProfileSelect?.value || "" });
-  renderHookProfileStatus();
-  renderProfileManager();
+  syncGlobalProfiles("hook");
   if (els.newHookProfileName) {
     els.newHookProfileName.value = "";
   }
@@ -906,8 +1074,7 @@ async function renameHookProfile(profilePath = "") {
   const primary = currentPrimary === profile ? renamedPath : currentPrimary;
   const fallback = currentFallback === profile ? renamedPath : currentFallback;
   renderHookProfileOptions({ primary, fallback });
-  renderHookProfileStatus();
-  renderProfileManager();
+  syncGlobalProfiles("hook");
   appendTerminal(`Profile renamed: ${profile} -> ${renamedPath}`, "stdout");
   setTask("Profile renamed", renamedPath, "success");
   setTerminalStatus("Profile renamed");
@@ -947,9 +1114,8 @@ async function removeHookProfile(profilePath = "") {
     ? (state.hookProfiles.find(isHookProfileReady)?.path || state.hookProfiles[0]?.path || "")
     : currentPrimary;
   const fallback = currentFallback === profile ? "" : currentFallback;
-  renderHookProfileOptions({ primary, fallback });
-  renderHookProfileStatus();
-  renderProfileManager();
+  renderHookProfileOptions({ primary, fallback, fallbackEnabled: Boolean(fallback) });
+  syncGlobalProfiles("hook");
   appendTerminal(`Profile removed: ${data.profile || profile}${data.deletedFolder ? " | folder deleted" : ""}`, "stdout");
   setTask("Profile removed", data.profile || profile, "success");
   setTerminalStatus("Profile removed");
@@ -2062,6 +2228,7 @@ function renderWarnings(warnings = []) {
 }
 
 function activeStep(step) {
+  setWorkspaceTab(workspaceTabFromStep(step), { persist: false });
   for (const link of [els.loadStepLink, els.selectStepLink, els.assetStepLink, els.scriptStepLink, els.hookStepLink, els.finalStepLink, els.scriptVideoStepLink, els.profileStepLink].filter(Boolean)) {
     link.classList.remove("active");
   }
@@ -2086,9 +2253,6 @@ function activeStep(step) {
     els.scriptVideoStepLink?.classList.add("active");
   } else if (step === "profile") {
     els.profileStepLink?.classList.add("active");
-    if (els.profileManager) {
-      els.profileManager.open = true;
-    }
   } else {
     els.loadStepLink.classList.add("active");
   }
@@ -2240,17 +2404,35 @@ async function loadDashboardDefaults() {
   if (els.hookPresenterSelect && defaults.settings?.hookAvatarStyle) {
     els.hookPresenterSelect.value = defaults.settings.hookAvatarStyle;
   }
+  if (state.hookProfiles.length) {
+    renderHookProfileOptions();
+    renderHookProfileStatus();
+    renderProfileManager();
+  }
+  if (!workspaceTabForHash() && !readSavedWorkspaceTab() && defaults.settings?.workspaceTab) {
+    setWorkspaceTab(defaults.settings.workspaceTab, { persist: false });
+  }
   return defaults;
 }
 
 async function saveHookSettings() {
   if (!els.hookPresenterSelect || !els.hookCharacterSelect) return;
+  const selection = currentGlobalProfiles("hook");
   const response = await fetch("/api/settings", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       hookAvatarStyle: els.hookPresenterSelect.value || "female",
-      hookAvatarCharacter: els.hookCharacterSelect.value || "auto_by_reel"
+      hookAvatarCharacter: els.hookCharacterSelect.value || "auto_by_reel",
+      hookPrimaryProfile: selection.primary,
+      hookFallbackProfile: selection.fallback,
+      hookFallbackEnabled: selection.fallbackEnabled,
+      scriptVideoPrimaryProfile: selection.primary,
+      scriptVideoFallbackProfile: selection.fallback,
+      scriptVideoFallbackEnabled: selection.fallbackEnabled,
+      globalPrimaryProfile: selection.primary,
+      globalFallbackProfile: selection.fallback,
+      globalFallbackEnabled: selection.fallbackEnabled
     })
   });
   const data = await response.json();
@@ -4021,6 +4203,15 @@ els.finalVoiceProviderSelect?.addEventListener("change", () => {
   renderCreditGuard();
 });
 
+const globalProfileControls = new Set([
+  els.hookPrimaryProfileSelect,
+  els.hookFallbackProfileSelect,
+  els.hookFallbackEnabled,
+  els.customScriptPrimaryProfileSelect,
+  els.customScriptFallbackProfileSelect,
+  els.customScriptFallbackEnabled
+].filter(Boolean));
+
 for (const control of [
   els.hookPresenterSelect,
   els.hookCharacterSelect,
@@ -4038,16 +4229,26 @@ for (const control of [
   els.customScriptDurationSelect
 ].filter(Boolean)) {
   control.addEventListener("change", () => {
+    if (globalProfileControls.has(control)) {
+      const source = [
+        els.customScriptPrimaryProfileSelect,
+        els.customScriptFallbackProfileSelect,
+        els.customScriptFallbackEnabled
+      ].includes(control) ? "script-video" : "hook";
+      syncGlobalProfiles(source);
+    }
     setHookState("Ready", "idle");
     setHookBusy(false);
     setScriptVideoState("Ready", "idle");
     setScriptVideoBusy(false);
-    renderHookProfileStatus();
-    renderProfileManager();
     setTerminalStatus(`Hook setup: ${els.hookPresenterSelect.value}, ${hookCharacterLabel(els.hookCharacterSelect?.value)}, ${els.hookToneSelect.value}, ${els.hookDurationSelect.value}s`);
-    saveHookSettings().catch((error) => {
-      appendTerminal(error.message, "stderr");
-    });
+    if (!globalProfileControls.has(control)) {
+      renderHookProfileStatus();
+      renderProfileManager();
+      saveHookSettings().catch((error) => {
+        appendTerminal(error.message, "stderr");
+      });
+    }
   });
 }
 
@@ -4168,8 +4369,7 @@ els.profileManagerList?.addEventListener("click", async (event) => {
     if (action === "primary") {
       els.hookPrimaryProfileSelect.value = profile;
       renderHookProfileOptions({ primary: profile, fallback: els.hookFallbackProfileSelect?.value || "" });
-      renderHookProfileStatus();
-      renderProfileManager();
+      syncGlobalProfiles("hook");
       setTerminalStatus(`Primary profile: ${profile}`);
       activeStep("profile");
       return;
@@ -4182,8 +4382,7 @@ els.profileManagerList?.addEventListener("click", async (event) => {
         els.hookFallbackProfileSelect.disabled = false;
         els.hookFallbackProfileSelect.value = profile;
       }
-      renderHookProfileStatus();
-      renderProfileManager();
+      syncGlobalProfiles("hook");
       setTerminalStatus(`Fallback profile: ${profile}`);
       activeStep("profile");
       return;
@@ -4589,6 +4788,43 @@ els.themeToggleBtn?.addEventListener("click", () => {
   appendTerminal(`Theme changed: ${nextTheme}`);
 });
 
+for (const button of els.workspaceTabButtons || []) {
+  button.addEventListener("click", () => {
+    const tab = button.dataset.workspaceTabButton || "tool-promo";
+    setWorkspaceTab(tab, { persist: true, smooth: true });
+    setTerminalStatus(`Flow tab: ${tab}`);
+    appendTerminal(`Switched flow tab: ${tab}`);
+  });
+}
+
+els.manageProfilesTabBtn?.addEventListener("click", () => {
+  setWorkspaceTab("profiles", { persist: true, smooth: true });
+  activeStep("profile");
+});
+
+window.addEventListener("hashchange", () => {
+  const tab = workspaceTabForHash(window.location.hash);
+  if (tab) {
+    setWorkspaceTab(tab, { persist: true });
+  }
+});
+
+for (const [link, step] of [
+  [els.loadStepLink, "load"],
+  [els.selectStepLink, "select"],
+  [els.assetStepLink, "asset"],
+  [els.scriptStepLink, "script"],
+  [els.hookStepLink, "hook"],
+  [els.finalStepLink, "final"],
+  [els.scriptVideoStepLink, "script-video"],
+  [els.profileStepLink, "profile"]
+]) {
+  link?.addEventListener("click", () => {
+    activeStep(step);
+    setWorkspaceTab(workspaceTabFromStep(step), { persist: true });
+  });
+}
+
 els.viewAssetsBtn.addEventListener("click", async () => {
   try {
     await openLatestAssets();
@@ -4629,8 +4865,10 @@ els.viewFinalFolderBtn?.addEventListener("click", async () => {
   }
 });
 
-activeStep("load");
 applyTheme(readSavedTheme());
+const initialWorkspaceTab = workspaceTabForHash(window.location.hash) || readSavedWorkspaceTab() || "tool-promo";
+setWorkspaceTab(initialWorkspaceTab, { persist: false });
+activeStep(initialWorkspaceTab === "profiles" ? "profile" : initialWorkspaceTab === "script-video" ? "script-video" : "load");
 renderFinalPipeline([]);
 renderScriptVideoPipeline([]);
 renderHookCharacterOptions([{ label: "Google Vids auto", value: "auto" }], "auto_by_reel");

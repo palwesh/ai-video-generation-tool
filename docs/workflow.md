@@ -12,13 +12,14 @@
 8. Save Google Vids-ready scene prompts and `vids-generated-scenes/scene-XX/` folders.
 9. Save post caption and hashtags.
 10. Render or merge the final Reel, then create `reel-quality-report.json` with avatar hook, real demo proof, voiceover, captions, CTA, and duration checks.
-11. Create an enriched workbook copy with output columns for asset paths, reel script files, Vids status, Drive sync status, Drive video/folder links, final MP4 path, QA status, quality score, and quality report.
+11. Create an enriched workbook copy with output columns for asset paths, reel script files, Vids status, primary/fallback/active/tried Vids profiles, Drive sync status, Drive video/folder links, final MP4 path, QA status, quality score, and quality report.
 
 ## Basic Dashboard Flow
 
 Use `http://127.0.0.1:4317` for the simplest one-video workflow.
 
 - The dashboard opens in `Basic` mode and remembers the last Excel path, row, mode, avatar style, duration, Drive folder, and active tab.
+- The Basic dashboard has separate tabs for `Tool Promotion`, `General Script Video`, and `Profiles`. The `Profiles` tab is global, so the same primary/fallback Google Vids accounts are used across every flow.
 - The Basic page keeps docs separate at `http://127.0.0.1:4317/docs.html` so the workflow stays clean. The docs page supports selected-doc mode, all-docs mode, search, refresh, and section links.
 - `Credit Safe` is ON by default. In this mode Google Vids avatar/voiceover buttons are locked, and paid/API voice choices are switched back to free voice. Turn it off only when you intentionally want Google Vids generation; the dashboard asks you to type `VIDS` before starting any credit-spending action.
 - `Prepare Assets` runs the quota-free preparation stage: real website capture, asset brief, improved Hook-Body-CTA script, 3-6 scene plan, Google Vids prompts, free provider prompts, and workbook links.
@@ -34,12 +35,18 @@ Use `http://127.0.0.1:4317` for the simplest one-video workflow.
 
 This flow is separate from the AltFTool promotion workflow. Use it when you already have a normal script and want a Google Vids avatar video from that script.
 
-- Open `General Script Video` on the Basic dashboard.
+- Open the `General Script Video` tab on the Basic dashboard.
 - Paste the script, choose title/topic, language, duration, presenter, Google Vids avatar, primary profile, and fallback profile.
 - Click `Optimize Script` first. This is credit-safe and creates `outputs/script-videos/{title}_{timestamp}/` with `input-script.txt`, `optimized-script.md`, `scene-plan.json`, `manifest.json`, and Google Vids scene prompts.
 - Turn `Credit Safe` off only when you are ready to spend Google Vids credits. The dashboard asks for `VIDS` before generation.
 - Click `Generate in Google Vids`. It opens Google Vids with the selected browser profile, generates 10-second portrait avatar scenes, inserts them, exports the MP4, and saves `final_script_video.mp4` in the same folder.
 - If the primary profile has login/quota issues, the fallback profile is tried automatically when enabled.
+
+## Global Profiles
+
+- Open the `Profiles` tab to add, login, rename, remove, refresh, and select Google Vids browser profiles.
+- The selected primary/fallback profile is synced into Tool Promotion, Hook Avatar, Final Reel, batch automation, and General Script Video.
+- Profile choices are saved in `work/ui-state.json`, but Google passwords are never stored by the app.
 
 ## Google Vids Reality
 

@@ -370,6 +370,11 @@ function loadHistory(state) {
     freeVideoProviderPackFolder: entry.freeVideoProviderPackFolder || "",
     qualityScore: entry.qualityScore ?? "",
     qualityStatus: entry.qualityStatus || "",
+    vidsConfiguredProfiles: entry.vidsConfiguredProfiles || [],
+    vidsPrimaryProfile: entry.vidsPrimaryProfile || entry.vidsConfiguredProfiles?.[0] || "",
+    vidsFallbackProfiles: entry.vidsFallbackProfiles || [],
+    vidsProfile: entry.vidsProfile || "",
+    vidsProfilesTried: entry.vidsProfilesTried || [],
     quotaHit: entry.quotaHit ? "Yes" : "No",
     fallback: entry.fallback || "",
     error: truncate(entry.error || "", 1000)
@@ -391,6 +396,13 @@ function workStatus(asset, script, hook, video) {
   if (hook) parts.push("Hook");
   if (video) parts.push("Video");
   return parts.length ? `${parts.join(" + ")} ready` : "Pending";
+}
+
+function profileListText(value) {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean).join("\n");
+  }
+  return String(value || "");
 }
 
 function buildTrackerRows(tools, maps) {
@@ -423,6 +435,10 @@ function buildTrackerRows(tools, maps) {
     "Final Video",
     "Video Folder",
     "Google Vids URL",
+    "Vids Primary Profile",
+    "Vids Fallback Profiles",
+    "Vids Active Profile",
+    "Vids Profiles Tried",
     "Quality",
     "Notes"
   ];
@@ -462,6 +478,10 @@ function buildTrackerRows(tools, maps) {
       video?.mp4Path ? fileLink(video.mp4Path, "Open video") : video?.filePath ? fileLink(video.filePath, "Open video") : "",
       video?.outputDir ? folderLink(video.outputDir, "Open video folder") : video?.folder ? folderLink(video.folder, "Open folder") : "",
       video?.vidsUrl ? webLink(video.vidsUrl, "Open Vids") : "",
+      video?.vidsPrimaryProfile || video?.vidsConfiguredProfiles?.[0] || "",
+      profileListText(video?.vidsFallbackProfiles),
+      video?.vidsProfile || "",
+      profileListText(video?.vidsProfilesTried),
       video?.qualityScore || video?.qualityStatus ? `${video.qualityScore || ""} ${video.qualityStatus || ""}`.trim() : "",
       video?.error ? `Last issue: ${truncate(video.error, 220)}` : ""
     ];
@@ -557,7 +577,7 @@ function buildHookRows(items) {
 
 function buildVideoRunRows(items) {
   return makeRows([
-    "ID", "Row", "Tool Name", "Tool URL", "Status", "Mode", "Started At", "Ended At", "Final Video", "Output Folder", "Tool Folder", "Prepared Workbook", "Google Vids URL", "Vids Clips Folder", "Free Provider Folder", "Quality", "Quota Hit", "Fallback", "Error"
+    "ID", "Row", "Tool Name", "Tool URL", "Status", "Mode", "Started At", "Ended At", "Final Video", "Output Folder", "Tool Folder", "Prepared Workbook", "Google Vids URL", "Vids Primary Profile", "Vids Fallback Profiles", "Vids Active Profile", "Vids Profiles Tried", "Vids Clips Folder", "Free Provider Folder", "Quality", "Quota Hit", "Fallback", "Error"
   ], items.map((item) => [
     item.id,
     item.row || "",
@@ -572,6 +592,10 @@ function buildVideoRunRows(items) {
     item.toolDir ? folderLink(item.toolDir, "Open tool folder") : "",
     item.preparedWorkbook ? fileLink(item.preparedWorkbook, "Open workbook") : "",
     item.vidsUrl ? webLink(item.vidsUrl, "Open Vids") : "",
+    item.vidsPrimaryProfile || item.vidsConfiguredProfiles?.[0] || "",
+    profileListText(item.vidsFallbackProfiles),
+    item.vidsProfile || "",
+    profileListText(item.vidsProfilesTried),
     item.vidsClipCacheFolder ? folderLink(item.vidsClipCacheFolder, "Open clips") : "",
     item.freeVideoProviderPackFolder ? folderLink(item.freeVideoProviderPackFolder, "Open provider pack") : "",
     `${item.qualityScore || ""} ${item.qualityStatus || ""}`.trim(),
@@ -807,7 +831,7 @@ async function main() {
     {
       name: "Work Tracker",
       rows: buildTrackerRows(tools, maps),
-      widths: [10, 34, 14, 42, 46, 24, 12, 18, 24, 23, 14, 16, 16, 23, 16, 18, 16, 14, 46, 42, 23, 14, 18, 14, 18, 42]
+      widths: [10, 34, 14, 42, 46, 24, 12, 18, 24, 23, 14, 16, 16, 23, 16, 18, 16, 14, 46, 42, 23, 14, 18, 14, 18, 42, 26, 30, 26, 30, 18, 42]
     },
     {
       name: "Generated Assets",
@@ -827,7 +851,7 @@ async function main() {
     {
       name: "Video Runs",
       rows: buildVideoRunRows(history),
-      widths: [34, 10, 34, 14, 14, 14, 23, 23, 14, 16, 16, 16, 14, 16, 16, 22, 12, 18, 60]
+      widths: [34, 10, 34, 14, 14, 14, 23, 23, 14, 16, 16, 16, 14, 26, 30, 26, 30, 16, 16, 22, 12, 18, 60]
     },
     {
       name: "Video Files",

@@ -460,9 +460,9 @@ Run / Queue & History / Docs tabs
 read and search docs inside dashboard
 ```
 
-The dashboard opens in `Basic` mode. The existing full control dashboard is now grouped under `Advanced Features`, including one-page tabs, quick status cards, a black terminal panel with internal scrolling, an output preview, queue/history cards, profile limits, and a searchable docs reader.
+The dashboard opens in `Basic` mode with three clean top-level tabs: `Tool Promotion`, `General Script Video`, and `Profiles`. The existing full control dashboard is still grouped under `Advanced Features`, including one-page tabs, quick status cards, a black terminal panel with internal scrolling, an output preview, queue/history cards, profile limits, and a searchable docs reader.
 Use `Choose` beside the Excel file field to select an `.xlsx`, `.xls`, or `.csv` file. The dashboard saves a copy in `work/uploads/`, sets the input path, and loads the tool rows automatically. To update the original workbook file itself, paste its full path manually and click `Load`.
-The Profiles & Limits tab is the best place to check every Google Vids account at once.
+The `Profiles` tab is global. Add, login, rename, remove, and choose primary/fallback Google Vids users there once; Tool Promotion, Hook Avatar, Final Reel, automation queues, and General Script Video all reuse the same profile selection.
 
 Dashboard modes:
 
@@ -512,8 +512,8 @@ work/google-vids-profile-3
 Dashboard behavior:
 
 ```text
-Google Vids config -> profile list shows all added profiles.
-Profiles & Limits tab -> shows all profiles, login status, primary/fallback badges, AI video usage, avatar usage, quota notes, and quick actions.
+Profiles tab -> profile list shows all added profiles.
+Profiles tab -> shows all profiles, login status, primary/fallback badges, AI video usage, avatar usage, quota notes, and quick actions.
 If Chrome profile metadata contains a Google account, the detected email/name appears in the dropdown.
 If metadata is not available, the dashboard shows email unknown.
 Profiles marked LIMIT USED should not be selected for new Google Vids runs.
@@ -763,6 +763,10 @@ TRF Data Prep Status
 TRF Data Prep Note
 TRF Google Vids Status
 TRF Google Vids Link
+TRF Google Vids Primary Profile
+TRF Google Vids Fallback Profiles
+TRF Google Vids Active Profile
+TRF Google Vids Profiles Tried
 TRF Vids Clip Cache Folder
 TRF Vids Cached Clips
 TRF Final MP4 Path

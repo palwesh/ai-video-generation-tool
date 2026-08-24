@@ -390,6 +390,139 @@ button {
   scroll-padding-top: 190px;
 }
 
+.workspace-tabbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid #dce5ef;
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.96);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.workspace-tab {
+  min-width: 0;
+  min-height: 42px;
+  display: grid;
+  gap: 2px;
+  align-content: center;
+  justify-items: start;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+.workspace-tab strong {
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.05;
+}
+
+.workspace-tab span {
+  overflow: hidden;
+  max-width: 100%;
+  color: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-tab:hover,
+.workspace-tab:focus-visible {
+  outline: none;
+  border-color: #bfd1ff;
+  background: #f2f6ff;
+}
+
+.workspace-tab.active {
+  border-color: #b8caff;
+  background: #eaf1ff;
+  color: var(--blue);
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
+.flow-tab-panel.is-tab-hidden {
+  display: none !important;
+}
+
+.global-profile-strip {
+  position: sticky;
+  top: 66px;
+  z-index: 26;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) minmax(170px, 1.2fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #dce5ef;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+
+.global-profile-strip > div {
+  min-width: 0;
+}
+
+.global-profile-strip > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.global-profile-strip strong,
+.global-profile-strip small,
+.global-profile-picks span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.global-profile-strip strong {
+  display: block;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.global-profile-strip small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.global-profile-picks {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.global-profile-picks span {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border: 1px solid #dce7f7;
+  border-radius: 8px;
+  background: #f7faff;
+  color: #42526a;
+  font-size: 10px;
+  font-weight: 900;
+}
+
 .workspace-resizer {
   grid-area: resizer;
   min-width: 0;
@@ -543,7 +676,7 @@ body.terminal-fullscreen .workspace-resizer {
 
 .import-panel {
   position: sticky;
-  top: 0;
+  top: 128px;
   z-index: 12;
   box-shadow: var(--shadow-strong);
   background: rgba(255, 255, 255, 0.96);
@@ -2977,6 +3110,8 @@ td a {
 :root[data-theme="dark"] .step-sidebar,
 :root[data-theme="dark"] .workflow-main,
 :root[data-theme="dark"] .workflow-section,
+:root[data-theme="dark"] .workspace-tabbar,
+:root[data-theme="dark"] .global-profile-strip,
 :root[data-theme="dark"] .stat-card,
 :root[data-theme="dark"] .summary-card,
 :root[data-theme="dark"] .table-card,
@@ -2992,6 +3127,7 @@ td a {
 :root[data-theme="dark"] .profile-status-strip,
 :root[data-theme="dark"] .profile-manager-summary span,
 :root[data-theme="dark"] .profile-card,
+:root[data-theme="dark"] .global-profile-picks span,
 :root[data-theme="dark"] .script-part-card,
 :root[data-theme="dark"] .script-editor-panel,
 :root[data-theme="dark"] .script-editor-actions,
@@ -3070,6 +3206,19 @@ td a {
   border-color: #2d3c52;
   background: #203354;
   color: var(--blue);
+}
+
+:root[data-theme="dark"] .workspace-tab:hover,
+:root[data-theme="dark"] .workspace-tab:focus-visible,
+:root[data-theme="dark"] .workspace-tab.active {
+  border-color: #31558f;
+  background: #172846;
+  color: #8db2ff;
+}
+
+:root[data-theme="dark"] .workspace-tab strong,
+:root[data-theme="dark"] .global-profile-strip strong {
+  color: var(--ink);
 }
 
 :root[data-theme="dark"] .workspace-resizer:hover,
@@ -3790,12 +3939,39 @@ td a {
 }
 
 @media (max-width: 1280px) {
+  .global-profile-strip {
+    grid-template-columns: 1fr;
+    top: 64px;
+  }
+
+  .global-profile-picks {
+    grid-template-columns: 1fr;
+  }
+
+  .import-panel {
+    top: 178px;
+  }
+
   .script-video-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 720px) {
+  .workspace-tabbar {
+    position: static;
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-tab {
+    min-height: 36px;
+  }
+
+  .global-profile-strip,
+  .import-panel {
+    position: static;
+  }
+
   .script-video-head,
   .script-video-actions,
   .script-video-result-head {

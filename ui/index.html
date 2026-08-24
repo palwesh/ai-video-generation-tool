@@ -85,19 +85,49 @@
             <a id="scriptVideoStepLink" class="step-link" href="#scriptVideo">
               <span>SV</span>
               <strong>Script Video</strong>
-              <small id="scriptVideoStepMeta">General flow</small>
+              <small id="scriptVideoStepMeta">Separate tab</small>
             </a>
             <a id="profileStepLink" class="step-link" href="#profileManager">
-              <span>07</span>
+              <span>GP</span>
               <strong>Profiles</strong>
-              <small id="profileStepMeta">Loading</small>
+              <small id="profileStepMeta">Global</small>
             </a>
           </nav>
           <a class="version-link" href="/advanced.html">Open Version 1</a>
         </aside>
 
         <section class="workflow-main" aria-label="Tool asset workflow">
-          <section id="loadExcel" class="workflow-section import-panel" aria-label="Excel import and analysis">
+          <div class="workspace-tabbar" role="tablist" aria-label="AI Reel Creator flows">
+            <button class="workspace-tab active" type="button" role="tab" aria-selected="true" data-workspace-tab-button="tool-promo">
+              <strong>Tool Promotion</strong>
+              <span>Excel se reel</span>
+            </button>
+            <button class="workspace-tab" type="button" role="tab" aria-selected="false" data-workspace-tab-button="script-video">
+              <strong>General Script Video</strong>
+              <span>Script paste flow</span>
+            </button>
+            <button class="workspace-tab" type="button" role="tab" aria-selected="false" data-workspace-tab-button="profiles">
+              <strong>Profiles</strong>
+              <span>Global Google Vids users</span>
+            </button>
+          </div>
+
+          <div id="globalProfileStrip" class="global-profile-strip" aria-live="polite">
+            <div>
+              <span class="mini-icon">GP</span>
+              <div>
+                <strong>Global Google Vids profiles</strong>
+                <small id="globalProfileSummary">Profiles loading...</small>
+              </div>
+            </div>
+            <div class="global-profile-picks">
+              <span id="globalPrimaryProfileLabel">Primary: loading</span>
+              <span id="globalFallbackProfileLabel">Fallback: loading</span>
+            </div>
+            <button id="manageProfilesTabBtn" class="secondary-action" type="button">Manage Profiles</button>
+          </div>
+
+          <section id="loadExcel" class="workflow-section import-panel flow-tab-panel" data-workspace-panel="tool-promo" aria-label="Excel import and analysis">
             <div class="import-head">
               <div>
                 <p class="eyebrow">Load Excel Data</p>
@@ -132,15 +162,15 @@
             </div>
           </section>
 
-          <details id="profileManager" class="workflow-section profile-manager-panel compact-section-drawer" aria-label="Google Vids profile manager">
-            <summary class="profile-manager-head">
+          <section id="profileManager" class="workflow-section profile-manager-panel flow-tab-panel" data-workspace-panel="profiles" aria-label="Google Vids profile manager">
+            <div class="profile-manager-head">
               <div>
                 <p class="eyebrow">Google Vids Users</p>
-                <h2>Profile Manager</h2>
-                <p>Add multiple accounts, login, and track which profile can generate avatar clips.</p>
+                <h2>Global Profile Manager</h2>
+                <p>Add, login, rename, remove, and choose the primary/fallback profile used by every flow.</p>
               </div>
               <span id="profileState" class="state-pill">Loading</span>
-            </summary>
+            </div>
 
             <div class="profile-manager-body">
               <div class="profile-manager-actions">
@@ -161,9 +191,9 @@
                 <span class="muted">Profiles loading...</span>
               </div>
             </div>
-          </details>
+          </section>
 
-          <section id="scriptVideo" class="workflow-section script-video-panel" aria-label="General script video generator">
+          <section id="scriptVideo" class="workflow-section script-video-panel flow-tab-panel" data-workspace-panel="script-video" aria-label="General script video generator">
             <div class="script-video-head">
               <div>
                 <p class="eyebrow">Separate Flow</p>
@@ -274,7 +304,7 @@
             </div>
           </section>
 
-          <section id="analysisResults" class="analysis-results is-hidden" aria-label="Excel analysis result">
+          <section id="analysisResults" class="analysis-results is-hidden flow-tab-panel" data-workspace-panel="tool-promo" aria-label="Excel analysis result">
             <section id="selectTool" class="workflow-section tool-select-panel" aria-label="Tool selection">
               <div class="section-title-row">
                 <div>

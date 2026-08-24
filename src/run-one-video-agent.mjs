@@ -146,6 +146,10 @@ const extraHeaders = [
   "TRF Data Prep Note",
   "TRF Google Vids Status",
   "TRF Google Vids Link",
+  "TRF Google Vids Primary Profile",
+  "TRF Google Vids Fallback Profiles",
+  "TRF Google Vids Active Profile",
+  "TRF Google Vids Profiles Tried",
   "TRF Vids Clip Cache Folder",
   "TRF Vids Cached Clips",
   "TRF Final MP4 Path",
@@ -350,6 +354,14 @@ function enrichmentFor(normalized, result, final = {}) {
     result.capture.summary,
     final.vidsStatus || "Prompt ready",
     final.vidsUrl || "",
+    final.vidsPrimaryProfile || final.vidsConfiguredProfiles?.[0] || "",
+    Array.isArray(final.vidsFallbackProfiles)
+      ? final.vidsFallbackProfiles.join("\n")
+      : final.vidsFallbackProfiles || "",
+    final.vidsActiveProfile || final.vidsProfile || "",
+    Array.isArray(final.vidsProfilesTried)
+      ? final.vidsProfilesTried.join("\n")
+      : final.vidsProfilesTried || "",
     final.vidsClipCacheFolder || result.files.vidsClipCachePath || path.join(result.runDir, "vids-clips"),
     Array.isArray(final.cachedVidsClips) ? final.cachedVidsClips.join("\n") : "",
     final.mp4Path || "",
@@ -1199,6 +1211,8 @@ async function main() {
   const voiceoverPack = await createVoiceoverPack(result, steps, generatedFiles);
   const avatarPack = await createAvatarPackAndMaybeClips(result, steps, generatedFiles);
   const naturalVoiceover = await generateNaturalVoiceovers(result, steps, generatedFiles);
+  const vidsProfiles = vidsProfilesFromArgs();
+  const vidsProfilesTried = [];
 
   steps.push({
     name: "data_prep",
@@ -1218,6 +1232,10 @@ async function main() {
     avatarGenerationReportPath: avatarPack.generationReportPath || "",
     naturalVoiceoverFolder: naturalVoiceover.folder || "",
     naturalVoiceoverReportPath: naturalVoiceover.reportPath || "",
+    vidsConfiguredProfiles: vidsProfiles,
+    vidsPrimaryProfile: vidsProfiles[0] || "",
+    vidsFallbackProfiles: vidsProfiles.slice(1),
+    vidsProfilesTried,
     cachedVidsClips,
     generatedFolder,
     generatedFiles,
@@ -1234,8 +1252,6 @@ async function main() {
   let partialGeneratedScenes = [];
   let vidsSceneClips = [];
   let vidsSceneUrls = [];
-  const vidsProfiles = vidsProfilesFromArgs();
-  const vidsProfilesTried = [];
   let googleVidsStatus = prepOnly ? "Script/assets prepared; video skipped" : localOnly ? "Local MP4 rendered" : generateInVids ? "Generated; export pending" : "Dry-run prompt fill complete";
   let qaStatus = prepOnly ? "Prep only; render or generate before posting" : generateInVids || localOnly ? "Needs final human review before posting" : "Dry-run only";
   let qualityReportPath = "";
@@ -1248,6 +1264,12 @@ async function main() {
   const finalWorkbookPayload = () => ({
     vidsStatus: googleVidsStatus,
     vidsUrl,
+    vidsConfiguredProfiles: vidsProfiles,
+    vidsPrimaryProfile: vidsProfiles[0] || "",
+    vidsFallbackProfiles: vidsProfiles.slice(1),
+    vidsActiveProfile: activeVidsProfile,
+    vidsProfile: activeVidsProfile,
+    vidsProfilesTried,
     vidsClipCacheFolder,
     cachedVidsClips,
     generatedFolder,
@@ -1625,6 +1647,9 @@ async function main() {
     vidsSceneClipMode: useVidsSceneClips,
     vidsSceneUrls,
     vidsSceneClips,
+    vidsConfiguredProfiles: vidsProfiles,
+    vidsPrimaryProfile: vidsProfiles[0] || "",
+    vidsFallbackProfiles: vidsProfiles.slice(1),
     vidsProfile: activeVidsProfile,
     vidsProfilesTried,
     mp4Path,
