@@ -26,7 +26,38 @@ const outputRoot = args.output || path.join(
 const targetUrl = args.url || "https://vids.new";
 const requestedVideoSize = String(args["video-size"] || args.size || "portrait").trim().toLowerCase();
 const manualRecoveryWaitMs = Number(args["manual-recovery-wait"] || process.env.TRF_MANUAL_RECOVERY_WAIT_MS || 0);
-const portraitRequested = /^(portrait|vertical|9:16|reel|short|shorts)$/i.test(requestedVideoSize);
+
+function videoSizeConfig(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (/^(landscape|horizontal|16:9|youtube|wide)$/i.test(raw)) {
+    return {
+      value: "landscape",
+      label: "Landscape 16:9",
+      labels: ["Landscape", "Horizontal", "16:9", "Wide"],
+      evidencePattern: /landscape|horizontal|16:9|wide/i,
+      requireArg: "require-landscape"
+    };
+  }
+  if (/^(square|1:1|post)$/i.test(raw)) {
+    return {
+      value: "square",
+      label: "Square 1:1",
+      labels: ["Square", "1:1"],
+      evidencePattern: /square|1:1/i,
+      requireArg: "require-square"
+    };
+  }
+  return {
+    value: "portrait",
+    label: "Portrait 9:16",
+    labels: ["Portrait", "Vertical", "9:16"],
+    evidencePattern: /portrait|vertical|9:16/i,
+    requireArg: "require-portrait"
+  };
+}
+
+const targetVideoSize = videoSizeConfig(requestedVideoSize);
+const portraitRequested = targetVideoSize.value === "portrait";
 
 if (!scenesPath) {
   console.error("Missing --tool-dir or --scenes.");
@@ -228,9 +259,10 @@ async function clickControlByLabelOrText(page, labels, timeout = 7000) {
   return { clicked: false };
 }
 
-async function portraitSelectionEvidence(page) {
-  return await page.evaluate(() => {
+async function videoSizeSelectionEvidence(page, config = targetVideoSize) {
+  return await page.evaluate(({ patternSource }) => {
     const clean = (value) => String(value || "").replace(/\s+/g, " ").trim();
+    const targetPattern = new RegExp(patternSource, "i");
     const controls = Array.from(document.querySelectorAll("button, [role='button'], [role='menuitemradio'], [aria-label]"))
       .map((element) => {
         const rect = element.getBoundingClientRect();
@@ -248,30 +280,30 @@ async function portraitSelectionEvidence(page) {
           visible: Boolean(rect.width && rect.height && element.getClientRects().length)
         };
       })
-      .filter((control) => control.visible && /portrait|vertical|9:16/i.test(`${control.ariaLabel} ${control.text}`))
+      .filter((control) => control.visible && targetPattern.test(`${control.ariaLabel} ${control.text}`))
       .slice(0, 12);
     return {
-      hasPortraitText: /portrait|vertical|9:16/i.test(clean(document.body?.innerText || "")),
+      hasTargetText: targetPattern.test(clean(document.body?.innerText || "")),
       selected: controls.some((control) => control.selected),
       controls
     };
-  }).catch((error) => ({
-    hasPortraitText: false,
+  }, { patternSource: config.evidencePattern.source }).catch((error) => ({
+    hasTargetText: false,
     selected: false,
     controls: [],
     error: error.message
   }));
 }
 
-async function ensurePortrait(page) {
+async function ensureVideoSize(page, config = targetVideoSize) {
   const attempts = [];
-  const initialEvidence = await portraitSelectionEvidence(page);
+  const initialEvidence = await videoSizeSelectionEvidence(page, config);
   attempts.push({ name: "initial_evidence", evidence: initialEvidence });
 
-  const welcomeChoice = await clickByText(page, ["Portrait", "Vertical", "9:16"], 2500);
+  const welcomeChoice = await clickByText(page, config.labels, 2500);
   attempts.push({ name: "welcome_dialog", ...welcomeChoice });
   if (welcomeChoice.clicked) {
-    const evidence = await portraitSelectionEvidence(page);
+    const evidence = await videoSizeSelectionEvidence(page, config);
     return {
       strategy: "welcome_dialog",
       clicked: true,
@@ -295,19 +327,23 @@ async function ensurePortrait(page) {
     };
   }
 
-  const portraitOption = await clickControlByLabelOrText(page, ["Portrait", "Vertical", "9:16"], 5000);
-  attempts.push({ name: "select_portrait_option", ...portraitOption });
-  const finalEvidence = await portraitSelectionEvidence(page);
+  const sizeOption = await clickControlByLabelOrText(page, config.labels, 5000);
+  attempts.push({ name: `select_${config.value}_option`, ...sizeOption });
+  const finalEvidence = await videoSizeSelectionEvidence(page, config);
   return {
     strategy: "toolbar_video_size",
-    clicked: portraitOption.clicked,
-    selected: Boolean(portraitOption.clicked || finalEvidence.selected),
+    clicked: sizeOption.clicked,
+    selected: Boolean(sizeOption.clicked || finalEvidence.selected),
     menu: videoSize,
-    option: portraitOption,
+    option: sizeOption,
     evidence: finalEvidence,
     attempts,
-    reason: portraitOption.clicked || finalEvidence.selected ? undefined : "Portrait option was not found after opening Video size."
+    reason: sizeOption.clicked || finalEvidence.selected ? undefined : `${config.label} option was not found after opening Video size.`
   };
+}
+
+async function ensurePortrait(page) {
+  return ensureVideoSize(page, videoSizeConfig("portrait"));
 }
 
 async function findPromptTarget(page) {
@@ -1852,20 +1888,21 @@ try {
   await assertGoogleVidsReady(page, "opened");
 
   if (!args["insert-only"]) {
-    if (!args["skip-portrait"] && portraitRequested) {
-      const portrait = await ensurePortrait(page);
-      steps.push({ name: "select_portrait", ...portrait, screenshot: await screenshot(page, outputDir, "03-portrait"), state: await pageState(page, outputDir, "03-portrait") });
-      if (args["require-portrait"] && !portrait.clicked && !portrait.selected) {
-        throw new Error(`Portrait video size was required but could not be selected. ${portrait.reason || ""}`.trim());
-      }
-      await assertGoogleVidsReady(page, "select_portrait");
-    } else if (!args["skip-portrait"]) {
+    if (!args["skip-portrait"]) {
+      const sizeSelection = await ensureVideoSize(page, targetVideoSize);
       steps.push({
         name: "select_video_size",
-        skipped: true,
-        requestedVideoSize,
-        reason: "Portrait selection is only automated for portrait/vertical/9:16 requests."
+        requestedVideoSize: targetVideoSize.value,
+        label: targetVideoSize.label,
+        ...sizeSelection,
+        screenshot: await screenshot(page, outputDir, "03-video-size"),
+        state: await pageState(page, outputDir, "03-video-size")
       });
+      const required = Boolean(args[targetVideoSize.requireArg] || args["require-video-size"] || (targetVideoSize.value === "portrait" && args["require-portrait"]));
+      if (required && !sizeSelection.clicked && !sizeSelection.selected) {
+        throw new Error(`${targetVideoSize.label} video size was required but could not be selected. ${sizeSelection.reason || ""}`.trim());
+      }
+      await assertGoogleVidsReady(page, "select_video_size");
     }
 
     for (let index = 0; index < sceneNumbers.length; index += 1) {
@@ -1988,8 +2025,11 @@ try {
     promptFiles,
     videoSize: {
       requested: requestedVideoSize,
+      normalized: targetVideoSize.value,
+      label: targetVideoSize.label,
       portraitRequested,
-      requirePortrait: Boolean(args["require-portrait"])
+      requirePortrait: Boolean(args["require-portrait"]),
+      requireVideoSize: Boolean(args[targetVideoSize.requireArg] || args["require-video-size"])
     },
     ingredientUploads: ingredientReport(steps),
     targetUrl,

@@ -146,6 +146,7 @@ const els = {
   clearAvatarPhotoBtn: document.getElementById("clearAvatarPhotoBtn"),
   hookToneSelect: document.getElementById("hookToneSelect"),
   hookDurationSelect: document.getElementById("hookDurationSelect"),
+  hookVideoSizeSelect: document.getElementById("hookVideoSizeSelect"),
   hookPrimaryProfileSelect: document.getElementById("hookPrimaryProfileSelect"),
   hookFallbackEnabled: document.getElementById("hookFallbackEnabled"),
   hookFallbackProfileSelect: document.getElementById("hookFallbackProfileSelect"),
@@ -207,6 +208,7 @@ const els = {
   customScriptTitleInput: document.getElementById("customScriptTitleInput"),
   customScriptLanguageSelect: document.getElementById("customScriptLanguageSelect"),
   customScriptDurationSelect: document.getElementById("customScriptDurationSelect"),
+  customScriptVideoSizeSelect: document.getElementById("customScriptVideoSizeSelect"),
   customScriptPresenterSelect: document.getElementById("customScriptPresenterSelect"),
   customScriptAvatarSelect: document.getElementById("customScriptAvatarSelect"),
   customScriptPrimaryProfileSelect: document.getElementById("customScriptPrimaryProfileSelect"),
@@ -1970,6 +1972,7 @@ function scriptVideoPayload(extra = {}) {
     script,
     language: els.customScriptLanguageSelect?.value || "Hinglish",
     durationSeconds: Number(els.customScriptDurationSelect?.value || 50),
+    videoSize: els.customScriptVideoSizeSelect?.value || "portrait",
     presenter: els.customScriptPresenterSelect?.value || "female",
     avatar: els.customScriptAvatarSelect?.value || "auto_by_reel",
     avatarLabel: hookCharacterLabel(els.customScriptAvatarSelect?.value || "auto_by_reel"),
@@ -2013,6 +2016,7 @@ function renderScriptVideoResult(scriptVideo = {}) {
     els.scriptVideoResultStatus.textContent = [
       scriptVideo.status || "prepared",
       scriptVideo.activeProfile || "",
+      scriptVideo.videoSizeLabel || scriptVideo.videoSize || "",
       `${scriptVideo.totalDurationSeconds || scenes.length * 10 || 0}s`
     ].filter(Boolean).join(" | ");
   }
@@ -2072,9 +2076,9 @@ function renderScriptVideoResult(scriptVideo = {}) {
 async function optimizeCustomScriptVideo() {
   const payload = scriptVideoPayload({ prepareOnly: true });
   setScriptVideoState("Optimizing", "busy");
-  setTask("Optimizing script video", `${payload.durationSeconds}s | ${payload.language}`, "busy");
+  setTask("Optimizing script video", `${payload.durationSeconds}s | ${payload.language} | ${payload.videoSize}`, "busy");
   setTerminalStatus("Optimizing custom script");
-  appendTerminal(`POST /api/script-video/optimize duration=${payload.durationSeconds} language=${payload.language}`);
+  appendTerminal(`POST /api/script-video/optimize duration=${payload.durationSeconds} language=${payload.language} size=${payload.videoSize}`);
   renderScriptVideoPipeline([{ id: "script", label: "Optimize Script", status: "running", detail: "Splitting into 10-second scenes." }]);
   activeStep("script-video");
   setScriptVideoBusy(true);
@@ -2172,9 +2176,9 @@ async function generateCustomScriptVideo() {
     return { canceled: true };
   }
   setScriptVideoState("Generating", "busy");
-  setTask("Generating script video", `${payload.durationSeconds}s | ${payload.profiles.join(" -> ")}`, "busy");
+  setTask("Generating script video", `${payload.durationSeconds}s | ${payload.videoSize} | ${payload.profiles.join(" -> ")}`, "busy");
   setTerminalStatus("Starting custom script Google Vids run");
-  appendTerminal(`POST /api/script-video/runs duration=${payload.durationSeconds} profiles=${payload.profiles.join(", ")}`);
+  appendTerminal(`POST /api/script-video/runs duration=${payload.durationSeconds} size=${payload.videoSize} profiles=${payload.profiles.join(", ")}`);
   renderScriptVideoPipeline([{ id: "start", label: "Script Video", status: "running", detail: "Starting Google Vids generation." }]);
   activeStep("script-video");
   setScriptVideoBusy(true);
@@ -2583,6 +2587,12 @@ async function loadDashboardDefaults() {
   if (els.hookPresenterSelect && defaults.settings?.hookAvatarStyle) {
     els.hookPresenterSelect.value = defaults.settings.hookAvatarStyle;
   }
+  if (els.hookVideoSizeSelect) {
+    els.hookVideoSizeSelect.value = defaults.settings?.hookVideoSize || "portrait";
+  }
+  if (els.customScriptVideoSizeSelect) {
+    els.customScriptVideoSizeSelect.value = defaults.settings?.scriptVideoSize || defaults.settings?.hookVideoSize || "portrait";
+  }
   const defaultAvatarPath = avatarPhotoForPresenter(els.hookPresenterSelect?.value || defaults.settings?.hookAvatarStyle || "female");
   setAvatarHostImage(
     defaults.settings?.avatarHostImage || defaultAvatarPath,
@@ -2609,6 +2619,7 @@ async function saveHookSettings() {
     body: JSON.stringify({
       hookAvatarStyle: els.hookPresenterSelect.value || "female",
       hookAvatarCharacter: els.hookCharacterSelect.value || "auto_by_reel",
+      hookVideoSize: els.hookVideoSizeSelect?.value || "portrait",
       avatarHostImage: state.avatarHostImage || "",
       hookPrimaryProfile: selection.primary,
       hookFallbackProfile: selection.fallback,
@@ -2616,6 +2627,7 @@ async function saveHookSettings() {
       scriptVideoPrimaryProfile: selection.primary,
       scriptVideoFallbackProfile: selection.fallback,
       scriptVideoFallbackEnabled: selection.fallbackEnabled,
+      scriptVideoSize: els.customScriptVideoSizeSelect?.value || els.hookVideoSizeSelect?.value || "portrait",
       globalPrimaryProfile: selection.primary,
       globalFallbackProfile: selection.fallback,
       globalFallbackEnabled: selection.fallbackEnabled
@@ -3169,6 +3181,7 @@ function hookAvatarPayload(extra = {}) {
     avatarReferenceImages: state.avatarHostImage || "",
     tone: els.hookToneSelect.value || "energetic",
     durationSeconds: Number(els.hookDurationSelect.value || 10),
+    videoSize: els.hookVideoSizeSelect?.value || "portrait",
     includeMiddleAvatar: true,
     middleAvatarScenes: "2",
     focusDurationSeconds: Number(els.hookDurationSelect.value || 10),
@@ -3231,7 +3244,7 @@ function renderHookAvatarResult(hookAvatar = {}) {
   const activeProfile = hookAvatar.activeProfile || hookAvatar.hookAvatar?.activeProfile || "";
   const avatarChoice = hookAvatar.avatarChoice || hookAvatar.hookAvatar?.avatarChoice || {};
   const avatarText = avatarChoice.label || hookAvatar.googleVidsAvatar || "";
-  els.hookStatusText.textContent = [status, activeProfile, avatarText].filter(Boolean).join(" | ");
+  els.hookStatusText.textContent = [status, activeProfile, avatarText, hookAvatar.videoSizeLabel || hookAvatar.videoSize || ""].filter(Boolean).join(" | ");
   els.hookFolderPath.textContent = hookAvatar.hookDir || hookAvatar.folder || "";
   const hookScript = hookAvatar.hookScript || hookAvatar.hookAvatar?.hookScript || "";
   const ctaScript = hookAvatar.ctaScript || hookAvatar.ctaAvatar?.ctaScript || "";
@@ -3291,9 +3304,9 @@ function renderHookAvatarResult(hookAvatar = {}) {
 async function prepareHookAvatar() {
   const payload = hookAvatarPayload();
   setHookState("Preparing", "busy");
-  setTask("Preparing avatar pack", `Row ${payload.row} | ${payload.presenter} | ${payload.avatarLabel} | ${payload.tone}`, "busy");
+  setTask("Preparing avatar pack", `Row ${payload.row} | ${payload.presenter} | ${payload.avatarLabel} | ${payload.tone} | ${payload.videoSize}`, "busy");
   setTerminalStatus("Preparing hook+focus+CTA avatar prompt pack");
-  appendTerminal(`POST /api/hook-avatar/prepare row=${payload.row}`);
+  appendTerminal(`POST /api/hook-avatar/prepare row=${payload.row} size=${payload.videoSize}`);
   activeStep("hook");
   setHookBusy(true);
   const response = await fetch("/api/hook-avatar/prepare", {
@@ -3384,9 +3397,9 @@ async function generateHookAvatar() {
     return { canceled: true };
   }
   setHookState("Generating", "busy");
-  setTask("Generating avatar pack", `Google Vids | Row ${payload.row} | ${payload.profiles.join(" -> ")}`, "busy");
+  setTask("Generating avatar pack", `Google Vids | Row ${payload.row} | ${payload.videoSize} | ${payload.profiles.join(" -> ")}`, "busy");
   setTerminalStatus("Starting Google Vids hook+focus+CTA avatar run");
-  appendTerminal(`POST /api/hook-avatar/runs row=${payload.row} profiles=${payload.profiles.join(", ")}`);
+  appendTerminal(`POST /api/hook-avatar/runs row=${payload.row} size=${payload.videoSize} profiles=${payload.profiles.join(", ")}`);
   activeStep("hook");
   setHookBusy(true);
   const response = await fetch("/api/hook-avatar/runs", {
@@ -3567,6 +3580,7 @@ function finalReelPayload(extra = {}) {
     toolUrl: tool.url || tool.tool_url || "",
     scriptLanguage: els.scriptLanguageSelect?.value || "Hinglish",
     presenter: els.hookPresenterSelect?.value || "female",
+    videoSize: els.hookVideoSizeSelect?.value || "portrait",
     hookAvatarCharacter: els.hookCharacterSelect?.value || "auto_by_reel",
     hookAvatarCharacterLabel: hookCharacterLabel(els.hookCharacterSelect?.value || "auto_by_reel"),
     avatarHostImage: state.avatarHostImage || "",
@@ -4022,6 +4036,8 @@ function buildAutoQueueBody() {
     ttsModel: "edge-tts",
     ttsVoice: voiceover.edgeVoice || "hi-IN-SwaraNeural",
     hookAvatarStyle: els.hookPresenterSelect?.value || "female",
+    hookVideoSize: els.hookVideoSizeSelect?.value || "portrait",
+    videoSize: els.hookVideoSizeSelect?.value || "portrait",
     useAvatar: true,
     avatar: els.hookCharacterSelect?.value || "auto_by_reel",
     avatarScenes: useVidsHook ? "1" : "",
@@ -4477,6 +4493,7 @@ for (const control of [
   els.hookCharacterSelect,
   els.hookToneSelect,
   els.hookDurationSelect,
+  els.hookVideoSizeSelect,
   els.hookPrimaryProfileSelect,
   els.hookFallbackProfileSelect,
   els.hookFallbackEnabled,
@@ -4486,7 +4503,8 @@ for (const control of [
   els.customScriptFallbackProfileSelect,
   els.customScriptFallbackEnabled,
   els.customScriptLanguageSelect,
-  els.customScriptDurationSelect
+  els.customScriptDurationSelect,
+  els.customScriptVideoSizeSelect
 ].filter(Boolean)) {
   control.addEventListener("change", () => {
     if (control === els.hookPresenterSelect) {
@@ -4504,7 +4522,7 @@ for (const control of [
     setHookBusy(false);
     setScriptVideoState("Ready", "idle");
     setScriptVideoBusy(false);
-    setTerminalStatus(`Hook setup: ${els.hookPresenterSelect.value}, ${hookCharacterLabel(els.hookCharacterSelect?.value)}, ${els.hookToneSelect.value}, ${els.hookDurationSelect.value}s`);
+    setTerminalStatus(`Hook setup: ${els.hookPresenterSelect.value}, ${hookCharacterLabel(els.hookCharacterSelect?.value)}, ${els.hookToneSelect.value}, ${els.hookDurationSelect.value}s, ${els.hookVideoSizeSelect?.value || "portrait"}`);
     if (!globalProfileControls.has(control)) {
       renderHookProfileStatus();
       renderProfileManager();

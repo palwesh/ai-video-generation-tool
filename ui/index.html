@@ -198,7 +198,7 @@
               <div>
                 <p class="eyebrow">Separate Flow</p>
                 <h2>General Script Video</h2>
-                <p>Paste any script, optimize timing, then generate a portrait avatar video in Google Vids.</p>
+                <p>Paste any script, optimize timing, choose video size, then generate an avatar video in Google Vids.</p>
               </div>
               <span id="scriptVideoState" class="state-pill">Ready</span>
             </div>
@@ -223,6 +223,14 @@
                   <option value="40">40 sec</option>
                   <option value="50" selected>50 sec</option>
                   <option value="60">60 sec</option>
+                </select>
+              </label>
+              <label class="field-label" for="customScriptVideoSizeSelect">
+                <span>Video size</span>
+                <select id="customScriptVideoSizeSelect">
+                  <option value="portrait" selected>Vertical 9:16</option>
+                  <option value="landscape">Landscape 16:9</option>
+                  <option value="square">Square 1:1</option>
                 </select>
               </label>
               <label class="field-label" for="customScriptPresenterSelect">
@@ -631,6 +639,14 @@
                     <option value="6">6 sec</option>
                     <option value="8">8 sec</option>
                     <option value="10" selected>10 sec</option>
+                  </select>
+                </label>
+                <label class="field-label hook-video-size" for="hookVideoSizeSelect">
+                  <span>Vids size</span>
+                  <select id="hookVideoSizeSelect">
+                    <option value="portrait" selected>Vertical 9:16</option>
+                    <option value="landscape">Landscape 16:9</option>
+                    <option value="square">Square 1:1</option>
                   </select>
                 </label>
                 <label class="field-label hook-profile" for="hookPrimaryProfileSelect">

@@ -59,6 +59,7 @@ const avatarProviderPackProviders = args["avatar-pack-providers"] || config.avat
 const avatarClipProvider = String(args["avatar-provider"] || config.avatarGeneration?.provider || "manual").toLowerCase();
 const generateAvatarClips = Boolean(args["generate-avatar-clips"] || args["generate-avatar"] || (avatarClipProvider === "heygen" && args["avatar-provider"]));
 const hookAvatarStyle = String(args["hook-avatar"] || args["hook-avatar-style"] || config.voiceover?.hookAvatarStyle || "female").toLowerCase();
+const vidsVideoSize = String(args["video-size"] || args["vids-video-size"] || args.size || "portrait").toLowerCase();
 const ttsProvider = String(args["tts-provider"] || args["voice-provider"] || config.voiceover?.provider || "local").toLowerCase();
 const shouldGenerateVoiceovers = !["", "none", "off", "local", "macos", "windows"].includes(ttsProvider);
 const driveSyncDir = resolveDriveSyncDir(config, args);
@@ -940,7 +941,8 @@ async function generateVidsSceneClipsForProfile({
       "--scene", String(sceneNumber),
       "--max-scenes", "1",
       "--output", vidsOutputDir,
-      "--profile", profileDir
+      "--profile", profileDir,
+      "--video-size", vidsVideoSize
     ];
 
     if (!args["no-ingredients"]) {
@@ -1388,7 +1390,8 @@ async function main() {
         "--all-scenes",
         "--max-scenes", String(maxScenes),
         "--output", vidsOutputDir,
-        "--profile", profileDir
+        "--profile", profileDir,
+        "--video-size", vidsVideoSize
       ];
 
       if (!args["no-ingredients"]) {

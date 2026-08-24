@@ -64,7 +64,7 @@ export function validateScenePlan(plan, options = {}) {
       }
     }
 
-    if (!scene.video_prompt.startsWith("Create a 10-second 9:16 vertical video")) {
+    if (!/^Create a 10-second (9:16 vertical|16:9 landscape|1:1 square) video/.test(scene.video_prompt)) {
       throw new Error(`Scene ${expectedNumber} video_prompt has an invalid opening.`);
     }
   }

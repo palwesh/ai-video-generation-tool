@@ -194,7 +194,7 @@ The dashboard opens in `Basic` mode for one-video production:
 3. Keep `Hook Vids + Local` for the recommended workflow.
 4. Choose `Female presenter`, `Male presenter`, or `Auto presenter`.
 5. Use the avatar photo control to select the built-in female/male AltFTool presenter or upload a consented PNG/JPG/WebP custom avatar photo.
-6. Choose 30, 40, 50, or 60 seconds.
+6. Choose 30, 40, 50, or 60 seconds, and keep `Vids size` on `Vertical 9:16` for Reels. Use `Landscape 16:9` or `Square 1:1` only when you are generating Google Vids clips for non-reel reuse.
 7. Click `Prepare Assets` to build script, screenshots, recordings, prompts, and workbook links without final render.
 8. Use `Edit Script` when needed to update Hook, Body, CTA, caption, hashtags, or scene-wise voiceover/on-screen text, then click `Save Update`.
 9. Click `Create Quality Reel` to generate the recommended Reel: Google Vids avatar hook when quota/profile is available, real tool demo in the body, Edge Hindi voiceover, captions, music, quality report, and final local MP4.
@@ -210,7 +210,7 @@ Resume after a failed automation run:
 
 Google Vids prompt quality rules:
 
-- Every generated clip is portrait 9:16 for Reels/Shorts.
+- Every Google Vids generated clip follows the selected size: `Vertical 9:16`, `Landscape 16:9`, or `Square 1:1`. Reels should stay vertical by default.
 - The hook starts in the first 2 seconds with a direct Hinglish line.
 - Tool proof must use real AltFTool/tool screenshots, URL context, or captured screen references.
 - No fake UI, no unsupported features, no private data, and no generic filler.

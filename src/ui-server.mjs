@@ -461,6 +461,8 @@ function normalizeRunBody(body = {}) {
   if (!String(normalized.hookAvatarCharacter || "").trim()) {
     normalized.hookAvatarCharacter = "auto_by_reel";
   }
+  normalized.videoSize = normalizeVidsVideoSize(normalized.videoSize || normalized.hookVideoSize || normalized.vidsVideoSize || "portrait");
+  normalized.hookVideoSize = normalizeVidsVideoSize(normalized.hookVideoSize || normalized.videoSize || "portrait");
   if (!String(normalized.avatarClipProvider || "").trim()) {
     normalized.avatarClipProvider = defaultAvatarGenerationProvider;
   }
@@ -2331,6 +2333,8 @@ function buildCustomScriptPlan(body = {}) {
   const title = normalizeCustomScriptTitle(body, rawScript);
   const tone = String(body.tone || "energetic").trim() || "energetic";
   const presenter = normalizeHookPresenter(body.presenter || body.hookAvatarStyle || defaultHookAvatarStyle);
+  const videoSize = normalizeVidsVideoSize(body.videoSize || body.vidsVideoSize || body.aspectRatio || "portrait");
+  const videoSizeLabel = vidsVideoSizeLabel(videoSize);
   const hook = customScriptHook(title, rawScript, language);
   const cta = customScriptCta(title, rawScript, language);
   const bodySource = splitScriptSentences(rawScript).slice(1, -1).join(" ") || rawScript;
@@ -2363,7 +2367,8 @@ function buildCustomScriptPlan(body = {}) {
       visual,
       onscreen_text: onscreenText,
       video_prompt: [
-        "Create a 10-second 9:16 vertical video for Instagram Reels.",
+        vidsVideoSizeSceneOpening(videoSize),
+        vidsVideoSizePromptLine(videoSize),
         `Topic: ${title}.`,
         `Scene ${sceneNumber}/${sceneCount}.`,
         `Show exactly this: ${visual}`,
@@ -2384,6 +2389,8 @@ function buildCustomScriptPlan(body = {}) {
       generator: "custom_script_video",
       language,
       script_type: language,
+      video_size: videoSize,
+      video_size_label: videoSizeLabel,
       scene_count: sceneCount,
       scene_duration_seconds: 10,
       total_duration_seconds: totalDurationSeconds,
@@ -2400,7 +2407,7 @@ function buildCustomScriptPlan(body = {}) {
     }
   };
   validateScenePlan(plan, { sceneCount });
-  return { plan, title, language, sceneCount, totalDurationSeconds, hook, body: middleChunks.join(" "), cta, tone, presenter };
+  return { plan, title, language, sceneCount, totalDurationSeconds, hook, body: middleChunks.join(" "), cta, tone, presenter, videoSize, videoSizeLabel };
 }
 
 function customScriptVideoMarkdown(result = {}) {
@@ -2411,6 +2418,7 @@ function customScriptVideoMarkdown(result = {}) {
     "",
     `- Flow: General script video`,
     `- Script type: ${result.language || "Hinglish"}`,
+    `- Video size: ${result.videoSizeLabel || vidsVideoSizeLabel(result.videoSize || "portrait")}`,
     `- Duration: ${result.totalDurationSeconds || scenes.length * 10} seconds`,
     `- Folder: ${result.videoDir || ""}`,
     `- Generated at: ${result.generatedAt || ""}`,
@@ -2474,6 +2482,8 @@ async function prepareCustomScriptVideo(body = {}) {
     },
     generated_at: new Date().toISOString(),
     generator: "custom_script_video",
+    video_size: build.videoSize,
+    video_size_label: build.videoSizeLabel,
     capture: {
       enabled: false,
       summary: "Manual script video. No real tool assets required.",
@@ -2506,6 +2516,8 @@ async function prepareCustomScriptVideo(body = {}) {
     totalDurationSeconds: build.totalDurationSeconds,
     tone: build.tone,
     presenter: build.presenter,
+    videoSize: build.videoSize,
+    videoSizeLabel: build.videoSizeLabel,
     hook: build.hook,
     body: build.body,
     cta: build.cta,
@@ -2552,6 +2564,7 @@ async function prepareCustomScriptVideo(body = {}) {
       lastScriptVideoScenePlan: result.scenePlanPath,
       lastScriptVideoLanguage: build.language,
       lastScriptVideoDurationSeconds: build.totalDurationSeconds,
+      scriptVideoSize: build.videoSize,
       updatedAt: new Date().toISOString()
     };
   });
@@ -2677,6 +2690,7 @@ async function generateCustomScriptVideoForProfile(prepared, body, run, profile,
   const selectedAvatar = requestedAvatar === "auto_by_reel"
     ? (normalizeHookPresenter(body.presenter || prepared.presenter) === "male" ? "William" : "Mia")
     : requestedAvatar;
+  const videoSize = normalizeVidsVideoSize(body.videoSize || prepared.videoSize || prepared.plan?.metadata?.video_size || "portrait");
   const operateArgs = [
     "--scenes", prepared.scenePlanPath,
     "--manifest", prepared.manifestPath,
@@ -2684,8 +2698,7 @@ async function generateCustomScriptVideoForProfile(prepared, body, run, profile,
     "--max-scenes", String(sceneCount),
     "--output", operateDir,
     "--profile", profile,
-    "--video-size", "portrait",
-    "--require-portrait",
+    "--video-size", videoSize,
     "--avatar", selectedAvatar,
     "--avatar-scenes", sceneList,
     "--submit",
@@ -2696,8 +2709,11 @@ async function generateCustomScriptVideoForProfile(prepared, body, run, profile,
   if (body.url) {
     operateArgs.push("--url", String(body.url));
   }
+  if (videoSize === "portrait") {
+    operateArgs.push("--require-portrait");
+  }
 
-  setScriptVideoStep(run, "vids", "Google Vids", "running", `Generating ${sceneCount} portrait avatar scene(s) with ${profile}.`);
+  setScriptVideoStep(run, "vids", "Google Vids", "running", `Generating ${sceneCount} ${vidsVideoSizeLabel(videoSize)} avatar scene(s) with ${profile}.`);
   let operateError = null;
   await runScriptVideoNodeScript(run, `script-video-vids:${profileLabel}`, "src/google-vids-operate.mjs", operateArgs)
     .catch((error) => {
@@ -2925,6 +2941,57 @@ function normalizeHookPresenter(value) {
     return raw;
   }
   return "female";
+}
+
+function normalizeVidsVideoSize(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (/^(landscape|horizontal|16:9|youtube|wide)$/i.test(raw)) {
+    return "landscape";
+  }
+  if (/^(square|1:1|post)$/i.test(raw)) {
+    return "square";
+  }
+  return "portrait";
+}
+
+function vidsVideoSizeLabel(value) {
+  const size = normalizeVidsVideoSize(value);
+  if (size === "landscape") return "Landscape 16:9";
+  if (size === "square") return "Square 1:1";
+  return "Portrait 9:16";
+}
+
+function vidsVideoSizePromptLine(value) {
+  const size = normalizeVidsVideoSize(value);
+  if (size === "landscape") {
+    return "Strictly landscape 16:9 for a wide YouTube/website video, not portrait or square; keep presenter, captions, and device screen inside safe margins.";
+  }
+  if (size === "square") {
+    return "Strictly square 1:1 for social feed video, not portrait or landscape; keep presenter, captions, and device screen inside safe margins.";
+  }
+  return "Strictly portrait 9:16 for Instagram Reels, not landscape or square; keep presenter, captions, and device screen inside mobile safe margins.";
+}
+
+function vidsVideoSizePromptLead(seconds, value, description) {
+  const size = normalizeVidsVideoSize(value);
+  if (size === "landscape") {
+    return `Create a ${seconds}-second 16:9 landscape AI avatar ${description} clip.`;
+  }
+  if (size === "square") {
+    return `Create a ${seconds}-second 1:1 square AI avatar ${description} clip.`;
+  }
+  return `Create a ${seconds}-second 9:16 vertical portrait AI avatar ${description} clip.`;
+}
+
+function vidsVideoSizeSceneOpening(value) {
+  const size = normalizeVidsVideoSize(value);
+  if (size === "landscape") {
+    return "Create a 10-second 16:9 landscape video for YouTube or a wide social post.";
+  }
+  if (size === "square") {
+    return "Create a 10-second 1:1 square video for a social feed post.";
+  }
+  return "Create a 10-second 9:16 vertical video for Instagram Reels.";
 }
 
 function normalizeHookTone(value) {
@@ -3226,7 +3293,7 @@ function hookAvatarReadme(result) {
     "Use this flow:",
     "",
     "1. Generate/open Google Vids from the dashboard.",
-    "2. Use AI Avatar in portrait mode for the hook scene.",
+    `2. Use AI Avatar in ${result.videoSizeLabel || vidsVideoSizeLabel(result.videoSize || "portrait")} mode for the hook scene.`,
     "3. Download the generated hook MP4.",
     "4. Keep/copy the hook MP4 as `hook_avatar.mp4` and `../vids-clips/scene-01.mp4`.",
     ...middleLines,
@@ -3271,6 +3338,9 @@ async function prepareHookAvatar(body = {}) {
   const rowNumber = Number(body.row || 2);
   const presenter = normalizeHookPresenter(body.presenter || body.hookAvatarStyle || defaultHookAvatarStyle);
   const tone = normalizeHookTone(body.tone || "energetic");
+  const videoSize = normalizeVidsVideoSize(body.videoSize || body.vidsVideoSize || body.aspectRatio || "portrait");
+  const videoSizeLabel = vidsVideoSizeLabel(videoSize);
+  const videoSizeLine = vidsVideoSizePromptLine(videoSize);
   const durationSeconds = clamp(asFiniteNumber(body.durationSeconds || body.duration, 10), 6, 10);
   const tool = await toolRowForInput(input, rowNumber);
   const artifacts = await findToolArtifacts({
@@ -3357,10 +3427,10 @@ async function prepareHookAvatar(body = {}) {
     duration: durationSeconds,
     voiceover: hookScript,
     onscreen_text: onscreenText,
-    visual: `${characterDirection} ${customAvatarDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection(tone)}. Portrait 9:16 reel frame. Hook starts immediately, face fills the upper frame, laptop beside presenter briefly shows the real AltFTool page.`,
+    visual: `${characterDirection} ${customAvatarDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection(tone)}. ${videoSizeLabel} frame. Hook starts immediately, face fills the upper frame, laptop beside presenter briefly shows the real AltFTool page.`,
     video_prompt: [
-      `Create a ${durationSeconds}-second 9:16 vertical portrait AI avatar hook clip.`,
-      "Strictly portrait 9:16 for Instagram Reels, not landscape or square; keep face and captions inside mobile safe margins.",
+      vidsVideoSizePromptLead(durationSeconds, videoSize, "hook"),
+      videoSizeLine,
       characterDirection,
       customAvatarDirection,
       hookPresenterDirection(presenter),
@@ -3378,8 +3448,8 @@ async function prepareHookAvatar(body = {}) {
     onscreen_text: middleAvatarOnscreenText[sceneNumber],
     visual: `${characterDirection} ${customAvatarDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection("professional")} Mid-reel human focus break beside a laptop showing the real AltFTool demo; the avatar points at the useful workflow and keeps attention before the screen demo continues.`,
     video_prompt: [
-      `Create a ${focusDurationSeconds}-second 9:16 vertical portrait AI avatar focus clip for Scene ${sceneNumber}.`,
-      "Strictly portrait 9:16 for Instagram Reels, not landscape or square; keep presenter and captions inside safe margins.",
+      vidsVideoSizePromptLead(focusDurationSeconds, videoSize, `focus Scene ${sceneNumber}`),
+      videoSizeLine,
       characterDirection,
       customAvatarDirection,
       hookPresenterDirection(presenter),
@@ -3396,8 +3466,8 @@ async function prepareHookAvatar(body = {}) {
     onscreen_text: ctaOnscreenText,
     visual: `${characterDirection} ${customAvatarDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection("friendly")} Final face-to-camera CTA, phone shows an Instagram draft/caption area, laptop has the real AltFTool page visible in the background.`,
     video_prompt: [
-      `Create a ${ctaDurationSeconds}-second 9:16 vertical portrait AI avatar CTA clip.`,
-      "Strictly portrait 9:16 for Instagram Reels, not landscape or square; keep presenter and CTA text inside mobile safe margins.",
+      vidsVideoSizePromptLead(ctaDurationSeconds, videoSize, "CTA"),
+      videoSizeLine,
       characterDirection,
       customAvatarDirection,
       hookPresenterDirection(presenter),
@@ -3423,7 +3493,8 @@ async function prepareHookAvatar(body = {}) {
       middle_avatar_scenes: middleScenes,
       reel_scene_count: reelSceneCount,
       cta_scene_number: ctaSceneNumber,
-      video_size: "portrait_9_16",
+      video_size: videoSize,
+      video_size_label: videoSizeLabel,
       google_vids_avatar: googleVidsAvatar,
       avatar_choice: avatarChoice,
       source_script_path: scriptBuild.scriptPath || ""
@@ -3446,7 +3517,9 @@ async function prepareHookAvatar(body = {}) {
       presenter,
       avatarChoice,
       googleVidsAvatar,
-      portrait: true,
+      videoSize,
+      videoSizeLabel,
+      portrait: videoSize === "portrait",
       tone,
       durationSeconds,
       status: "prepared",
@@ -3459,7 +3532,9 @@ async function prepareHookAvatar(body = {}) {
       presenter,
       avatarChoice,
       googleVidsAvatar,
-      portrait: true,
+      videoSize,
+      videoSizeLabel,
+      portrait: videoSize === "portrait",
       tone: "professional",
       durationSeconds: focusDurationSeconds,
       sceneNumber,
@@ -3473,7 +3548,9 @@ async function prepareHookAvatar(body = {}) {
       presenter,
       avatarChoice,
       googleVidsAvatar,
-      portrait: true,
+      videoSize,
+      videoSizeLabel,
+      portrait: videoSize === "portrait",
       tone: "friendly",
       durationSeconds: ctaDurationSeconds,
       sceneNumber: ctaSceneNumber,
@@ -3532,7 +3609,9 @@ async function prepareHookAvatar(body = {}) {
     presenter,
     avatarChoice,
     googleVidsAvatar,
-    portrait: true,
+    videoSize,
+    videoSizeLabel,
+    portrait: videoSize === "portrait",
     tone,
     durationSeconds,
     focusDurationSeconds,
@@ -3632,6 +3711,7 @@ async function prepareHookAvatar(body = {}) {
       hookAvatarPresenter: presenter,
       hookAvatarCharacter: body.avatar || body.googleVidsAvatar || "auto_by_reel",
       avatarHostImage: avatarReferenceFiles[0] || state.settings?.avatarHostImage || "",
+      hookVideoSize: videoSize,
       lastHookAvatarCharacter: googleVidsAvatar,
       lastHookAvatarCharacterLabel: avatarChoice.label,
       hookAvatarTone: tone,
@@ -3801,6 +3881,7 @@ async function generateHookAvatarForProfile(prepared, body, run, profile, profil
   const afterSubmitWait = clamp(asFiniteNumber(body.afterSubmitWait || body.afterSubmitWaitMs, 120000), 30000, 600000);
   const manualRecoveryWait = clamp(asFiniteNumber(body.manualRecoveryWait || body.manualRecoveryWaitMs, 600000), 0, 1800000);
   const selectedAvatar = String(prepared.googleVidsAvatar || prepared.avatarChoice?.value || body.avatar || defaultAvatar || "auto");
+  const videoSize = normalizeVidsVideoSize(body.videoSize || prepared.videoSize || prepared.scenePlan?.metadata?.video_size || "portrait");
   const operateArgs = [
     "--scenes", prepared.scenePlanPath,
     "--manifest", prepared.manifestPath,
@@ -3808,8 +3889,7 @@ async function generateHookAvatarForProfile(prepared, body, run, profile, profil
     "--max-scenes", "1",
     "--output", operateDir,
     "--profile", profile,
-    "--video-size", "portrait",
-    "--require-portrait",
+    "--video-size", videoSize,
     "--avatar", selectedAvatar,
     "--avatar-scenes", String(sceneNumber),
     "--submit",
@@ -3820,9 +3900,12 @@ async function generateHookAvatarForProfile(prepared, body, run, profile, profil
   if (body.url) {
     operateArgs.push("--url", String(body.url));
   }
+  if (videoSize === "portrait") {
+    operateArgs.push("--require-portrait");
+  }
 
   addHookAvatarLog(run, `Selected Google Vids avatar: ${prepared.avatarChoice?.label || selectedAvatar} (${prepared.avatarChoice?.reason || "manual/default"}).`);
-  addHookAvatarLog(run, `Opening Google Vids for ${sceneLabel} generation using ${profile}.`);
+  addHookAvatarLog(run, `Opening Google Vids for ${sceneLabel} generation using ${profile} in ${vidsVideoSizeLabel(videoSize)}.`);
   let operateError = null;
   await runHookNodeScript(run, `${reportLabel}-vids:${profileLabel}`, "src/google-vids-operate.mjs", operateArgs)
     .catch((error) => {
@@ -6444,6 +6527,9 @@ function runArgsFromBody(body, outputDir) {
   if (normalized.hookAvatarStyle) {
     runArgs.push("--hook-avatar", String(normalized.hookAvatarStyle));
   }
+  if (normalized.videoSize) {
+    runArgs.push("--video-size", String(normalized.videoSize));
+  }
   if (normalized.avatarReferenceImages) {
     runArgs.push("--creator-images", String(normalized.avatarReferenceImages));
     runArgs.push("--avatar-pack-providers", String(normalized.avatarPackProviders || defaultAvatarGenerationProviders));
@@ -7278,6 +7364,7 @@ async function saveSettingsState(body) {
     "basicWorkflowMode",
     "hookAvatarStyle",
     "hookAvatarCharacter",
+    "hookVideoSize",
     "avatarHostImage",
     "hookPrimaryProfile",
     "hookFallbackProfile",
@@ -7285,6 +7372,7 @@ async function saveSettingsState(body) {
     "scriptVideoPrimaryProfile",
     "scriptVideoFallbackProfile",
     "scriptVideoFallbackEnabled",
+    "scriptVideoSize",
     "globalPrimaryProfile",
     "globalFallbackProfile",
     "globalFallbackEnabled",
@@ -7318,6 +7406,8 @@ async function saveSettingsState(body) {
       } else if (key === "hookAvatarCharacter") {
         const character = String(body.hookAvatarCharacter || "").trim();
         next.hookAvatarCharacter = character || (current.hookAvatarCharacter || "auto_by_reel");
+      } else if (["hookVideoSize", "scriptVideoSize"].includes(key)) {
+        next[key] = normalizeVidsVideoSize(body[key] || current[key] || "portrait");
       } else if (key === "featureTab") {
         next.featureTab = body.featureTab === "advanced" ? "advanced" : "basic";
       } else if (key === "workspaceTab") {
@@ -7352,6 +7442,7 @@ async function handleApi(req, res, pathname, searchParams) {
           basicWorkflowMode: savedSettings.basicWorkflowMode || "google-hook",
           hookAvatarStyle: savedSettings.hookAvatarStyle || defaultHookAvatarStyle,
           hookAvatarCharacter: savedSettings.hookAvatarCharacter || "auto_by_reel",
+          hookVideoSize: normalizeVidsVideoSize(savedSettings.hookVideoSize || "portrait"),
           avatarHostImage: savedSettings.avatarHostImage || "",
           hookPrimaryProfile: savedSettings.hookPrimaryProfile || savedSettings.globalPrimaryProfile || defaultProfiles[0] || "",
           hookFallbackProfile: savedSettings.hookFallbackProfile || savedSettings.globalFallbackProfile || defaultProfiles[1] || "",
@@ -7361,6 +7452,7 @@ async function handleApi(req, res, pathname, searchParams) {
           scriptVideoFallbackEnabled: typeof savedSettings.scriptVideoFallbackEnabled === "boolean"
             ? savedSettings.scriptVideoFallbackEnabled
             : (typeof savedSettings.hookFallbackEnabled === "boolean" ? savedSettings.hookFallbackEnabled : true),
+          scriptVideoSize: normalizeVidsVideoSize(savedSettings.scriptVideoSize || savedSettings.hookVideoSize || "portrait"),
           sceneCount: savedSettings.sceneCount || 6,
           featureTab: savedSettings.featureTab || "basic",
           workspaceTab: savedSettings.workspaceTab || "tool-promo"

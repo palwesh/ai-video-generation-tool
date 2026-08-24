@@ -2519,7 +2519,8 @@ button.auto-output-link {
 }
 
 .hook-tone,
-.hook-duration {
+.hook-duration,
+.hook-video-size {
   width: 108px;
   flex: 0 0 auto;
 }
@@ -3909,6 +3910,7 @@ td a {
   .hook-presenter,
   .hook-tone,
   .hook-duration,
+  .hook-video-size,
   .hook-profile,
   .hook-fallback-toggle {
     width: 100%;
@@ -3927,6 +3929,7 @@ td a {
   .hook-character,
   .hook-tone,
   .hook-duration,
+  .hook-video-size,
   .hook-profile,
   .hook-fallback-toggle,
   .final-voice {

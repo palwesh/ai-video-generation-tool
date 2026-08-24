@@ -21,6 +21,50 @@ function assetLines(captureFiles, limit = 4) {
     : "- Use the provided tool URL as the visual reference.";
 }
 
+function videoSizeInfo(value = "") {
+  const raw = String(value || "").trim().toLowerCase();
+  if (/landscape|horizontal|16:9|wide|youtube/.test(raw)) {
+    return {
+      value: "landscape",
+      shortLabel: "Landscape 16:9",
+      promptLead: "Create a 10-second 16:9 landscape video",
+      masterLead: "Create a landscape 16:9 video",
+      strictLine: "Strict format: landscape 16:9 only, not vertical, not square. Keep faces, captions, cursor highlights, and laptop/phone screens inside safe margins.",
+      platform: "YouTube / website / wide social video"
+    };
+  }
+  if (/square|1:1|post/.test(raw)) {
+    return {
+      value: "square",
+      shortLabel: "Square 1:1",
+      promptLead: "Create a 10-second 1:1 square video",
+      masterLead: "Create a square 1:1 video",
+      strictLine: "Strict format: square 1:1 only, not vertical, not landscape. Keep faces, captions, cursor highlights, and device screens inside safe margins.",
+      platform: "Instagram feed / LinkedIn / square social video"
+    };
+  }
+  return {
+    value: "portrait",
+    shortLabel: "Portrait 9:16",
+    promptLead: "Create a 10-second 9:16 vertical video",
+    masterLead: "Create a 9:16 portrait video",
+    strictLine: "Strict format: portrait 9:16 only, not landscape, not square. Keep faces, captions, cursor highlights, and phone/laptop screens inside mobile safe margins.",
+    platform: "Instagram Reels / YouTube Shorts"
+  };
+}
+
+function videoSizeFrom(scenePlan = {}, manifest = {}, options = {}) {
+  return videoSizeInfo(
+    options.videoSize
+    || scenePlan.metadata?.video_size
+    || scenePlan.metadata?.videoSize
+    || manifest.video_size
+    || manifest.videoSize
+    || manifest.hookAvatar?.videoSize
+    || "portrait"
+  );
+}
+
 function referenceIntentLines(referenceFiles = [], toolUrl = "") {
   const files = referenceFiles.slice(0, 5);
   if (!files.length) {
@@ -55,6 +99,7 @@ export function buildGoogleVidsMasterPrompt(scenePlan, manifest = {}) {
   const captureFiles = manifest.capture?.files || [];
   const sceneCount = scenePlan.scenes.length || 6;
   const totalDuration = scenePlan.scenes.reduce((sum, scene) => sum + Number(scene.duration || 10), 0) || sceneCount * 10;
+  const size = videoSizeFrom(scenePlan, manifest);
 
   const sceneLines = scenePlan.scenes.map((scene) => (
     `Scene ${scene.scene_number} (${scene.duration}s):\n` +
@@ -64,8 +109,8 @@ export function buildGoogleVidsMasterPrompt(scenePlan, manifest = {}) {
   ));
 
   return trimBlock([
-    `Create a ${totalDuration}-second Instagram Reel / YouTube Short in strict 9:16 portrait format for ${toolName}.`,
-    "Strict format: portrait 9:16 only, not landscape, not square. Keep faces, captions, cursor highlights, and phone/laptop screens inside mobile safe margins.",
+    `${size.masterLead} (${totalDuration} seconds total) for ${toolName}.`,
+    size.strictLine,
     "Goal: promote the AltFTool micro tool with a scroll-stopping hook, real tool proof, clear workflow, and a save/share/follow CTA.",
     `Language: Hinglish, natural Indian creator delivery, simple words, no robotic phrasing.`,
     "Style: realistic modern SaaS/UGC, fast cuts, human presenter/avatar moments, laptop and phone shots, visible cursor highlights, clean mobile-readable captions.",
@@ -104,6 +149,7 @@ export function buildGoogleVidsClipPrompt(scenePlan, sceneNumber, manifest = {},
   const toolUrl = tool.tool_url || "provided Tool URL";
   const captureFiles = manifest.capture?.files || [];
   const sceneCount = Number(scenePlan.metadata?.reel_scene_count || scenePlan.metadata?.scene_count || scenePlan.scenes.length || 6) || 6;
+  const size = videoSizeFrom(scenePlan, manifest, options);
   const referenceFiles = Array.isArray(options.referenceFiles) ? options.referenceFiles : captureFiles;
   const referenceLines = referenceIntentLines(referenceFiles, toolUrl);
   const isHookScene = Number(sceneNumber) === 1;
@@ -125,8 +171,8 @@ export function buildGoogleVidsClipPrompt(scenePlan, sceneNumber, manifest = {},
     : "Keep the scene tied to the tool value, not generic stock footage.";
 
   return trimBlock([
-    `Create a 10-second 9:16 vertical video for Instagram Reels / YouTube Shorts promoting ${toolName}.`,
-    "Strict format: portrait 9:16 only, not landscape, not square. Keep all faces, captions, and device screens inside mobile safe margins.",
+    `${size.promptLead} for ${size.platform} promoting ${toolName}.`,
+    size.strictLine,
     `Scene ${scene.scene_number}/${sceneCount} intent: ${sceneIntent(scene.scene_number, sceneCount)}.`,
     hookDirection,
     ctaDirection,
