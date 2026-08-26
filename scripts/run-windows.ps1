@@ -1,8 +1,10 @@
 [CmdletBinding()]
 param(
   [int]$Port = 0,
+  [string]$HostAddress = "",
   [string]$ExcelPath = "",
   [string]$DriveSyncDir = "",
+  [switch]$Lan,
   [switch]$NoBrowser,
   [switch]$SkipInstall
 )
@@ -136,6 +138,63 @@ function Resolve-OptionalPathText {
   }
 }
 
+function Test-AllInterfacesHost {
+  param([string]$Value)
+  $normalized = "$Value".Trim().ToLowerInvariant()
+  return $normalized -eq "0.0.0.0" -or $normalized -eq "::" -or $normalized -eq "::0" -or $normalized -eq "[::]"
+}
+
+function Get-BrowserHost {
+  param([string]$Value)
+  if (Test-AllInterfacesHost -Value $Value) {
+    return "127.0.0.1"
+  }
+  if ("$Value".Trim().ToLowerInvariant() -eq "localhost") {
+    return "127.0.0.1"
+  }
+  if (-not "$Value".Trim()) {
+    return "127.0.0.1"
+  }
+  return "$Value".Trim()
+}
+
+function Get-LanUrls {
+  param([int]$PortValue)
+  $ips = @()
+  try {
+    $ips = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+      Where-Object { $_.IPAddress -and $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" } |
+      Select-Object -ExpandProperty IPAddress -Unique)
+  } catch {
+    $ips = @()
+  }
+  return @($ips | ForEach-Object { "http://$($_):$PortValue" })
+}
+
+function Write-DashboardLinks {
+  param(
+    [int]$PortValue,
+    [string]$HostValue
+  )
+  $localUrl = "http://$(Get-BrowserHost -Value $HostValue):$PortValue"
+  Write-Host "Local URL: $localUrl" -ForegroundColor Green
+  if (Test-AllInterfacesHost -Value $HostValue) {
+    $lanUrls = @(Get-LanUrls -PortValue $PortValue)
+    if ($lanUrls.Count -gt 0) {
+      Write-Host "Same Wi-Fi URLs:" -ForegroundColor Green
+      foreach ($url in $lanUrls) {
+        Write-Host "  $url" -ForegroundColor Green
+      }
+    } else {
+      Write-Host "Same Wi-Fi URL not found. Check Wi-Fi/Ethernet connection." -ForegroundColor Yellow
+    }
+  } else {
+    Write-Host "Same Wi-Fi: run .\run-windows.bat -Lan to show team URLs." -ForegroundColor Yellow
+  }
+  Write-Host "Docs: $localUrl/docs.html" -ForegroundColor Cyan
+  Write-Host "Vids Flow: $localUrl/vids-flow.html" -ForegroundColor Cyan
+}
+
 $projectRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $projectRoot
 
@@ -146,6 +205,19 @@ if ($Port -le 0) {
     $savedPort = 4317
   }
   $Port = $savedPort
+}
+
+if (-not $HostAddress) {
+  if ($Lan) {
+    $HostAddress = "0.0.0.0"
+  } else {
+    $savedHost = Get-LocalEnvValue -Key "TRF_UI_HOST"
+    if ($savedHost) {
+      $HostAddress = $savedHost
+    } else {
+      $HostAddress = "127.0.0.1"
+    }
+  }
 }
 
 Write-Section "Tool Reel Factory Windows Runner"
@@ -164,8 +236,13 @@ if ($needsSetup) {
     (Join-Path $PSScriptRoot "setup-windows.ps1"),
     "-Port",
     "$Port",
+    "-HostAddress",
+    "$HostAddress",
     "-SkipStart"
   )
+  if ($Lan) {
+    $setupArgs += "-Lan"
+  }
   if ($ExcelPath) {
     $setupArgs += @("-ExcelPath", $ExcelPath)
   }
@@ -187,7 +264,9 @@ $resolvedExcelPath = Resolve-OptionalPathText -PathText $ExcelPath
 $resolvedDriveSyncDir = Resolve-OptionalPathText -PathText $DriveSyncDir
 
 $env:TRF_UI_PORT = "$Port"
+$env:TRF_UI_HOST = "$HostAddress"
 Set-LocalEnvValue -Key "TRF_UI_PORT" -Value "$Port"
+Set-LocalEnvValue -Key "TRF_UI_HOST" -Value "$HostAddress"
 
 if ($resolvedExcelPath) {
   $env:TRF_DEFAULT_INPUT = $resolvedExcelPath
@@ -211,15 +290,16 @@ New-Item -ItemType Directory -Force -Path `
   "public\tool-reel-assets" | Out-Null
 
 Write-Section "Starting dashboard"
-Write-Host "Dashboard URL: http://127.0.0.1:$Port" -ForegroundColor Green
+Write-DashboardLinks -PortValue $Port -HostValue $HostAddress
 Write-Host "Stop with Ctrl+C." -ForegroundColor DarkGray
 
 if (-not $NoBrowser) {
+  $openUrl = "http://$(Get-BrowserHost -Value $HostAddress):$Port"
   Start-Job -ScriptBlock {
     param($Url)
     Start-Sleep -Seconds 3
     Start-Process $Url
-  } -ArgumentList "http://127.0.0.1:$Port" | Out-Null
+  } -ArgumentList $openUrl | Out-Null
 }
 
-Invoke-Checked -File $npmCommand -CommandArgs @("run", "ui", "--", "--port", "$Port") -Name "dashboard"
+Invoke-Checked -File $npmCommand -CommandArgs @("run", "ui", "--", "--port", "$Port", "--host", "$HostAddress") -Name "dashboard"

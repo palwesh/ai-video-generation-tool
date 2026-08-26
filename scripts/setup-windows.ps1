@@ -1,8 +1,10 @@
 [CmdletBinding()]
 param(
   [int]$Port = 4317,
+  [string]$HostAddress = "",
   [string]$ExcelPath = "",
   [string]$DriveSyncDir = "",
+  [switch]$Lan,
   [switch]$SkipInstall,
   [switch]$SkipBrowserInstall,
   [switch]$SkipStart,
@@ -172,6 +174,63 @@ function Resolve-OptionalPathText {
   }
 }
 
+function Test-AllInterfacesHost {
+  param([string]$Value)
+  $normalized = "$Value".Trim().ToLowerInvariant()
+  return $normalized -eq "0.0.0.0" -or $normalized -eq "::" -or $normalized -eq "::0" -or $normalized -eq "[::]"
+}
+
+function Get-BrowserHost {
+  param([string]$Value)
+  if (Test-AllInterfacesHost -Value $Value) {
+    return "127.0.0.1"
+  }
+  if ("$Value".Trim().ToLowerInvariant() -eq "localhost") {
+    return "127.0.0.1"
+  }
+  if (-not "$Value".Trim()) {
+    return "127.0.0.1"
+  }
+  return "$Value".Trim()
+}
+
+function Get-LanUrls {
+  param([int]$PortValue)
+  $ips = @()
+  try {
+    $ips = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+      Where-Object { $_.IPAddress -and $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" } |
+      Select-Object -ExpandProperty IPAddress -Unique)
+  } catch {
+    $ips = @()
+  }
+  return @($ips | ForEach-Object { "http://$($_):$PortValue" })
+}
+
+function Write-DashboardLinks {
+  param(
+    [int]$PortValue,
+    [string]$HostValue
+  )
+  $localUrl = "http://$(Get-BrowserHost -Value $HostValue):$PortValue"
+  Write-Host "Local URL: $localUrl" -ForegroundColor Green
+  if (Test-AllInterfacesHost -Value $HostValue) {
+    $lanUrls = @(Get-LanUrls -PortValue $PortValue)
+    if ($lanUrls.Count -gt 0) {
+      Write-Host "Same Wi-Fi URLs:" -ForegroundColor Green
+      foreach ($url in $lanUrls) {
+        Write-Host "  $url" -ForegroundColor Green
+      }
+    } else {
+      Write-Host "Same Wi-Fi URL not found. Check Wi-Fi/Ethernet connection." -ForegroundColor Yellow
+    }
+  } else {
+    Write-Host "Same Wi-Fi: run .\run-windows.bat -Lan to show team URLs." -ForegroundColor Yellow
+  }
+  Write-Host "Docs: $localUrl/docs.html" -ForegroundColor Cyan
+  Write-Host "Vids Flow: $localUrl/vids-flow.html" -ForegroundColor Cyan
+}
+
 function Find-Ffmpeg {
   return Test-CommandExists "ffmpeg"
 }
@@ -204,6 +263,14 @@ function Test-ChromeInstalled {
 
 $projectRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $projectRoot
+
+if (-not $HostAddress) {
+  if ($Lan) {
+    $HostAddress = "0.0.0.0"
+  } else {
+    $HostAddress = "127.0.0.1"
+  }
+}
 
 $isWindowsPlatform = [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
 if (-not $isWindowsPlatform) {
@@ -276,6 +343,7 @@ New-Item -ItemType Directory -Force -Path `
   "public\tool-reel-assets" | Out-Null
 
 Set-LocalEnvValue -Key "TRF_UI_PORT" -Value "$Port"
+Set-LocalEnvValue -Key "TRF_UI_HOST" -Value "$HostAddress"
 Set-LocalEnvValue -Key "PLAYWRIGHT_CHANNEL" -Value "chrome"
 
 if ($resolvedExcelPath) {
@@ -289,6 +357,7 @@ if ($resolvedDriveSyncDir) {
   Write-Host "Drive sync folder saved: $resolvedDriveSyncDir" -ForegroundColor Green
 }
 $env:TRF_UI_PORT = "$Port"
+$env:TRF_UI_HOST = "$HostAddress"
 
 if ($LocalOnlySmokeTest) {
   Write-Section "Running local smoke test"
@@ -296,19 +365,20 @@ if ($LocalOnlySmokeTest) {
 }
 
 Write-Section "Ready"
-Write-Host "Dashboard URL: http://127.0.0.1:$Port" -ForegroundColor Green
+Write-DashboardLinks -PortValue $Port -HostValue $HostAddress
 Write-Host "Daily run command: .\run-windows.bat" -ForegroundColor Green
 Write-Host "Google Vids login command: npm run vids:login -- --profile work/google-vids-profile" -ForegroundColor Green
 Write-Host "Stop dashboard with Ctrl+C." -ForegroundColor DarkGray
 
 if (-not $SkipStart) {
   if (-not $NoOpenBrowser) {
+    $openUrl = "http://$(Get-BrowserHost -Value $HostAddress):$Port"
     Start-Job -ScriptBlock {
       param($Url)
       Start-Sleep -Seconds 4
       Start-Process $Url
-    } -ArgumentList "http://127.0.0.1:$Port" | Out-Null
+    } -ArgumentList $openUrl | Out-Null
   }
 
-  Invoke-Step -File $npmCommand -CommandArgs @("run", "ui", "--", "--port", "$Port") -Name "dashboard"
+  Invoke-Step -File $npmCommand -CommandArgs @("run", "ui", "--", "--port", "$Port", "--host", "$HostAddress") -Name "dashboard"
 }

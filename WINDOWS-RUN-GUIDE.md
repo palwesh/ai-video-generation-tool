@@ -52,6 +52,24 @@ Agar browser auto-open nahi chahiye:
 .\run-windows.bat -NoBrowser
 ```
 
+Same Wi-Fi par other users ko access dena ho to server mode me run karo:
+
+```powershell
+.\run-windows.bat -Lan
+```
+
+Terminal me links wahi dikh jayenge:
+
+```text
+Local URL: http://127.0.0.1:4317
+Same Wi-Fi URLs:
+  http://192.168.1.25:4317
+Docs: http://127.0.0.1:4317/docs.html
+Vids Flow: http://127.0.0.1:4317/vids-flow.html
+```
+
+Other users ko `Same Wi-Fi URLs` wala link dena hai. Agar open nahi hota, Windows Firewall me port `4317` allow karo.
+
 ## 4. Excel File Ke Saath Run
 
 Agar Excel file ka path pehle se set karna hai:

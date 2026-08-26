@@ -66,7 +66,7 @@ With your Excel file path:
 
 The setup script installs/checks Node.js 20+, dependencies, Git, Chrome, Playwright Chromium, FFmpeg when available, creates `.env`, saves optional Excel/Drive defaults, and starts the dashboard. `run-windows.bat` reuses that setup for normal daily use. Full guide: `docs/windows-setup.md`.
 
-For same Wi-Fi team usage, use one Windows machine as the main server. Other users can open that server's LAN URL only after LAN Share Mode is enabled with `0.0.0.0` binding and a PIN/password. All assets, videos, Excel updates, Google Vids downloads, and final reels are saved on the server machine. Read the multi-user rules in `docs/windows-setup.md`.
+For same Wi-Fi team usage, use one Windows machine as the main server and start it with `.\run-windows.bat -Lan`. The terminal prints the local dashboard link plus Same Wi-Fi URLs like `http://192.168.1.25:4317`. All assets, videos, Excel updates, Google Vids downloads, and final reels are saved on the server machine. Read the multi-user rules in `docs/windows-setup.md`.
 
 For a simple Windows-first checklist, read `WINDOWS-RUN-GUIDE.md`.
 

@@ -140,12 +140,20 @@ Default mode is safe: Credit Safe is ON and Low-credit Vids is ON, so prompt pre
 
 For team usage, use one Windows laptop or desktop as the main server and let same-Wi-Fi users open the dashboard in their own browsers. The browser runs on each user's laptop, but automation runs on the server machine.
 
-Important current status:
+LAN start command:
 
 ```text
-Current dashboard binding: 127.0.0.1
-Current access: local machine only
-Required for LAN sharing: 0.0.0.0 host binding plus PIN/password
+.\run-windows.bat -Lan
+```
+
+The server terminal prints:
+
+```text
+Local URL: http://127.0.0.1:4317
+Same Wi-Fi URLs:
+  http://192.168.1.25:4317
+Docs: http://127.0.0.1:4317/docs.html
+Vids Flow: http://127.0.0.1:4317/vids-flow.html
 ```
 
 Storage behavior:

@@ -41,6 +41,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 const args = parseArgs(process.argv.slice(2));
 const port = Number(args.port || process.env.TRF_UI_PORT || 4317);
+const host = String(args.host || process.env.TRF_UI_HOST || "127.0.0.1").trim() || "127.0.0.1";
 const configPath = path.join(projectRoot, "config/default.json");
 const appConfig = JSON.parse(fsSync.readFileSync(configPath, "utf8"));
 function resolveProjectPath(value, fallback = "") {
@@ -218,6 +219,64 @@ function sendSse(res, event, data) {
 
 function timestampSlug() {
   return new Date().toISOString().replace(/[:.]/g, "-");
+}
+
+function isAllInterfacesHost(value = "") {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "0.0.0.0" || normalized === "::" || normalized === "::0" || normalized === "[::]";
+}
+
+function displayHostForBrowser(value = "") {
+  if (isAllInterfacesHost(value)) {
+    return "127.0.0.1";
+  }
+  if (String(value || "").toLowerCase() === "localhost") {
+    return "127.0.0.1";
+  }
+  return String(value || "127.0.0.1");
+}
+
+function localIpv4Addresses() {
+  const interfaces = os.networkInterfaces();
+  const addresses = [];
+  for (const entries of Object.values(interfaces)) {
+    for (const entry of entries || []) {
+      if (!entry || entry.internal || entry.family !== "IPv4") {
+        continue;
+      }
+      if (/^(127\.|169\.254\.)/.test(entry.address)) {
+        continue;
+      }
+      addresses.push(entry.address);
+    }
+  }
+  return [...new Set(addresses)].sort();
+}
+
+function printServerLinks() {
+  const browserHost = displayHostForBrowser(host);
+  const localUrl = `http://${browserHost}:${port}`;
+  const lanUrls = isAllInterfacesHost(host)
+    ? localIpv4Addresses().map((address) => `http://${address}:${port}`)
+    : [];
+
+  console.log("");
+  console.log("AI Reel Creator by Prathak UI is running");
+  console.log(`Local URL: ${localUrl}`);
+  if (lanUrls.length) {
+    console.log("Same Wi-Fi URLs:");
+    for (const url of lanUrls) {
+      console.log(`  ${url}`);
+    }
+  } else if (isAllInterfacesHost(host)) {
+    console.log("Same Wi-Fi URL: no active LAN IP found. Check Wi-Fi/Ethernet connection.");
+  } else {
+    console.log("Same Wi-Fi: start with --host 0.0.0.0 to allow other devices on this network.");
+  }
+  console.log(`Docs: ${localUrl}/docs.html`);
+  console.log(`Vids Flow: ${localUrl}/vids-flow.html`);
+  console.log("Stop server: Ctrl+C");
+  console.log("");
 }
 
 function safeUploadFileName(value) {
@@ -8915,6 +8974,15 @@ const server = http.createServer(async (req, res) => {
   await serveStatic(req, res, url.pathname);
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`AI Reel Creator by Prathak UI running at http://127.0.0.1:${port}`);
+server.on("error", (error) => {
+  if (error?.code === "EADDRINUSE") {
+    console.error(`Port ${port} is already in use. Try: npm run ui -- --port ${port + 1}`);
+    process.exit(1);
+  }
+  console.error(error);
+  process.exit(1);
+});
+
+server.listen(port, host, () => {
+  printServerLinks();
 });

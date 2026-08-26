@@ -41,13 +41,25 @@ This reuses saved `.env` settings, Google Vids profile folders, installed depend
 
 Use one Windows laptop or desktop as the main server. Other users on the same Wi-Fi should open the dashboard from their browser, but all automation and saved files stay on the main server machine.
 
-Current code status:
+LAN server command:
 
-- The dashboard currently starts on `127.0.0.1`, which means only the same Windows machine can open it.
-- For direct same-Wi-Fi browser access, the server must support LAN binding such as `0.0.0.0` plus a PIN/password gate.
-- Do not expose the dashboard to a public network without authentication.
+```powershell
+.\run-windows.bat -Lan
+```
 
-How the LAN flow should work after LAN Share Mode is enabled:
+The terminal prints links like:
+
+```text
+Local URL: http://127.0.0.1:4317
+Same Wi-Fi URLs:
+  http://192.168.1.25:4317
+Docs: http://127.0.0.1:4317/docs.html
+Vids Flow: http://127.0.0.1:4317/vids-flow.html
+```
+
+Do not expose the dashboard to a public network without authentication. For LAN sharing, keep it on trusted same Wi-Fi only.
+
+How the LAN flow works:
 
 1. Start the dashboard on the Windows server in LAN mode.
 2. Find the Windows server Wi-Fi IP:
@@ -68,7 +80,7 @@ Look for the active Wi-Fi adapter's IPv4 address, for example:
 http://192.168.1.25:4317
 ```
 
-4. Every user should enter the shared PIN/password before using the tool.
+4. Share the LAN URL only with trusted same Wi-Fi users. Add a PIN/password gate before exposing it beyond your private network.
 
 Where files are saved:
 

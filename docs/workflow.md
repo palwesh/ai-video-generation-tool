@@ -19,7 +19,7 @@
 
 Use `http://127.0.0.1:4317` for the simplest one-video workflow.
 
-For same Wi-Fi usage, run the dashboard from one main Windows/server machine and let other users open that server's LAN URL. Generated assets, videos, Google Vids downloads, tracker workbooks, and final reels are saved on the server machine, not on each user's laptop. Current code starts on localhost only; true LAN sharing should be enabled with a `0.0.0.0` host option plus PIN/password protection before multiple users use it directly.
+For same Wi-Fi usage, run the dashboard from one main Windows/server machine with `.\run-windows.bat -Lan` and let other users open the printed Same Wi-Fi URL. Generated assets, videos, Google Vids downloads, tracker workbooks, and final reels are saved on the server machine, not on each user's laptop. Keep it on trusted private Wi-Fi only; add PIN/password protection before exposing it beyond your own network.
 
 Runner agent shortcuts:
 
@@ -76,7 +76,7 @@ Use these rules when a team is using the dashboard from the same Wi-Fi network.
 - Google Vids profiles should be locked while a job is using them. If profile 1 is busy or limit-used, the queue should try profile 2/3/4.
 - Final render should usually be one job at a time on a laptop. On a stronger Windows desktop, use at most 2 local renders at a time.
 - Use `Quick Preview` before full render to save time and avoid wasting Google Vids/API credits.
-- Add PIN/password protection before opening the dashboard on LAN. Do not expose it to public internet.
+- Share the LAN URL only with trusted same Wi-Fi users. Do not expose it to public internet without authentication.
 - If multiple users create videos for the same tool, keep every version. Timestamp output folders and the `Video Versions` sheet make old and new reels trackable.
 
 ## Bulk Script Improvement Prompt
