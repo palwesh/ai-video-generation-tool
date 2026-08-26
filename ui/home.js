@@ -197,6 +197,24 @@ const els = {
   finalReviewPanel: document.getElementById("finalReviewPanel"),
   finalReviewMeta: document.getElementById("finalReviewMeta"),
   finalReviewChecklist: document.getElementById("finalReviewChecklist"),
+  finalConfigPanel: document.getElementById("finalConfigPanel"),
+  finalConfigSummary: document.getElementById("finalConfigSummary"),
+  finalAssetMap: document.getElementById("finalAssetMap"),
+  finalUseVidsVoiceoverFirst: document.getElementById("finalUseVidsVoiceoverFirst"),
+  finalRequireVidsVoiceover: document.getElementById("finalRequireVidsVoiceover"),
+  finalCaptionModeSelect: document.getElementById("finalCaptionModeSelect"),
+  finalAvatarAudioModeSelect: document.getElementById("finalAvatarAudioModeSelect"),
+  finalAvatarCaptionModeSelect: document.getElementById("finalAvatarCaptionModeSelect"),
+  finalAltCardSecondsInput: document.getElementById("finalAltCardSecondsInput"),
+  finalEndCardSecondsInput: document.getElementById("finalEndCardSecondsInput"),
+  finalMusicVolumeInput: document.getElementById("finalMusicVolumeInput"),
+  finalAssetFolderOverride: document.getElementById("finalAssetFolderOverride"),
+  finalHookVideoOverride: document.getElementById("finalHookVideoOverride"),
+  finalCtaVideoOverride: document.getElementById("finalCtaVideoOverride"),
+  finalVoiceoverFolderOverride: document.getElementById("finalVoiceoverFolderOverride"),
+  finalVoiceoverSourceOverride: document.getElementById("finalVoiceoverSourceOverride"),
+  finalRefreshConfigBtn: document.getElementById("finalRefreshConfigBtn"),
+  finalClearOverridesBtn: document.getElementById("finalClearOverridesBtn"),
   assetResult: document.getElementById("assetResult"),
   assetToolName: document.getElementById("assetToolName"),
   assetFileCount: document.getElementById("assetFileCount"),
@@ -2112,15 +2130,142 @@ function finalReviewItem(label, ok, detail = "", status = "") {
   `;
 }
 
+function pathOverrideValue(input) {
+  return String(input?.value || "").trim();
+}
+
+function currentFinalRenderConfig() {
+  const musicPercent = finiteClamp(els.finalMusicVolumeInput?.value, 12, 0, 30);
+  const assetOverrides = {
+    assetsDir: pathOverrideValue(els.finalAssetFolderOverride),
+    hookAvatarVideo: pathOverrideValue(els.finalHookVideoOverride),
+    ctaAvatarVideo: pathOverrideValue(els.finalCtaVideoOverride),
+    voiceoverDir: pathOverrideValue(els.finalVoiceoverFolderOverride),
+    voiceoverSourceVideo: pathOverrideValue(els.finalVoiceoverSourceOverride)
+  };
+  return {
+    useVidsVoiceoverFirst: els.finalUseVidsVoiceoverFirst ? els.finalUseVidsVoiceoverFirst.checked !== false : true,
+    requireVidsVoiceover: Boolean(els.finalRequireVidsVoiceover?.checked),
+    captionMode: els.finalCaptionModeSelect?.value || "body",
+    avatarAudioMode: els.finalAvatarAudioModeSelect?.value || "keep",
+    avatarCaptionMode: els.finalAvatarCaptionModeSelect?.value || "auto",
+    altfOpenCardSeconds: finiteClamp(els.finalAltCardSecondsInput?.value, 4, 0, 6),
+    postAvatarOutroSeconds: finiteClamp(els.finalEndCardSecondsInput?.value, 2, 0, 6),
+    musicVolume: Math.round(musicPercent) / 100,
+    musicVolumePercent: Math.round(musicPercent),
+    assetOverrides
+  };
+}
+
+function finalConfigOverrideCount(config = currentFinalRenderConfig()) {
+  return Object.values(config.assetOverrides || {}).filter(Boolean).length;
+}
+
+function currentFinalReadiness(finalReel = {}) {
+  const config = currentFinalRenderConfig();
+  const row = Number(els.assetRowInput?.value || 0);
+  const sameRowAssets = Number(state.lastAssetRow || 0) === row;
+  const sameRowScript = Number(state.lastScriptRow || 0) === row;
+  const sameRowHook = Number(state.lastHookAvatarRow || 0) === row;
+  const sameRowVoice = Number(state.lastVidsVoiceoverRow || 0) === row;
+  const hookArtifact = state.latestArtifacts?.latestHookAvatar?.hookAvatar || state.latestArtifacts?.latestHookAvatar || {};
+  const hookArtifactRow = Number(hookArtifact.row || hookArtifact.hookAvatar?.row || 0);
+  const sameRowHookArtifact = hookArtifactRow === row;
+  const hookArtifactVideo = sameRowHookArtifact ? hookVideoPathFromArtifact(hookArtifact) : "";
+  const ctaArtifactVideo = sameRowHookArtifact ? ctaVideoPathFromArtifact(hookArtifact) : "";
+  const voiceOverride = config.assetOverrides.voiceoverDir || config.assetOverrides.voiceoverSourceVideo;
+  const hasVidsVoice = Boolean(voiceOverride || (sameRowVoice && (state.lastVidsVoiceoverFolder || state.lastVidsVoiceoverExport)));
+  const hasHook = Boolean(config.assetOverrides.hookAvatarVideo || (sameRowHook && state.lastHookAvatarVideo) || hookArtifactVideo);
+  const hasCta = Boolean(config.assetOverrides.ctaAvatarVideo || ctaArtifactVideo);
+  const hasAssets = Boolean(config.assetOverrides.assetsDir || (sameRowAssets && state.lastAssetFolder));
+  const hasScript = Boolean(sameRowScript && state.lastScriptFolder && state.currentScriptBuild);
+  const finalVideo = finalReel.videoPath || finalReel.outputPath || (Number(state.lastFinalReelRow || 0) === row ? state.lastFinalReelVideo || "" : "");
+  return {
+    config,
+    row,
+    hasAssets,
+    hasScript,
+    hasHook,
+    hasCta,
+    hasVidsVoice,
+    finalVideo,
+    hookArtifactVideo,
+    ctaArtifactVideo
+  };
+}
+
+function finalRenderPreflightWarnings(readiness = currentFinalReadiness()) {
+  const warnings = [];
+  if (!readiness.hasAssets) {
+    warnings.push("Tool demo assets missing: Build Assets or load old assets first.");
+  }
+  if (!readiness.hasScript) {
+    warnings.push("Reel script missing: Generate/Edit Script first.");
+  }
+  if (!readiness.hasHook) {
+    warnings.push("Vids hook avatar missing: final render will use local presenter fallback.");
+  }
+  if (readiness.config.useVidsVoiceoverFirst && !readiness.hasVidsVoice) {
+    warnings.push("Google Vids voiceover missing: body/demo will use local voice fallback.");
+  }
+  if (!lowCreditVidsEnabled() && !readiness.hasCta) {
+    warnings.push("CTA avatar missing: final scene will use local CTA fallback.");
+  }
+  return warnings;
+}
+
+function finalAssetMapItem(label, ok, detail = "", status = "") {
+  const finalStatus = status || (ok ? "complete" : "pending");
+  return `
+    <span data-status="${escapeHtml(finalStatus)}" title="${escapeHtml(detail || label)}">
+      <strong>${escapeHtml(label)}</strong>
+      ${detail ? `<small>${escapeHtml(detail)}</small>` : ""}
+    </span>
+  `;
+}
+
+function renderFinalConfigReview(finalReel = {}) {
+  const readiness = currentFinalReadiness(finalReel);
+  const { config, hasVidsVoice, hasHook, hasCta, hasAssets, hasScript } = readiness;
+  const overrideCount = finalConfigOverrideCount(config);
+  const preflightWarnings = finalRenderPreflightWarnings(readiness);
+
+  if (els.finalAssetMap) {
+    els.finalAssetMap.innerHTML = [
+      finalAssetMapItem("Post-ready check", preflightWarnings.length === 0, preflightWarnings.length ? `${preflightWarnings.length} item(s) need review` : "Premium assets ready", preflightWarnings.length ? "warning" : "complete"),
+      finalAssetMapItem("Hook avatar", hasHook, config.assetOverrides.hookAvatarVideo ? shortPath(config.assetOverrides.hookAvatarVideo) : hasHook ? "Latest selected-row hook video" : "Optional, local fallback if missing", hasHook ? "complete" : "warning"),
+      finalAssetMapItem("AltF card", config.altfOpenCardSeconds > 0, `${config.altfOpenCardSeconds}s after hook`, config.altfOpenCardSeconds > 0 ? "complete" : "warning"),
+      finalAssetMapItem("Tool demo assets", hasAssets, config.assetOverrides.assetsDir ? shortPath(config.assetOverrides.assetsDir) : hasAssets ? shortPath(state.lastAssetFolder) : "Build assets first", hasAssets ? "complete" : "warning"),
+      finalAssetMapItem("Script", hasScript, hasScript ? shortPath(state.lastScriptFolder) : "Generate/edit script first", hasScript ? "complete" : "warning"),
+      finalAssetMapItem("Body voice", hasVidsVoice, hasVidsVoice ? "Google Vids voiceover priority" : `${els.finalVoiceProviderSelect?.value || "free"} fallback`, hasVidsVoice ? "complete" : "warning"),
+      finalAssetMapItem("Captions", config.captionMode !== "off", config.captionMode === "body" ? "Only body/demo scenes" : config.captionMode, config.captionMode !== "off" ? "complete" : "warning"),
+      finalAssetMapItem("Avatar captions", config.avatarCaptionMode !== "off", config.avatarCaptionMode === "auto" ? "Auto if missing" : config.avatarCaptionMode, config.avatarCaptionMode !== "off" ? "complete" : "warning"),
+      finalAssetMapItem("CTA avatar", hasCta, config.assetOverrides.ctaAvatarVideo ? shortPath(config.assetOverrides.ctaAvatarVideo) : hasCta ? "Latest avatar pack CTA" : "Local CTA if missing", hasCta ? "complete" : "warning"),
+      finalAssetMapItem("End card", config.postAvatarOutroSeconds > 0, config.postAvatarOutroSeconds > 0 ? `${config.postAvatarOutroSeconds}s brand close` : "Disabled", config.postAvatarOutroSeconds > 0 ? "complete" : "warning")
+    ].join("");
+  }
+
+  if (els.finalConfigSummary) {
+    const voice = hasVidsVoice && config.useVidsVoiceoverFirst ? "Vids voice first" : `${els.finalVoiceProviderSelect?.value || "free"} voice`;
+    const caption = config.captionMode === "off" ? "captions off" : `${config.captionMode} captions`;
+    const avatarCaption = config.avatarCaptionMode === "off" ? "avatar cap off" : `avatar cap ${config.avatarCaptionMode}`;
+    const override = overrideCount ? `${overrideCount} override(s)` : "auto assets";
+    const rendered = finalReel.videoPath || finalReel.outputPath ? "final ready" : "ready to review";
+    const readinessLabel = preflightWarnings.length ? `draft: ${preflightWarnings.length} warning(s)` : "post-ready setup";
+    els.finalConfigSummary.textContent = `${readinessLabel} | ${voice} | ${caption} | ${avatarCaption} | AltF ${config.altfOpenCardSeconds}s | ${override} | ${rendered}`;
+  }
+}
+
 function renderFinalReview(finalReel = {}) {
   if (!els.finalReviewChecklist) return;
+  const readiness = currentFinalReadiness(finalReel);
   const row = Number(els.assetRowInput?.value || 0);
   const tool = selectedToolForRow(row) || {};
   const resultIsPreview = Boolean(finalReel.preview);
-  const assetsReady = Boolean(Number(state.lastAssetRow || 0) === row && state.lastAssetFolder);
-  const scriptReady = Boolean(Number(state.lastScriptRow || 0) === row && state.lastScriptFolder && state.currentScriptBuild);
+  const assetsReady = readiness.hasAssets;
+  const scriptReady = readiness.hasScript;
   const hookPrepared = Boolean(Number(state.lastHookAvatarRow || 0) === row && state.lastHookAvatarFolder);
-  const hookVideoReady = Boolean(Number(state.lastHookAvatarRow || 0) === row && state.lastHookAvatarVideo);
+  const hookVideoReady = readiness.hasHook;
   const previewVideo = resultIsPreview
     ? (finalReel.videoPath || finalReel.outputPath || "")
     : Number(state.lastPreviewReelRow || 0) === row ? state.lastPreviewReelVideo || "" : "";
@@ -2138,10 +2283,10 @@ function renderFinalReview(finalReel = {}) {
     return profile && !isHookProfileReady(profile);
   });
   const voiceMode = els.finalVoiceProviderSelect?.value || "free";
-  const sameRowVidsVoiceover = Number(state.lastVidsVoiceoverRow || 0) === row;
-  const hasVidsVoiceover = sameRowVidsVoiceover && Boolean(state.lastVidsVoiceoverFolder || state.lastVidsVoiceoverExport);
+  const hasVidsVoiceover = readiness.hasVidsVoice;
   const selectedName = toolDisplayName(tool || {});
   const profileReady = safe || readyProfileCount > 0 || selectedProfilePaths.length > 0;
+  const preflightWarnings = finalRenderPreflightWarnings(readiness);
   const profileDetail = safe
     ? "Credit Safe ON, local render allowed."
     : readyProfileCount > 0
@@ -2151,6 +2296,7 @@ function renderFinalReview(finalReel = {}) {
         : "Select or add a profile.";
   const checks = [
     finalReviewItem("Tool row", row >= 2, row >= 2 ? `Row ${row}${selectedName ? ` | ${selectedName}` : ""}` : "Select a valid Excel row."),
+    finalReviewItem("Post-ready", preflightWarnings.length === 0, preflightWarnings.length ? preflightWarnings.slice(0, 2).join(" | ") : "Hook/video/voice assets ready.", preflightWarnings.length ? "warning" : "complete"),
     finalReviewItem("Real assets", assetsReady, assetsReady ? shortPath(state.lastAssetFolder) : "Build or load old assets first.", assetsReady ? "complete" : "warning"),
     finalReviewItem("Reel script", scriptReady, scriptReady ? shortPath(state.lastScriptFolder) : "Generate or load old script.", scriptReady ? "complete" : "warning"),
     finalReviewItem("Vids mode", true, safe ? "Credit Safe local render." : lowCredit ? "Hook-only Vids, local body/CTA." : "Full hook/focus/CTA avatar pack."),
@@ -2158,16 +2304,19 @@ function renderFinalReview(finalReel = {}) {
     finalReviewItem("Voice", true, hasVidsVoiceover ? "Saved Google Vids voiceover will be used first." : voiceMode === "free" ? "Free/local voice selected." : `${voiceMode} selected. Review credits/API first.`),
     finalReviewItem("Profiles", profileReady, profileDetail, safe || (readyProfileCount > 0 && !selectedNeedsLogin) ? "complete" : selectedProfilePaths.length ? "warning" : "warning"),
     finalReviewItem("Quick preview", Boolean(previewVideo || finalVideo), previewVideo ? shortPath(previewVideo) : finalVideo ? "Final render available." : "Optional 15 sec local preview before full render.", previewVideo || finalVideo ? "complete" : "pending"),
-    finalReviewItem("Final QA", Boolean(finalVideo), finalVideo ? `Final ready${qualityScore ? ` | Quality ${qualityScore}/100` : ""}` : "Render will create final MP4.", finalVideo ? (warnings.length ? "warning" : "complete") : "pending")
+    finalReviewItem("Final QA", Boolean(finalVideo), finalVideo ? `${warnings.length ? "Review needed" : "Final ready"}${qualityScore ? ` | Quality ${qualityScore}/100` : ""}` : "Render will create final MP4.", finalVideo ? (warnings.length ? "warning" : "complete") : "pending")
   ];
   els.finalReviewChecklist.innerHTML = checks.join("");
   if (els.finalReviewMeta) {
     els.finalReviewMeta.textContent = finalVideo
-      ? `Ready to review: ${shortPath(finalVideo)}${qualityScore ? ` | Quality ${qualityScore}/100` : ""}`
+      ? `${warnings.length ? "Review needed" : "Ready to review"}: ${shortPath(finalVideo)}${qualityScore ? ` | Quality ${qualityScore}/100` : ""}`
       : previewVideo
         ? `Preview ready: ${shortPath(previewVideo)} | Full render pending`
-      : `${safe ? "Credit Safe local render" : lowCredit ? "Low-credit hook-only Vids" : "Full Vids pack"} | ${assetsReady ? "assets ready" : "assets pending"} | ${scriptReady ? "script ready" : "script pending"}`;
+        : preflightWarnings.length
+          ? `Preflight: ${preflightWarnings[0]}`
+          : `${safe ? "Credit Safe local render" : lowCredit ? "Low-credit hook-only Vids" : "Full Vids pack"} | ${assetsReady ? "assets ready" : "assets pending"} | ${scriptReady ? "script ready" : "script pending"}`;
   }
+  renderFinalConfigReview(finalReel);
 }
 
 function renderDocToc(headings = []) {
@@ -2606,6 +2755,10 @@ function fileUrl(file = {}) {
   return file.url || (file.path ? finalVideoUrl(file.path) : "");
 }
 
+function fileNameFromPath(value = "", fallback = "voiceover") {
+  return String(value || "").split(/[\\/]/).filter(Boolean).pop() || fallback;
+}
+
 function pickVoiceoverPreviewFile(finalReel = {}) {
   const files = Array.isArray(finalReel.files) ? finalReel.files : [];
   const candidates = files.map((file) => {
@@ -2624,6 +2777,51 @@ function pickVoiceoverPreviewFile(finalReel = {}) {
     return { file, score };
   }).filter((item) => item.score > 0).sort((a, b) => b.score - a.score);
   return candidates[0]?.file || null;
+}
+
+function voiceoverFilesFromArtifact(voiceover = {}) {
+  return [
+    ...(Array.isArray(voiceover.voiceover?.files) ? voiceover.voiceover.files : []),
+    ...(Array.isArray(voiceover.files) ? voiceover.files : []),
+    voiceover.fullAudioPath ? { kind: "audio", name: fileNameFromPath(voiceover.fullAudioPath), path: voiceover.fullAudioPath } : null,
+    voiceover.exportedPath ? { kind: "video", name: fileNameFromPath(voiceover.exportedPath), path: voiceover.exportedPath } : null,
+    voiceover.voiceover?.exportedPath ? { kind: "video", name: fileNameFromPath(voiceover.voiceover.exportedPath), path: voiceover.voiceover.exportedPath } : null
+  ].filter(Boolean);
+}
+
+function loadVoiceoverPreviewFile(file = null, fallbackInfo = "") {
+  const voiceoverUrl = file ? fileUrl(file) : "";
+  state.lastVoiceoverPreviewUrl = voiceoverUrl;
+  state.lastVoiceoverPreviewName = file?.name || "";
+  if (voiceoverUrl && els.voiceoverAudioPreview) {
+    els.voiceoverAudioPreview.src = voiceoverUrl;
+    els.voiceoverAudioPreview.load();
+    els.voiceoverPreviewBox?.classList.remove("is-hidden");
+    if (els.voiceoverPreviewInfo) {
+      els.voiceoverPreviewInfo.textContent = `${file?.kind || "voiceover"}: ${file?.name || "preview"}`;
+    }
+  } else if (els.voiceoverAudioPreview) {
+    els.voiceoverAudioPreview.pause();
+    els.voiceoverAudioPreview.removeAttribute("src");
+    els.voiceoverAudioPreview.load();
+    els.voiceoverPreviewBox?.classList.toggle("is-hidden", !fallbackInfo);
+    if (els.voiceoverPreviewInfo) {
+      els.voiceoverPreviewInfo.textContent = fallbackInfo || "Voiceover preview will appear after Vids voiceover/export.";
+    }
+  }
+  if (els.playVoiceoverBtn) {
+    els.playVoiceoverBtn.disabled = !voiceoverUrl;
+    els.playVoiceoverBtn.textContent = "Play Voiceover";
+  }
+  return Boolean(voiceoverUrl);
+}
+
+function loadVoiceoverPreviewFromArtifact(voiceover = {}) {
+  const previewFile = pickVoiceoverPreviewFile({ files: voiceoverFilesFromArtifact(voiceover) });
+  return loadVoiceoverPreviewFile(
+    previewFile,
+    voiceover.voiceoverDir || voiceover.exportedPath ? "Saved Vids voiceover loaded. Preview file not found yet." : ""
+  );
 }
 
 function scrollToWorkflowStep(step) {
@@ -2770,6 +2968,7 @@ function applyExistingVoiceoverFromArtifacts(voiceover = state.latestArtifacts?.
   state.lastVidsVoiceoverExport = voiceover.exportedPath || voiceover.voiceover?.vidsVoiceover?.exportedPath || state.lastVidsVoiceoverExport || "";
   state.lastVidsVoiceoverRow = Number(voiceover.row || els.assetRowInput.value || 0);
   appendTerminal(`Using existing Vids voiceover: ${state.lastVidsVoiceoverFolder || state.lastVidsVoiceoverExport}`, "stdout");
+  loadVoiceoverPreviewFromArtifact(voiceover);
   setFinalState("Vids voice ready", "success");
   renderFinalReview();
   return true;
@@ -2901,7 +3100,7 @@ function renderArtifactNotice(artifacts) {
     els.hookStepMeta.textContent = hasHookVideo ? "Old avatar video found" : "Old avatar prompt found";
     renderHookAvatarResult(hook.hookAvatar);
   }
-  if (hasVidsVoiceover && !state.lastVidsVoiceoverFolder && !state.lastVidsVoiceoverExport) {
+  if (hasVidsVoiceover && (!state.lastVidsVoiceoverFolder || !state.lastVoiceoverPreviewUrl)) {
     applyExistingVoiceoverFromArtifacts(voiceover);
   }
   if (hasAsset && hasScript && !state.lastFinalReelFolder) {
@@ -3266,7 +3465,7 @@ async function loadDefaultAndAnalyze() {
   setTerminalStatus("Loading default Excel");
   setBusy(true);
   const defaults = await loadDashboardDefaults();
-  const inputPath = defaults.defaultInput || defaults.input || defaults.settings?.inputPath || "";
+  const inputPath = defaults.input || defaults.settings?.inputPath || defaults.defaultInput || "";
   if (!inputPath) {
     throw new Error("Default Excel path is not configured.");
   }
@@ -4476,12 +4675,27 @@ function finalReelPayload(extra = {}) {
   const sameRowHookAvatar = Number(state.lastHookAvatarRow || 0) === row;
   const sameRowFinal = Number(state.lastFinalReelRow || 0) === row;
   const sameRowVidsVoiceover = Number(state.lastVidsVoiceoverRow || 0) === row;
+  const renderConfig = currentFinalRenderConfig();
+  const overrides = renderConfig.assetOverrides || {};
   const preferredVoiceoverDir = sameRowVidsVoiceover && state.lastVidsVoiceoverFolder
     ? state.lastVidsVoiceoverFolder
     : sameRowFinal && state.lastFinalReelFolder
       ? `${state.lastFinalReelFolder}/voiceovers`
       : "";
-  const hasSavedVidsVoiceover = sameRowVidsVoiceover && Boolean(state.lastVidsVoiceoverFolder || state.lastVidsVoiceoverExport);
+  const hasSavedVidsVoiceover = Boolean(
+    renderConfig.useVidsVoiceoverFirst
+    && (
+      overrides.voiceoverDir
+      || overrides.voiceoverSourceVideo
+      || (sameRowVidsVoiceover && (state.lastVidsVoiceoverFolder || state.lastVidsVoiceoverExport))
+    )
+  );
+  const selectedVoiceoverDir = renderConfig.useVidsVoiceoverFirst
+    ? overrides.voiceoverDir || preferredVoiceoverDir
+    : "";
+  const selectedVoiceoverSource = renderConfig.useVidsVoiceoverFirst
+    ? overrides.voiceoverSourceVideo || (sameRowVidsVoiceover ? state.lastVidsVoiceoverExport || "" : "")
+    : "";
   const selectedVoiceProvider = els.finalVoiceProviderSelect?.value || "free";
   return {
     input: state.inputPath,
@@ -4496,15 +4710,23 @@ function finalReelPayload(extra = {}) {
     avatarHostImage: state.avatarHostImage || "",
     avatarReferenceImages: state.avatarHostImage || "",
     voiceoverProvider: hasSavedVidsVoiceover ? "google-vids-voiceover" : selectedVoiceProvider,
-    assetsDir: sameRowAssets ? state.lastAssetFolder : "",
+    assetsDir: overrides.assetsDir || (sameRowAssets ? state.lastAssetFolder : ""),
     scriptDir: sameRowScript ? state.lastScriptFolder : "",
     hookAvatarFolder: sameRowHookAvatar ? state.lastHookAvatarFolder : "",
-    hookAvatarVideo: sameRowHookAvatar ? state.lastHookAvatarVideo : "",
-    voiceoverDir: preferredVoiceoverDir,
-    vidsVoiceoverDir: preferredVoiceoverDir,
-    voiceoverSourceVideo: sameRowVidsVoiceover ? state.lastVidsVoiceoverExport || "" : "",
-    lastVidsVoiceoverExport: sameRowVidsVoiceover ? state.lastVidsVoiceoverExport || "" : "",
-    requireVidsVoiceover: hasSavedVidsVoiceover,
+    hookAvatarVideo: overrides.hookAvatarVideo || (sameRowHookAvatar ? state.lastHookAvatarVideo : ""),
+    ctaAvatarVideo: overrides.ctaAvatarVideo || "",
+    voiceoverDir: selectedVoiceoverDir,
+    vidsVoiceoverDir: selectedVoiceoverDir,
+    voiceoverSourceVideo: selectedVoiceoverSource,
+    lastVidsVoiceoverExport: selectedVoiceoverSource,
+    requireVidsVoiceover: Boolean(renderConfig.requireVidsVoiceover && hasSavedVidsVoiceover),
+    renderConfig,
+    captionMode: renderConfig.captionMode,
+    avatarAudioMode: renderConfig.avatarAudioMode,
+    avatarCaptionMode: renderConfig.avatarCaptionMode,
+    altfOpenCardSeconds: renderConfig.altfOpenCardSeconds,
+    postAvatarOutroSeconds: renderConfig.postAvatarOutroSeconds,
+    musicVolume: renderConfig.musicVolume,
     profile: primaryProfile,
     primaryProfile,
     fallbackProfile,
@@ -4556,7 +4778,9 @@ function renderFinalReelResult(finalReel = {}) {
     const decision = finalReel.decisions
       ? [finalReel.decisions.hook, finalReel.decisions.body, finalReel.decisions.cta].filter(Boolean).join(" ")
       : "";
-    els.finalSummary.textContent = finalReel.summary || decision || (isPreview ? "Quick preview rendered. Review before full render." : "Final reel rendered. Human review before posting.");
+    const warnings = finalReel.qualityWarnings || finalReel.quality?.warnings || [];
+    const summary = finalReel.summary || decision || (isPreview ? "Quick preview rendered. Review before full render." : "Final reel rendered. Human review before posting.");
+    els.finalSummary.textContent = warnings.length ? `${summary} Review: ${warnings[0]}` : summary;
   }
   if (videoPath && els.finalVideoPreview) {
     els.finalVideoPreview.src = finalVideoUrl(videoPath);
@@ -4565,30 +4789,7 @@ function renderFinalReelResult(finalReel = {}) {
     els.finalVideoPreview.classList.add("is-hidden");
     els.finalVideoPreview.removeAttribute("src");
   }
-  const voiceoverFile = pickVoiceoverPreviewFile(finalReel);
-  const voiceoverUrl = voiceoverFile ? fileUrl(voiceoverFile) : "";
-  state.lastVoiceoverPreviewUrl = voiceoverUrl;
-  state.lastVoiceoverPreviewName = voiceoverFile?.name || "";
-  if (voiceoverUrl && els.voiceoverAudioPreview) {
-    els.voiceoverAudioPreview.src = voiceoverUrl;
-    els.voiceoverAudioPreview.load();
-    els.voiceoverPreviewBox?.classList.remove("is-hidden");
-    if (els.voiceoverPreviewInfo) {
-      els.voiceoverPreviewInfo.textContent = `${voiceoverFile?.kind || "voiceover"}: ${voiceoverFile?.name || "preview"}`;
-    }
-  } else if (els.voiceoverAudioPreview) {
-    els.voiceoverAudioPreview.pause();
-    els.voiceoverAudioPreview.removeAttribute("src");
-    els.voiceoverAudioPreview.load();
-    els.voiceoverPreviewBox?.classList.add("is-hidden");
-    if (els.voiceoverPreviewInfo) {
-      els.voiceoverPreviewInfo.textContent = "Voiceover preview will appear after Vids voiceover/export.";
-    }
-  }
-  if (els.playVoiceoverBtn) {
-    els.playVoiceoverBtn.disabled = !voiceoverUrl;
-    els.playVoiceoverBtn.textContent = "Play Voiceover";
-  }
+  loadVoiceoverPreviewFile(pickVoiceoverPreviewFile(finalReel));
   if (els.finalFileList) {
     const files = (finalReel.files || []).slice(0, 16);
     els.finalFileList.innerHTML = files.map((file) => (
@@ -4711,7 +4912,8 @@ async function renderFinalReel(options = {}) {
       preview: true,
       previewSeconds: options.previewSeconds || 15,
       previewScenes: options.previewScenes || 2,
-      voiceoverProvider: "local"
+      voiceoverProvider: "local",
+      requireVidsVoiceover: false
     }
     : {});
   if (creditSafeEnabled() && ["openai", "elevenlabs"].includes(payload.voiceoverProvider || "")) {
@@ -4726,6 +4928,10 @@ async function renderFinalReel(options = {}) {
       `Selected voice provider: ${payload.voiceoverProvider}. This can use external API credits.`
     );
     if (!ok) return;
+  }
+  if (!isPreview) {
+    const preflightWarnings = finalRenderPreflightWarnings();
+    preflightWarnings.forEach((warning) => appendTerminal(`Preflight warning: ${warning}`, "stderr"));
   }
   state.finalBusyMode = isPreview ? "preview" : "render";
   setFinalState(isPreview ? "Previewing" : "Rendering", "busy");
@@ -5457,6 +5663,50 @@ els.finalVoiceProviderSelect?.addEventListener("change", () => {
   setTerminalStatus(`Final voice provider: ${els.finalVoiceProviderSelect.value}`);
   renderCreditGuard();
   renderFinalReview();
+});
+
+for (const control of [
+  els.finalUseVidsVoiceoverFirst,
+  els.finalRequireVidsVoiceover,
+  els.finalCaptionModeSelect,
+  els.finalAvatarAudioModeSelect,
+  els.finalAvatarCaptionModeSelect,
+  els.finalAltCardSecondsInput,
+  els.finalEndCardSecondsInput,
+  els.finalMusicVolumeInput,
+  els.finalAssetFolderOverride,
+  els.finalHookVideoOverride,
+  els.finalCtaVideoOverride,
+  els.finalVoiceoverFolderOverride,
+  els.finalVoiceoverSourceOverride
+].filter(Boolean)) {
+  const eventName = control.tagName === "INPUT" && !["checkbox", "number"].includes(control.type) ? "input" : "change";
+  control.addEventListener(eventName, () => {
+    renderFinalReview();
+    setFinalState("Config ready", "idle");
+    setTerminalStatus("Final render config updated");
+  });
+}
+
+els.finalRefreshConfigBtn?.addEventListener("click", () => {
+  renderFinalReview();
+  activeStep("final");
+  setTerminalStatus("Final render config refreshed");
+});
+
+els.finalClearOverridesBtn?.addEventListener("click", () => {
+  for (const input of [
+    els.finalAssetFolderOverride,
+    els.finalHookVideoOverride,
+    els.finalCtaVideoOverride,
+    els.finalVoiceoverFolderOverride,
+    els.finalVoiceoverSourceOverride
+  ].filter(Boolean)) {
+    input.value = "";
+  }
+  renderFinalReview();
+  setFinalState("Overrides cleared", "idle");
+  setTerminalStatus("Final asset overrides cleared");
 });
 
 const globalProfileControls = new Set([

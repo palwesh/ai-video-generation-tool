@@ -3,7 +3,7 @@ import { AbsoluteFill, Audio, Easing, Img, Sequence, interpolate, staticFile, us
 import { Video } from "@remotion/media";
 import { ReelScene } from "./ReelScene.jsx";
 
-const DEFAULT_POST_AVATAR_OUTRO_SECONDS = 2.4;
+const DEFAULT_POST_AVATAR_OUTRO_SECONDS = 2;
 
 function cleanText(value, fallback = "") {
   const text = String(value || "").replace(/\s+/g, " ").trim();
@@ -123,12 +123,13 @@ export const ToolReel = ({ toolName, toolUrl, scenes, assets, sceneDurationSecon
   const safeScenes = Array.isArray(scenes) && scenes.length ? scenes : [];
   const voiceovers = Array.isArray(assets?.voiceovers) ? assets.voiceovers : [];
   const avatarAudioScenes = new Set((assets?.vidsClipAudioScenes || []).map(Number));
+  const muteAvatarAudio = ["mute", "muted", "off"].includes(String(assets?.avatarAudioMode || "").toLowerCase());
   const hasCachedSceneClip = (sceneNumber) => Boolean(assets?.vidsClips?.[Math.max(0, Number(sceneNumber) - 1)]);
   const lastSceneNumber = safeScenes.length;
-  if (hasCachedSceneClip(1)) {
+  if (!muteAvatarAudio && hasCachedSceneClip(1)) {
     avatarAudioScenes.add(1);
   }
-  if (lastSceneNumber > 1 && hasCachedSceneClip(lastSceneNumber)) {
+  if (!muteAvatarAudio && lastSceneNumber > 1 && hasCachedSceneClip(lastSceneNumber)) {
     avatarAudioScenes.add(lastSceneNumber);
   }
   const sceneHasAvatarAudio = (sceneNumber) => avatarAudioScenes.has(Number(sceneNumber));
@@ -138,9 +139,12 @@ export const ToolReel = ({ toolName, toolUrl, scenes, assets, sceneDurationSecon
   const useBodyVoiceoverAudio = Boolean(assets?.bodyVoiceoverAudio && !hasBodySceneVoiceovers && !useBodyVoiceoverVideo && bodyRanges.length);
   const hasPostAvatarOutro = lastSceneNumber > 1 && hasCachedSceneClip(lastSceneNumber) && assets?.postAvatarOutroSeconds !== 0;
   const postAvatarOutroFrames = hasPostAvatarOutro
-    ? Math.max(Math.round(fps * 1.4), Math.round(Number(assets?.postAvatarOutroSeconds || DEFAULT_POST_AVATAR_OUTRO_SECONDS) * fps))
+    ? Math.max(Math.round(fps * 0.5), Math.round(Number(assets?.postAvatarOutroSeconds || DEFAULT_POST_AVATAR_OUTRO_SECONDS) * fps))
     : 0;
-  const musicVolume = useBodyVoiceoverVideo || useBodyVoiceoverAudio || avatarAudioScenes.size ? 0.12 : 0.16;
+  const configuredMusicVolume = Number(assets?.musicVolume);
+  const musicVolume = Number.isFinite(configuredMusicVolume)
+    ? Math.max(0, Math.min(0.3, configuredMusicVolume))
+    : useBodyVoiceoverVideo || useBodyVoiceoverAudio || avatarAudioScenes.size ? 0.12 : 0.16;
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#eef2f5", fontFamily: "Inter, Arial, sans-serif" }}>

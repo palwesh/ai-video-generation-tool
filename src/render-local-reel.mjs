@@ -62,6 +62,11 @@ function clampNumber(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function choiceOr(value, allowed, fallback) {
+  const normalized = String(value || fallback).trim().toLowerCase();
+  return allowed.includes(normalized) ? normalized : fallback;
+}
+
 function hasAsset(value) {
   if (Array.isArray(value)) {
     return value.some(hasAsset);
@@ -166,10 +171,12 @@ function buildQualityReport({ props, assets, audioAssets, outputPath, sizeBytes,
   const allText = scenes.map((scene) => sceneText(scene)).join(" ");
   const checks = [];
   const warnings = [];
+  const hasVidsHookClip = hasAsset(assets.vidsClips?.[0]);
+  const hasVidsCtaClip = scenes.length > 1 && hasAsset(assets.vidsClips?.[scenes.length - 1]);
 
   const hasAvatarHook = ["female", "male", "auto"].includes(String(assets.hookAvatarStyle || "").toLowerCase())
     || hasAsset(assets.avatarHost)
-    || hasAsset(assets.vidsClips?.[0]);
+    || hasVidsHookClip;
   addQualityCheck(
     checks,
     "avatar_hook",
@@ -179,6 +186,17 @@ function buildQualityReport({ props, assets, audioAssets, outputPath, sizeBytes,
     hasAvatarHook
       ? "Hook scene is configured to open with a presenter/avatar style."
       : "Add a Vids/avatar hook clip or avatar host image for the first 10 seconds."
+  );
+
+  addQualityCheck(
+    checks,
+    "vids_hook_clip",
+    "Downloaded Google Vids hook clip is used",
+    hasVidsHookClip,
+    8,
+    hasVidsHookClip
+      ? "Scene 1 uses a saved Google Vids/avatar video clip."
+      : "No downloaded Google Vids hook clip found; this render uses the local presenter fallback for the hook."
   );
 
   const strongHook = hookText.length >= 45
@@ -233,6 +251,17 @@ function buildQualityReport({ props, assets, audioAssets, outputPath, sizeBytes,
 
   const voiceovers = Array.isArray(audioAssets.voiceovers) ? audioAssets.voiceovers : [];
   const hasBodyVoiceoverSource = hasAsset([assets.bodyVoiceoverVideo, assets.bodyVoiceoverAudio]);
+  addQualityCheck(
+    checks,
+    "vids_body_voiceover",
+    "Saved Google Vids voiceover is used for body/demo",
+    hasBodyVoiceoverSource,
+    8,
+    hasBodyVoiceoverSource
+      ? "Body/demo scenes are synced to the saved Google Vids voiceover source."
+      : "No saved Google Vids body voiceover found; local scene voiceover fallback was used."
+  );
+
   const avatarAudioScenes = new Set((assets.vidsClipAudioScenes || [])
     .map(Number)
     .filter(Number.isFinite));
@@ -289,6 +318,17 @@ function buildQualityReport({ props, assets, audioAssets, outputPath, sizeBytes,
     ctaReady
       ? "Final scene includes action/review language."
       : "Add a clear CTA plus final human review reminder."
+  );
+
+  addQualityCheck(
+    checks,
+    "vids_cta_clip",
+    "Downloaded Google Vids CTA avatar clip is used",
+    hasVidsCtaClip,
+    6,
+    hasVidsCtaClip
+      ? "Final CTA uses a saved fullscreen avatar video clip."
+      : "No downloaded Google Vids CTA clip found; this render uses the local CTA fallback scene."
   );
 
   const durationReady = totalDurationSeconds >= 30 && totalDurationSeconds <= 60;
@@ -426,7 +466,13 @@ async function copyCachedVidsAssets(toolDir, assetDir, sceneCount = 6) {
       continue;
     }
     const relativePath = await copyAsset(clip.absolutePath, assetDir, `vids-scene-${String(index + 1).padStart(2, "0")}`);
-    sceneClips[index] = relativePath;
+    sceneClips[index] = relativePath ? {
+      ...clip,
+      src: relativePath,
+      publicPath: relativePath,
+      sourcePath: clip.sourcePath || clip.absolutePath || "",
+      absolutePath: undefined
+    } : "";
     if (relativePath) {
       copiedFiles.push({ ...clip, publicPath: relativePath });
     }
@@ -782,6 +828,15 @@ async function runRender(propsPath, outputPath) {
   });
 }
 
+const renderConfig = {
+  captionMode: choiceOr(args["caption-mode"], ["body", "body-cta", "all", "off"], "body"),
+  avatarAudioMode: choiceOr(args["avatar-audio-mode"], ["keep", "mute"], "keep"),
+  avatarCaptionMode: choiceOr(args["avatar-caption-mode"], ["auto", "always", "off"], "auto"),
+  altfOpenCardSeconds: clampNumber(numberOr(args["altf-open-card-seconds"], 4), 0, 6),
+  postAvatarOutroSeconds: clampNumber(numberOr(args["post-avatar-outro-seconds"], 2), 0, 6),
+  musicVolume: clampNumber(numberOr(args["music-volume"], 0.12), 0, 0.3)
+};
+
 await ensureDir(outputRoot);
 
 const scenePlan = await readJson(path.join(toolDir, "scene-plan.json"));
@@ -813,6 +868,8 @@ const mobileTop = captureFiles.find((file) => file.endsWith("mobile-top.png"));
 const desktopDemoBefore = captureFiles.find((file) => file.endsWith("desktop-demo-before.png"));
 const desktopDemoInputs = captureFiles.find((file) => file.endsWith("desktop-demo-inputs.png"));
 const desktopDemoAfter = captureFiles.find((file) => file.endsWith("desktop-demo-after.png"));
+const desktopDemoFocusBefore = captureFiles.find((file) => /desktop-demo-focus-before\.png$|demo-focus-before\.png$/i.test(file));
+const desktopDemoFocusAfter = captureFiles.find((file) => /desktop-demo-focus-after\.png$|demo-focus-after\.png$/i.test(file));
 const desktopDemoVideo = captureFiles.find((file) => file.endsWith("desktop-demo.webm"));
 const mobileScrollVideo = captureFiles.find((file) => file.endsWith("mobile-scroll.webm"));
 const avatarHostImage = args["avatar-host"]
@@ -832,20 +889,31 @@ const assets = {
   desktopFull: await copyAsset(desktopFull, assetDir, "desktop-full-page"),
   mobile: await copyAsset(mobileTop, assetDir, "mobile-top"),
   demoBefore: await copyAsset(desktopDemoBefore, assetDir, "desktop-demo-before"),
+  demoFocusBefore: await copyAsset(desktopDemoFocusBefore, assetDir, "desktop-demo-focus-before"),
   demoInputs: await copyAsset(desktopDemoInputs, assetDir, "desktop-demo-inputs"),
   demoAfter: await copyAsset(desktopDemoAfter, assetDir, "desktop-demo-after"),
+  demoFocusAfter: await copyAsset(desktopDemoFocusAfter, assetDir, "desktop-demo-focus-after"),
   demoVideo: await copyAsset(desktopDemoVideo, assetDir, "desktop-demo"),
   mobileScroll: await copyAsset(mobileScrollVideo, assetDir, "mobile-scroll"),
   avatarHost: await copyAsset(avatarHostImage, assetDir, "avatar-host"),
   hookAvatarStyle: ["female", "male", "auto"].includes(hookAvatarStyle) ? hookAvatarStyle : "female",
-  toolUseGuide: manifest.capture?.toolUseGuide || manifest.capture?.tool_use_guide || {}
+  toolUseGuide: manifest.capture?.toolUseGuide || manifest.capture?.tool_use_guide || {},
+  captionMode: renderConfig.captionMode,
+  avatarAudioMode: renderConfig.avatarAudioMode,
+  avatarCaptionMode: renderConfig.avatarCaptionMode,
+  altfOpenCardSeconds: renderConfig.altfOpenCardSeconds,
+  postAvatarOutroSeconds: renderConfig.postAvatarOutroSeconds,
+  musicVolume: renderConfig.musicVolume,
+  renderConfig
 };
 const vidsCacheAssets = await copyCachedVidsAssets(toolDir, assetDir, renderScenes.length);
 assets.vidsClips = vidsCacheAssets.sceneClips;
-assets.vidsClipAudioScenes = vidsCacheAssets.copiedFiles
-  .filter((clip) => /avatar|hook|cta|focus/i.test(`${clip.file || ""} ${clip.note || ""} ${clip.sourcePath || ""}`))
-  .map((clip) => Number(clip.sceneNumber))
-  .filter(Number.isFinite);
+assets.vidsClipAudioScenes = renderConfig.avatarAudioMode === "mute"
+  ? []
+  : vidsCacheAssets.copiedFiles
+    .filter((clip) => /avatar|hook|cta|focus/i.test(`${clip.file || ""} ${clip.note || ""} ${clip.sourcePath || ""}`))
+    .map((clip) => Number(clip.sceneNumber))
+    .filter(Number.isFinite);
 assets.vidsTimelines = vidsCacheAssets.timelineExports;
 assets.vidsClipCache = {
   cacheDir: vidsCacheAssets.cacheDir,
@@ -905,6 +973,7 @@ const report = {
   outputPath,
   assets,
   audio: audioAssets,
+  renderConfig,
   hookAvatarStyle: assets.hookAvatarStyle,
   preview: previewMode,
   requestedPreviewSeconds: previewMode ? previewSeconds : 0,
@@ -939,7 +1008,7 @@ async function mirrorLocalRenderOutputs(report) {
     Number(clip?.sceneNumber) === ctaSceneNumber
     && /cta|avatar|scene_clip/i.test(`${clip?.kind || ""} ${clip?.file || ""} ${clip?.note || ""} ${clip?.sourcePath || ""}`)
   ));
-  const ctaPublicPath = ctaSceneNumber > 0 ? report.assets?.vidsClips?.[ctaSceneNumber - 1] : "";
+  const ctaPublicPath = ctaSceneNumber > 0 ? assetPath(report.assets?.vidsClips?.[ctaSceneNumber - 1]) : "";
   const ctaClipSource = await firstExisting([
     ctaClipRecord?.sourcePath,
     ctaClipRecord?.absolutePath,

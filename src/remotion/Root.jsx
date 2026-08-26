@@ -39,7 +39,7 @@ export const RemotionRoot = () => {
           const clips = Array.isArray(props?.assets?.vidsClips) ? props.assets.vidsClips : [];
           const lastSceneHasAvatarClip = scenes.length > 1 && Boolean(clips[scenes.length - 1]);
           const postAvatarOutroSeconds = lastSceneHasAvatarClip && props?.assets?.postAvatarOutroSeconds !== 0
-            ? Math.max(1.4, Number(props?.assets?.postAvatarOutroSeconds || 2.4) || 2.4)
+            ? Math.max(0.5, Number(props?.assets?.postAvatarOutroSeconds || 2) || 2)
             : 0;
           return {
             durationInFrames: Math.round((scenes.length * sceneDurationSeconds + postAvatarOutroSeconds) * 30)

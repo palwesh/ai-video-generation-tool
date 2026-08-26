@@ -440,7 +440,7 @@ generated/generated-manifest.json
 
 The prepared workbook includes `TRF Generated Folder`, `TRF Generated Files`, `TRF Reel Quality Score`, and `TRF Reel Quality Report`, so you can open one tool row and find the saved outputs quickly.
 
-The quality report scores each reel on avatar hook, hook copy, real tool proof, screen recording, voiceover, captions, music, CTA/review reminder, and 30-60 second duration. Treat `post_ready_review` as a strong draft that still needs one human review before upload.
+The quality report scores each reel on avatar hook, downloaded Google Vids hook/CTA clips, hook copy, real tool proof, screen recording, saved Google Vids body voiceover, captions, music, CTA/review reminder, and 30-60 second duration. If Google Vids clips or voiceover are missing, the MP4 can still render with local fallbacks, but the dashboard will mark it as a draft/review item instead of silently treating it like a premium post-ready reel. Treat `post_ready_review` as a strong draft that still needs one human review before upload.
 
 Use multiple logged-in Google Vids profiles. The agent tries the first profile, then the next one if generation/export fails. This is for legitimate accounts you control; respect Google Vids quotas and terms.
 

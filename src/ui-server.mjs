@@ -4858,6 +4858,38 @@ function normalizeFinalVoiceProvider(value) {
   return "free";
 }
 
+function cleanRenderConfigPath(value) {
+  return String(value || "").trim();
+}
+
+function normalizeRenderChoice(value, allowed, fallback) {
+  const normalized = String(value || fallback).trim().toLowerCase();
+  return allowed.includes(normalized) ? normalized : fallback;
+}
+
+function normalizeFinalRenderConfig(body = {}) {
+  const raw = body.renderConfig && typeof body.renderConfig === "object" ? body.renderConfig : {};
+  const rawOverrides = raw.assetOverrides && typeof raw.assetOverrides === "object" ? raw.assetOverrides : {};
+  const musicVolume = asFiniteNumber(raw.musicVolume ?? body.musicVolume, 0.12);
+  return {
+    useVidsVoiceoverFirst: raw.useVidsVoiceoverFirst !== false,
+    requireVidsVoiceover: Boolean(raw.requireVidsVoiceover || body.requireVidsVoiceover),
+    captionMode: normalizeRenderChoice(raw.captionMode || body.captionMode, ["body", "body-cta", "all", "off"], "body"),
+    avatarAudioMode: normalizeRenderChoice(raw.avatarAudioMode || body.avatarAudioMode, ["keep", "mute"], "keep"),
+    avatarCaptionMode: normalizeRenderChoice(raw.avatarCaptionMode || body.avatarCaptionMode, ["auto", "always", "off"], "auto"),
+    altfOpenCardSeconds: clamp(asFiniteNumber(raw.altfOpenCardSeconds ?? body.altfOpenCardSeconds, 4), 0, 6),
+    postAvatarOutroSeconds: clamp(asFiniteNumber(raw.postAvatarOutroSeconds ?? body.postAvatarOutroSeconds, 2), 0, 6),
+    musicVolume: clamp(musicVolume > 1 ? musicVolume / 100 : musicVolume, 0, 0.3),
+    assetOverrides: {
+      assetsDir: cleanRenderConfigPath(rawOverrides.assetsDir || body.assetsDirOverride || body.overrideAssetsDir),
+      hookAvatarVideo: cleanRenderConfigPath(rawOverrides.hookAvatarVideo || body.hookAvatarVideoOverride || body.overrideHookAvatarVideo),
+      ctaAvatarVideo: cleanRenderConfigPath(rawOverrides.ctaAvatarVideo || body.ctaAvatarVideoOverride || body.overrideCtaAvatarVideo),
+      voiceoverDir: cleanRenderConfigPath(rawOverrides.voiceoverDir || body.voiceoverDirOverride || body.overrideVoiceoverDir),
+      voiceoverSourceVideo: cleanRenderConfigPath(rawOverrides.voiceoverSourceVideo || body.voiceoverSourceVideoOverride || body.overrideVoiceoverSourceVideo)
+    }
+  };
+}
+
 async function copyVideoCacheIntoFinal(sourceDir, destinationDir) {
   const source = await existingDirectory(sourceDir);
   if (!source) {
@@ -4922,6 +4954,7 @@ function finalReelReadme(result) {
     "",
     "- `scene-plan.json` is the script/timeline used by Remotion.",
     "- `manifest.json` points to the real tool screenshots and screen recordings.",
+    "- `render-config.json` stores the pre-render settings selected in the dashboard.",
     "- `vids-clips/` stores reusable avatar or AI scene clips. Scene 1 is used for the hook when a downloaded hook clip exists.",
     "- `render/final_reel.mp4` is the local render output.",
     "- `generated/local-render/` keeps a tool-centric copy of the final MP4 and render reports.",
@@ -4934,6 +4967,7 @@ function finalReelReadme(result) {
 async function prepareFinalReelPackage(body = {}, run) {
   const input = path.resolve(String(body.input || defaultInput).trim());
   const rowNumber = Number(body.row || 2);
+  const renderConfig = normalizeFinalRenderConfig(body);
   const tool = await toolRowForInput(input, rowNumber);
   const artifacts = await findToolArtifacts({
     input,
@@ -4950,11 +4984,20 @@ async function prepareFinalReelPackage(body = {}, run) {
       row: rowNumber,
       sceneCount: clamp(asFiniteNumber(body.sceneCount, 5), 3, 6),
       scriptLanguage: body.scriptLanguage || tool.language || "Hinglish",
-      assetsDir: body.assetsDir || artifacts.latestAssets?.folder || ""
+      assetsDir: renderConfig.assetOverrides.assetsDir || body.assetsDir || artifacts.latestAssets?.folder || ""
     });
   }
 
-  const assetBuild = artifacts.latestAssets?.assetBuild || scriptBuild.assetBuild || null;
+  const overrideAssetsDir = await existingDirectory(renderConfig.assetOverrides.assetsDir || body.assetsDir || "");
+  let assetBuild = artifacts.latestAssets?.assetBuild || scriptBuild.assetBuild || null;
+  if (!assetBuild && overrideAssetsDir) {
+    assetBuild = {
+      assetsDir: overrideAssetsDir,
+      capture: {
+        summary: "Using user-selected render config asset folder override."
+      }
+    };
+  }
   if (!assetBuild) {
     throw new Error("Assets missing. Step 1 Build Assets run karo, phir Final Reel render karo.");
   }
@@ -4965,9 +5008,11 @@ async function prepareFinalReelPackage(body = {}, run) {
   await ensureDir(finalDir);
   await ensureDir(renderDir);
   const latestVidsVoiceover = artifacts.latestVidsVoiceover || {};
-  const requestedVoiceoverDir = body.voiceoverDir
+  const vidsVoiceoverEnabled = renderConfig.useVidsVoiceoverFirst !== false;
+  const requestedVoiceoverDir = (vidsVoiceoverEnabled ? renderConfig.assetOverrides.voiceoverDir : "")
+    || body.voiceoverDir
     || body.vidsVoiceoverDir
-    || latestVidsVoiceover.voiceoverDir
+    || (vidsVoiceoverEnabled ? latestVidsVoiceover.voiceoverDir : "")
     || "";
   const copiedVoiceovers = await copyVoiceoversIntoFinal(requestedVoiceoverDir, finalDir);
   const voiceoverDir = path.join(finalDir, "voiceovers");
@@ -4977,13 +5022,14 @@ async function prepareFinalReelPackage(body = {}, run) {
     ? path.dirname(path.resolve(sourceVoiceoverDir))
     : path.resolve(sourceVoiceoverDir || finalDir);
   const voiceoverSourceVideo = await firstExistingFile([
+    vidsVoiceoverEnabled ? renderConfig.assetOverrides.voiceoverSourceVideo : "",
     body.voiceoverSourceVideo,
     body.voiceoverSourcePath,
     body.vidsVoiceoverExport,
     body.lastVidsVoiceoverExport,
-    latestVidsVoiceover.exportedPath,
-    latestVidsVoiceover.voiceover?.vidsVoiceover?.exportedPath,
-    latestVidsVoiceover.voiceover?.voiceoverSourceVideo,
+    vidsVoiceoverEnabled ? latestVidsVoiceover.exportedPath : "",
+    vidsVoiceoverEnabled ? latestVidsVoiceover.voiceover?.vidsVoiceover?.exportedPath : "",
+    vidsVoiceoverEnabled ? latestVidsVoiceover.voiceover?.voiceoverSourceVideo : "",
     sourceVoiceoverDir ? path.join(sourceVoiceoverDir, "voiceover-source.mp4") : "",
     sourceVoiceoverDir ? path.join(sourceVoiceoverDir, "voiceover-source.webm") : "",
     sourceVoiceoverDir ? path.join(sourceVoiceoverDir, "voiceover-source.mov") : "",
@@ -5003,7 +5049,11 @@ async function prepareFinalReelPackage(body = {}, run) {
     copiedVoiceovers.push(voiceoverDirCopy, copiedVoiceoverSourceVideo);
   }
 
-  const captureFiles = await existingMediaFiles(captureFilePathsFromArtifacts(assetBuild, scriptBuild.assetBuild));
+  const overrideAssetFiles = overrideAssetsDir ? await listFilesRecursive(overrideAssetsDir, 5) : [];
+  const captureFiles = await existingMediaFiles([
+    ...captureFilePathsFromArtifacts(assetBuild, scriptBuild.assetBuild),
+    ...overrideAssetFiles
+  ]);
   const rawPlan = cloneJson(scriptBuild.plan || {});
   const scenes = Array.isArray(rawPlan.scenes) ? rawPlan.scenes : [];
   if (!scenes.length) {
@@ -5023,8 +5073,9 @@ async function prepareFinalReelPackage(body = {}, run) {
 
   const hookAvatar = artifacts.latestHookAvatar?.hookAvatar || {};
   const hookFolder = hookAvatar.hookDir || artifacts.latestHookAvatar?.folder || "";
-  const assetsDir = assetBuild.assetsDir || artifacts.latestAssets?.folder || scriptBuild.assetsDir || "";
+  const assetsDir = overrideAssetsDir || assetBuild.assetsDir || artifacts.latestAssets?.folder || scriptBuild.assetsDir || "";
   const hookVideoPath = await firstExistingFile([
+    renderConfig.assetOverrides.hookAvatarVideo,
     body.hookAvatarVideo,
     hookAvatar.videoPath,
     hookAvatar.hookAvatar?.videoPath,
@@ -5035,6 +5086,7 @@ async function prepareFinalReelPackage(body = {}, run) {
   ]);
   const ctaSceneNumber = scenes.length;
   const ctaVideoPath = await firstExistingFile([
+    renderConfig.assetOverrides.ctaAvatarVideo,
     body.ctaAvatarVideo,
     hookAvatar.ctaVideoPath,
     hookAvatar.ctaAvatar?.videoPath,
@@ -5088,11 +5140,13 @@ async function prepareFinalReelPackage(body = {}, run) {
   const scenePlanPath = path.join(finalDir, "scene-plan.json");
   const manifestPath = path.join(finalDir, "manifest.json");
   const packagePath = path.join(finalDir, "final-reel-package.json");
+  const renderConfigPath = path.join(finalDir, "render-config.json");
   const readmePath = path.join(finalDir, "README.md");
   const manifest = {
     tool,
     generated_at: new Date().toISOString(),
     generator: "basic_final_reel",
+    render_config: renderConfig,
     capture: {
       enabled: Boolean(captureFiles.length),
       summary: assetBuild.capture?.summary || scriptBuild.capture?.summary || "Using saved Basic workflow assets.",
@@ -5128,6 +5182,7 @@ async function prepareFinalReelPackage(body = {}, run) {
       scene_plan: scenePlanPath,
       manifest: manifestPath,
       package: packagePath,
+      render_config: renderConfigPath,
       render_dir: renderDir,
       voiceover_dir: voiceoverDir,
       vids_clip_cache: vidsClipCacheFolder
@@ -5144,7 +5199,9 @@ async function prepareFinalReelPackage(body = {}, run) {
     scenePlanPath,
     manifestPath,
     packagePath,
+    renderConfigPath,
     readmePath,
+    renderConfig,
     sceneCount: scenes.length,
     totalDurationSeconds: rawPlan.metadata.total_duration_seconds,
     captureFileCount: captureFiles.length,
@@ -5161,9 +5218,10 @@ async function prepareFinalReelPackage(body = {}, run) {
   };
   await writeJson(scenePlanPath, rawPlan);
   await writeJson(manifestPath, manifest);
+  await writeJson(renderConfigPath, renderConfig);
   await writeJson(packagePath, pkg);
   await fs.writeFile(readmePath, finalReelReadme(pkg), "utf8");
-  pkg.files = [scenePlanPath, manifestPath, packagePath, readmePath, hookVideoPath, ctaVideoPath, ...copiedVoiceovers]
+  pkg.files = [scenePlanPath, manifestPath, renderConfigPath, packagePath, readmePath, hookVideoPath, ctaVideoPath, ...copiedVoiceovers]
     .filter(Boolean)
     .map(publicAssetFile);
   await writeJson(packagePath, pkg);
@@ -5859,11 +5917,12 @@ async function generateVidsVoiceoverWithGoogleVids(prepared, body, run) {
 
 async function generateFinalVoiceovers(prepared, body, run) {
   const provider = normalizeFinalVoiceProvider(body.voiceoverProvider);
+  const vidsVoiceoverEnabled = prepared.renderConfig?.useVidsVoiceoverFirst !== false;
   const existingVoiceovers = await existingVoiceoverFiles(prepared.voiceoverDir || path.join(prepared.finalDir, "voiceovers"));
   const existingVidsVoiceoverSource = await firstExistingFile([
     prepared.voiceoverSourceVideo,
-    prepared.latestVidsVoiceover?.exportedPath,
-    prepared.latestVidsVoiceover?.fullAudioPath,
+    vidsVoiceoverEnabled ? prepared.latestVidsVoiceover?.exportedPath : "",
+    vidsVoiceoverEnabled ? prepared.latestVidsVoiceover?.fullAudioPath : "",
     prepared.voiceoverDir ? path.join(prepared.voiceoverDir, "voiceover-source.mp4") : "",
     prepared.voiceoverDir ? path.join(prepared.voiceoverDir, "voiceover-source.webm") : "",
     prepared.voiceoverDir ? path.join(prepared.voiceoverDir, "voiceover-source.mov") : "",
@@ -5930,6 +5989,7 @@ async function generateFinalVoiceovers(prepared, body, run) {
 async function renderFinalReel(prepared, body, run) {
   const presenter = normalizeHookPresenter(body.presenter || body.hookAvatarStyle || defaultHookAvatarStyle);
   const isPreview = Boolean(body.preview);
+  const renderConfig = prepared.renderConfig || normalizeFinalRenderConfig(body);
   const avatarHostImage = await existingAvatarReferencePath(
     body.avatarHostImage || body.avatarReferenceImage || body.customAvatarImage || body.avatarImage || ""
   );
@@ -5937,7 +5997,13 @@ async function renderFinalReel(prepared, body, run) {
     "--tool-dir", prepared.finalDir,
     "--output", prepared.renderDir,
     "--filename", isPreview ? "preview_reel.mp4" : "final_reel.mp4",
-    "--hook-avatar", presenter
+    "--hook-avatar", presenter,
+    "--caption-mode", renderConfig.captionMode,
+    "--avatar-audio-mode", renderConfig.avatarAudioMode,
+    "--avatar-caption-mode", renderConfig.avatarCaptionMode,
+    "--altf-open-card-seconds", String(renderConfig.altfOpenCardSeconds),
+    "--post-avatar-outro-seconds", String(renderConfig.postAvatarOutroSeconds),
+    "--music-volume", String(renderConfig.musicVolume)
   ];
   if (isPreview) {
     renderArgs.push(
@@ -5953,8 +6019,8 @@ async function renderFinalReel(prepared, body, run) {
   const needsVidsVoiceover = !isPreview && (["google-vids-voiceover", "vids-voiceover"].includes(normalizeFinalVoiceProvider(body.voiceoverProvider))
     || Boolean(body.requireVidsVoiceover)
     || Boolean(prepared.voiceoverSourceVideo)
-    || Boolean(prepared.latestVidsVoiceover?.exportedPath)
-    || Boolean(prepared.latestVidsVoiceover?.fullAudioPath));
+    || Boolean(renderConfig.useVidsVoiceoverFirst !== false && prepared.latestVidsVoiceover?.exportedPath)
+    || Boolean(renderConfig.useVidsVoiceoverFirst !== false && prepared.latestVidsVoiceover?.fullAudioPath));
   if (needsVidsVoiceover) {
     renderArgs.push("--require-vids-voiceover");
     addFinalReelLog(run, "Body/demo scenes are locked to saved Google Vids voiceover. Local TTS fallback is disabled for this render.");
@@ -6071,6 +6137,7 @@ async function startFinalReelRun(body = {}) {
           rendered.qualityReportPath,
           prepared.scenePlanPath,
           prepared.manifestPath,
+          prepared.renderConfigPath,
           prepared.packagePath,
           prepared.readmePath,
           prepared.voiceoverSourceVideo,
@@ -8244,6 +8311,15 @@ async function saveSettingsState(body) {
 
 async function handleApi(req, res, pathname, searchParams) {
   try {
+    const requestInput = async () => {
+      const requestedInput = searchParams.get("input");
+      if (requestedInput) {
+        return requestedInput;
+      }
+      const uiState = await loadUiState().catch(() => null);
+      return uiState?.settings?.inputPath || defaultInput;
+    };
+
     if (req.method === "GET" && pathname === "/api/defaults") {
       const uiState = await loadUiState();
       const quota = await publicQuotaState();
@@ -8413,7 +8489,7 @@ async function handleApi(req, res, pathname, searchParams) {
     if (req.method === "GET" && pathname === "/api/tools") {
       json(res, 200, {
         ok: true,
-        tools: await listTools(searchParams.get("input") || defaultInput, {
+        tools: await listTools(await requestInput(), {
           limit: asFiniteNumber(searchParams.get("limit"), 0)
         })
       });
@@ -8421,7 +8497,7 @@ async function handleApi(req, res, pathname, searchParams) {
     }
 
     if (req.method === "GET" && pathname === "/api/tool-ideas") {
-      const ideas = await listToolIdeas(searchParams.get("input") || defaultInput, {
+      const ideas = await listToolIdeas(await requestInput(), {
         limit: asFiniteNumber(searchParams.get("limit"), 0)
       });
       json(res, 200, { ok: true, ...ideas });
@@ -8432,7 +8508,7 @@ async function handleApi(req, res, pathname, searchParams) {
       json(res, 200, {
         ok: true,
         artifacts: await findToolArtifacts({
-          input: searchParams.get("input") || defaultInput,
+          input: await requestInput(),
           row: searchParams.get("row") || 2,
           toolName: searchParams.get("toolName") || "",
           toolUrl: searchParams.get("toolUrl") || ""
@@ -8456,7 +8532,7 @@ async function handleApi(req, res, pathname, searchParams) {
       json(res, 200, {
         ok: true,
         ...(await listToolVideoStatus({
-          input: searchParams.get("input") || defaultInput
+          input: await requestInput()
         }))
       });
       return;
@@ -8464,7 +8540,7 @@ async function handleApi(req, res, pathname, searchParams) {
 
     if (req.method === "GET" && pathname === "/api/input-analysis") {
       const includeToolOptions = ["1", "true", "names", "all"].includes(String(searchParams.get("includeTools") || "").toLowerCase());
-      const analyzed = await analyzeInputWorkbookPackage(searchParams.get("input") || defaultInput, { includeToolOptions });
+      const analyzed = await analyzeInputWorkbookPackage(await requestInput(), { includeToolOptions });
       json(res, 200, { ok: true, ...analyzed });
       return;
     }

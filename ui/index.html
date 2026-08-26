@@ -864,6 +864,98 @@
                 </div>
               </div>
 
+              <details id="finalConfigPanel" class="final-config-panel">
+                <summary>
+                  <span>
+                    <strong>Optional Final Check</strong>
+                    <small id="finalConfigSummary">Simple mode: best settings will be used automatically.</small>
+                  </span>
+                  <span class="state-pill">Before render</span>
+                </summary>
+                <div class="final-config-body">
+                  <div id="finalAssetMap" class="final-asset-map">
+                    <span data-status="idle">Load a tool row to see assets used in the final video.</span>
+                  </div>
+                  <div class="final-config-grid">
+                    <label class="field-label">
+                      <span>Vids voiceover</span>
+                      <span class="check-row">
+                        <input id="finalUseVidsVoiceoverFirst" type="checkbox" checked>
+                        <span>Use first if saved</span>
+                      </span>
+                    </label>
+                    <label class="field-label">
+                      <span>Voice safety</span>
+                      <span class="check-row">
+                        <input id="finalRequireVidsVoiceover" type="checkbox" checked>
+                        <span>No local voice if Vids exists</span>
+                      </span>
+                    </label>
+                    <label class="field-label" for="finalCaptionModeSelect">
+                      <span>Captions</span>
+                      <select id="finalCaptionModeSelect">
+                        <option value="body" selected>Body demo only</option>
+                        <option value="body-cta">Body + local CTA</option>
+                        <option value="all">All local scenes</option>
+                        <option value="off">Off</option>
+                      </select>
+                    </label>
+                    <label class="field-label" for="finalAvatarAudioModeSelect">
+                      <span>Avatar audio</span>
+                      <select id="finalAvatarAudioModeSelect">
+                        <option value="keep" selected>Keep avatar audio</option>
+                        <option value="mute">Mute avatar clips</option>
+                      </select>
+                    </label>
+                    <label class="field-label" for="finalAvatarCaptionModeSelect">
+                      <span>Avatar captions</span>
+                      <select id="finalAvatarCaptionModeSelect">
+                        <option value="auto" selected>Auto if missing</option>
+                        <option value="always">Always add</option>
+                        <option value="off">Off</option>
+                      </select>
+                    </label>
+                    <label class="field-label" for="finalAltCardSecondsInput">
+                      <span>AltF card</span>
+                      <input id="finalAltCardSecondsInput" type="number" min="0" max="6" step="0.1" value="4">
+                    </label>
+                    <label class="field-label" for="finalEndCardSecondsInput">
+                      <span>End card</span>
+                      <input id="finalEndCardSecondsInput" type="number" min="0" max="6" step="0.1" value="2">
+                    </label>
+                    <label class="field-label" for="finalMusicVolumeInput">
+                      <span>Music %</span>
+                      <input id="finalMusicVolumeInput" type="number" min="0" max="30" step="1" value="12">
+                    </label>
+                    <label class="field-label" for="finalAssetFolderOverride">
+                      <span>Asset folder override</span>
+                      <input id="finalAssetFolderOverride" type="text" placeholder="Optional: paste assets folder path">
+                    </label>
+                    <label class="field-label" for="finalHookVideoOverride">
+                      <span>Hook video override</span>
+                      <input id="finalHookVideoOverride" type="text" placeholder="Optional: hook_avatar.mp4 path">
+                    </label>
+                    <label class="field-label" for="finalCtaVideoOverride">
+                      <span>CTA video override</span>
+                      <input id="finalCtaVideoOverride" type="text" placeholder="Optional: cta_avatar.mp4 path">
+                    </label>
+                    <label class="field-label" for="finalVoiceoverFolderOverride">
+                      <span>Voiceover folder override</span>
+                      <input id="finalVoiceoverFolderOverride" type="text" placeholder="Optional: voiceovers folder path">
+                    </label>
+                    <label class="field-label" for="finalVoiceoverSourceOverride">
+                      <span>Vids voice source override</span>
+                      <input id="finalVoiceoverSourceOverride" type="text" placeholder="Optional: voiceover-source.mp4 path">
+                    </label>
+                  </div>
+                  <div class="final-config-actions">
+                    <span class="muted">Empty override fields use the latest selected-row assets automatically.</span>
+                    <button id="finalRefreshConfigBtn" class="secondary-action" type="button">Refresh Review</button>
+                    <button id="finalClearOverridesBtn" class="secondary-action" type="button">Clear Overrides</button>
+                  </div>
+                </div>
+              </details>
+
               <div class="final-controls">
                 <label class="field-label final-voice" for="finalVoiceProviderSelect">
                   <span>Voice</span>

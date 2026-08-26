@@ -131,13 +131,16 @@ function isAvatarClipMedia(media) {
 function cachedVidsMedia(assets, sceneIndex, totalScenes = 6) {
   const sceneNumber = sceneIndex + 1;
   const sceneClip = assets.vidsClips?.[sceneIndex];
+  const muteAvatarAudio = ["mute", "muted", "off"].includes(String(assets?.avatarAudioMode || "").toLowerCase());
   if (sceneClip) {
+    const sceneClipSource = mediaSource(sceneClip);
     const isHook = sceneIndex === 0;
     const isCta = sceneIndex === totalScenes - 1;
     const audioScenes = new Set((assets.vidsClipAudioScenes || []).map(Number));
-    const hasOwnAudio = isHook || isCta || audioScenes.has(sceneNumber);
+    const hasOwnAudio = !muteAvatarAudio && (isHook || isCta || audioScenes.has(sceneNumber));
     return {
-      src: sceneClip,
+      ...(sceneClip && typeof sceneClip === "object" ? sceneClip : {}),
+      src: sceneClipSource,
       kind: "cached_scene_clip",
       badge: isHook ? "HOOK AVATAR VIDEO" : isCta ? "CTA AVATAR VIDEO" : hasOwnAudio ? "FOCUS AVATAR VIDEO" : "AI AVATAR CLIP",
       loop: !hasOwnAudio,
@@ -204,6 +207,61 @@ function shouldUseBeforeAfterScene(assets, scene = {}, sceneIndex = 0, totalScen
   return /(before\s*(vs|\/|and)?\s*after|before|after|compare|comparison|difference|proof|pehle|baad|manual.*result|result.*manual|vs\.?|versus|benefit|save|faster|result|output)/.test(text);
 }
 
+function captionsEnabledForScene(assets = {}, sceneIndex = 0, totalScenes = 6) {
+  const mode = String(assets?.captionMode || "body").trim().toLowerCase();
+  if (mode === "off" || mode === "none") {
+    return false;
+  }
+  if (mode === "all") {
+    return true;
+  }
+  if (mode === "body-cta" || mode === "after-hook") {
+    return sceneIndex > 0;
+  }
+  return sceneIndex > 0 && sceneIndex < totalScenes - 1;
+}
+
+function avatarClipHasOwnCaptions(media = {}) {
+  const explicitFields = [
+    media?.hasCaptions,
+    media?.burnedCaptions,
+    media?.hasBurnedCaptions,
+    media?.captioned,
+    media?.subtitled,
+    media?.hasSubtitles
+  ];
+  if (explicitFields.some((value) => value === true || value === "true" || value === "yes")) {
+    return true;
+  }
+  if (explicitFields.some((value) => value === false || value === "false" || value === "no")) {
+    return false;
+  }
+  const marker = [
+    mediaSource(media),
+    media?.kind,
+    media?.badge,
+    media?.label,
+    media?.note,
+    media?.sourcePath,
+    media?.publicPath
+  ].filter(Boolean).join(" ").toLowerCase();
+  if (/\b(no[-_ ]?caption|no[-_ ]?subtitles?|without[-_ ]?caption|uncaptioned)\b/.test(marker)) {
+    return false;
+  }
+  return /\b(captioned|captions?|subtitled|subtitles?|burned[-_ ]?in)\b/.test(marker);
+}
+
+function avatarCaptionsEnabled(assets = {}, generatedClip = null) {
+  const mode = String(assets?.avatarCaptionMode || "auto").trim().toLowerCase();
+  if (mode === "off" || mode === "none") {
+    return false;
+  }
+  if (mode === "always" || mode === "on") {
+    return true;
+  }
+  return !avatarClipHasOwnCaptions(generatedClip);
+}
+
 function beforeDemoAsset(assets = {}) {
   return firstAvailable(assets.demoFocusBefore, assets.demoBefore, assets.toolReadable, assets.desktop, assets.landing);
 }
@@ -242,32 +300,36 @@ function uniqueMediaItems(items) {
 function demoMediaSequence(assets = {}, scene = {}, sceneIndex = 0, totalScenes = 6, primaryMedia = "") {
   const text = sceneNarrationText(scene);
   const introShots = [
+    mediaItem(assets.toolReadable, { demoTitle: "TOOL PAGE", badge: "TOOL PAGE VISIBLE" }),
+    mediaItem(assets.desktop, { demoTitle: "TOP SECTION", badge: "TOOL NAME VISIBLE" }),
     mediaItem(assets.landing, { demoTitle: "TOOL NAME PAGE", badge: "ALT F TOOL OPEN" }),
-    mediaItem(assets.toolReadable, { demoTitle: "FULL PAGE VIEW", badge: "TOOL PAGE VISIBLE" }),
-    mediaItem(assets.desktopFull, { demoTitle: "FULL PAGE VIEW", badge: "COMPLETE PAGE" })
+    mediaItem(assets.desktopFull, { demoTitle: "PAGE SCROLL", badge: "FULL PAGE CONTEXT", objectFit: "cover", objectPosition: "50% 18%" })
   ];
   const inputShots = [
     mediaItem(assets.demoInputs, { demoTitle: "REAL INPUT DEMO", badge: "INPUT VALUES FILLED", objectPosition: "50% 48%" }),
-    mediaItem(assets.demoBefore, { demoTitle: "INPUT AREA", badge: "BEFORE RUN" }),
-    mediaItem(assets.demoFocusBefore, { demoTitle: "INPUT CLOSE-UP", badge: "INPUT FOCUS" })
+    mediaItem(assets.demoFocusBefore, { demoTitle: "INPUT CLOSE-UP", badge: "INPUT FOCUS", objectFit: "cover", objectPosition: "50% 42%" }),
+    mediaItem(assets.demoBefore, { demoTitle: "INPUT AREA", badge: "BEFORE RUN", objectFit: "cover", objectPosition: "50% 42%" })
   ];
   const actionShots = [
     mediaItem(assets.demoVideo, { demoTitle: "SCREEN RECORD", badge: "LIVE TOOL FLOW" }),
     mediaItem(assets.mobileScroll, { demoTitle: "MOBILE SCROLL", badge: "PHONE VIEW" })
   ];
   const resultShots = [
-    mediaItem(assets.demoAfter, { demoTitle: "RESULT SCREEN", badge: "OUTPUT REVIEW", objectPosition: "50% 48%" }),
-    mediaItem(assets.demoFocusAfter, { demoTitle: "RESULT CLOSE-UP", badge: "RESULT FOCUS", objectPosition: "50% 48%" })
+    mediaItem(assets.demoFocusAfter, { demoTitle: "RESULT CLOSE-UP", badge: "RESULT FOCUS", objectFit: "cover", objectPosition: "50% 44%" }),
+    mediaItem(assets.demoAfter, { demoTitle: "RESULT SCREEN", badge: "OUTPUT REVIEW", objectFit: "cover", objectPosition: "50% 44%" })
   ];
   const primaryShot = mediaItem(primaryMedia, { demoTitle: "ACTUAL TOOL DEMO", badge: mediaPurposeLabel(scene, sceneIndex, totalScenes) });
 
   if (sceneIndex === 1) {
     return uniqueMediaItems([
-      ...introShots,
+      mediaItem(assets.toolReadable, { demoTitle: "TOOL PAGE", badge: "TOOL PAGE VISIBLE" }),
       ...inputShots,
       ...actionShots,
       ...resultShots,
-      primaryShot
+      mediaItem(assets.desktop, { demoTitle: "TOP SECTION", badge: "TOOL NAME VISIBLE" }),
+      mediaItem(assets.landing, { demoTitle: "TOOL NAME PAGE", badge: "ALT F TOOL OPEN" }),
+      primaryShot,
+      mediaItem(assets.desktopFull, { demoTitle: "PAGE SCROLL", badge: "FULL PAGE CONTEXT", objectFit: "cover", objectPosition: "50% 18%" })
     ]).slice(0, 5);
   }
 
@@ -736,8 +798,17 @@ function MiniBrandLogo({ assets, accent, compact = false }) {
   );
 }
 
+function brandOutroFrames(assets, fps) {
+  const seconds = Math.max(0, Math.min(6, Number(assets?.postAvatarOutroSeconds ?? 2) || 0));
+  return Math.round(fps * seconds);
+}
+
 function EndBrandCard({ toolName, toolUrl, assets, frame, fps, accent, sceneDurationFrames }) {
-  const startFrame = Math.max(0, sceneDurationFrames - Math.round(fps * 3.1));
+  const outroFrames = brandOutroFrames(assets, fps);
+  if (outroFrames <= 0) {
+    return null;
+  }
+  const startFrame = Math.max(0, sceneDurationFrames - outroFrames);
   if (frame < startFrame) {
     return null;
   }
@@ -1267,8 +1338,13 @@ function AltFToolOpenOverlay({ sceneIndex, toolName, toolUrl, assets, frame, fps
     return null;
   }
 
-  const endFrame = Math.round(fps * 2.4);
-  const opacity = interpolate(frame, [0, 12, endFrame - 12, endFrame], [1, 1, 1, 0], {
+  const cardSeconds = Math.max(0, Math.min(6, Number(assets?.altfOpenCardSeconds ?? 4) || 0));
+  if (cardSeconds <= 0) {
+    return null;
+  }
+  const endFrame = Math.round(fps * cardSeconds);
+  const fadeFrames = Math.max(1, Math.min(12, Math.floor(endFrame / 3)));
+  const opacity = interpolate(frame, [0, fadeFrames, Math.max(fadeFrames, endFrame - fadeFrames), endFrame], [1, 1, 1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: Easing.bezier(0.16, 1, 0.3, 1)
@@ -1375,7 +1451,7 @@ function AltFToolOpenOverlay({ sceneIndex, toolName, toolUrl, assets, frame, fps
   );
 }
 
-function FullscreenDemoMedia({ media, scene, sceneIndex, totalScenes, toolName, toolUrl, assets, frame, fps, accent, sequenceInfo }) {
+function FullscreenDemoMedia({ media, scene, sceneIndex, totalScenes, toolName, toolUrl, assets, frame, sceneFrame = frame, fps, accent, sequenceInfo }) {
   const source = mediaSource(media);
   const mediaMeta = media && typeof media === "object" ? media : {};
   const portraitLike = isMobileLikeMedia(media);
@@ -1562,7 +1638,7 @@ function FullscreenDemoMedia({ media, scene, sceneIndex, totalScenes, toolName, 
         toolName={toolName}
         toolUrl={toolUrl}
         assets={assets}
-        frame={frame}
+        frame={sceneFrame}
         fps={fps}
         accent={accent}
       />
@@ -1729,12 +1805,14 @@ function HookScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, 
   );
 }
 
-function HookVideoLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, generatedClip, frame, fps, accent, sceneDurationFrames, fade }) {
+function HookVideoLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, generatedClip, frame, fps, accent, sceneDurationFrames, fade }) {
+  const muteAvatarAudio = ["mute", "muted", "off"].includes(String(assets?.avatarAudioMode || "").toLowerCase());
+  const showAvatarCaption = avatarCaptionsEnabled(assets, generatedClip);
   return (
     <AbsoluteFill style={{ opacity: fade, overflow: "hidden", backgroundColor: "#020617" }}>
       <div style={{ ...fullBleed }}>
         <MediaLayer
-          media={{ ...generatedClip, muted: false, loop: false, objectFit: "cover" }}
+          media={{ ...generatedClip, muted: muteAvatarAudio, loop: false, objectFit: "cover" }}
           fit="cover"
           fps={fps}
           style={{ ...fullBleed }}
@@ -1765,11 +1843,24 @@ function HookVideoLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl,
         <div>{String(scene.scene_number || sceneIndex + 1).padStart(2, "0")} / {String(totalScenes).padStart(2, "0")}</div>
       </div>
 
+      {showAvatarCaption ? (
+        <ReelCaption
+          text={scene.voiceover}
+          frame={frame}
+          fps={fps}
+          accent={accent}
+          compact
+          sceneDurationFrames={sceneDurationFrames}
+          sceneIndex={sceneIndex}
+        />
+      ) : null}
     </AbsoluteFill>
   );
 }
 
-function AvatarVideoLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, generatedClip, frame, fps, accent, sceneDurationFrames, fade }) {
+function AvatarVideoLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, generatedClip, frame, fps, accent, sceneDurationFrames, fade }) {
+  const muteAvatarAudio = ["mute", "muted", "off"].includes(String(assets?.avatarAudioMode || "").toLowerCase());
+  const showAvatarCaption = avatarCaptionsEnabled(assets, generatedClip);
   const labelIn = interpolate(frame, [0, 24], [-34, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -1781,7 +1872,7 @@ function AvatarVideoLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUr
     <AbsoluteFill style={{ opacity: fade, overflow: "hidden", backgroundColor: "#020617" }}>
       <div style={{ ...fullBleed }}>
         <MediaLayer
-          media={{ ...generatedClip, muted: false, loop: false, objectFit: "cover" }}
+          media={{ ...generatedClip, muted: muteAvatarAudio, loop: false, objectFit: "cover" }}
           fit="cover"
           fps={fps}
           style={{ ...fullBleed }}
@@ -1822,12 +1913,26 @@ function AvatarVideoLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUr
         </div>
       </div>
 
+      {showAvatarCaption ? (
+        <ReelCaption
+          text={scene.voiceover}
+          frame={frame}
+          fps={fps}
+          accent={accent}
+          compact
+          sceneDurationFrames={sceneDurationFrames}
+          sceneIndex={sceneIndex}
+        />
+      ) : null}
     </AbsoluteFill>
   );
 }
 
 function CtaAvatarLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, generatedClip, frame, fps, accent, sceneDurationFrames, fade }) {
-  const brandOutroStart = Math.max(0, sceneDurationFrames - Math.round(fps * 3.1));
+  const muteAvatarAudio = ["mute", "muted", "off"].includes(String(assets?.avatarAudioMode || "").toLowerCase());
+  const showAvatarCaption = avatarCaptionsEnabled(assets, generatedClip);
+  const outroFrames = brandOutroFrames(assets, fps);
+  const brandOutroStart = outroFrames > 0 ? Math.max(0, sceneDurationFrames - outroFrames) : sceneDurationFrames + 1;
   const showCtaOverlay = frame < brandOutroStart - 4;
   const topIn = interpolate(frame, [0, 26], [-42, 0], {
     extrapolateLeft: "clamp",
@@ -1839,7 +1944,7 @@ function CtaAvatarLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl,
     <AbsoluteFill style={{ opacity: fade, overflow: "hidden", backgroundColor: "#020617" }}>
       <div style={{ ...fullBleed }}>
         <MediaLayer
-          media={{ ...generatedClip, muted: false, loop: false, objectFit: "cover" }}
+          media={{ ...generatedClip, muted: muteAvatarAudio, loop: false, objectFit: "cover" }}
           fit="cover"
           fps={fps}
           style={{ ...fullBleed }}
@@ -1881,6 +1986,17 @@ function CtaAvatarLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl,
           </div>
 
         </>
+      ) : null}
+      {showCtaOverlay && showAvatarCaption ? (
+        <ReelCaption
+          text={scene.voiceover}
+          frame={frame}
+          fps={fps}
+          accent={accent}
+          compact
+          sceneDurationFrames={sceneDurationFrames}
+          sceneIndex={sceneIndex}
+        />
       ) : null}
     </AbsoluteFill>
   );
@@ -1965,7 +2081,9 @@ function IntroScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
         ))}
       </div>
 
-      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact sceneDurationFrames={sceneDurationFrames} sceneIndex={sceneIndex} />
+      {captionsEnabledForScene(assets, sceneIndex, totalScenes) ? (
+        <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact sceneDurationFrames={sceneDurationFrames} sceneIndex={sceneIndex} />
+      ) : null}
       <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
       <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
         {clampText(toolUrl || "altftool.com", 74)}
@@ -2021,6 +2139,7 @@ function DemoScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, 
         toolUrl={toolUrl}
         assets={assets}
         frame={activeShot.slotFrame}
+        sceneFrame={frame}
         fps={fps}
         accent={accent}
         sequenceInfo={activeShot}
@@ -2040,16 +2159,18 @@ function DemoScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, 
         />
       ) : null}
 
-      <ReelCaption
-        text={demoCaptionText}
-        frame={frame}
-        fps={fps}
-        accent={accent}
-        compact={readableDemoMedia}
-        demoReadable={readableDemoMedia}
-        sceneDurationFrames={sceneDurationFrames}
-        sceneIndex={sceneIndex}
-      />
+      {captionsEnabledForScene(assets, sceneIndex, totalScenes) ? (
+        <ReelCaption
+          text={demoCaptionText}
+          frame={frame}
+          fps={fps}
+          accent={accent}
+          compact={readableDemoMedia}
+          demoReadable={readableDemoMedia}
+          sceneDurationFrames={sceneDurationFrames}
+          sceneIndex={sceneIndex}
+        />
+      ) : null}
       {!readableDemoMedia ? (
         <>
           <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent="#FFD700" />
@@ -2213,7 +2334,9 @@ function ProofScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
         />
       ) : null}
 
-      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} sceneDurationFrames={sceneDurationFrames} sceneIndex={sceneIndex} />
+      {captionsEnabledForScene(assets, sceneIndex, totalScenes) ? (
+        <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} sceneDurationFrames={sceneDurationFrames} sceneIndex={sceneIndex} />
+      ) : null}
       <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
       <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
         {clampText(toolUrl || "altftool.com", 74)}
@@ -2223,7 +2346,8 @@ function ProofScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
 }
 
 function CtaScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, toolMedia, generatedClip, frame, fps, accent, sceneDurationFrames, fade }) {
-  const brandOutroStart = Math.max(0, sceneDurationFrames - Math.round(fps * 3.1));
+  const outroFrames = brandOutroFrames(assets, fps);
+  const brandOutroStart = outroFrames > 0 ? Math.max(0, sceneDurationFrames - outroFrames) : sceneDurationFrames + 1;
   const showRegularOutroUi = frame < brandOutroStart - 4;
   const hostIn = interpolate(frame, [4, 28], [-120, 0], {
     extrapolateLeft: "clamp",
@@ -2330,7 +2454,9 @@ function CtaScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, t
 
       {showRegularOutroUi ? (
         <>
-          <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact sceneDurationFrames={sceneDurationFrames} sceneIndex={sceneIndex} />
+          {captionsEnabledForScene(assets, sceneIndex, totalScenes) ? (
+            <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact sceneDurationFrames={sceneDurationFrames} sceneIndex={sceneIndex} />
+          ) : null}
           <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
           <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
             {clampText(toolUrl || "altftool.com", 74)}
