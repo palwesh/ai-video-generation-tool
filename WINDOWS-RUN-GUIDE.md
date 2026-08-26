@@ -32,6 +32,8 @@ Ye script automatically check/install karega:
 - `.env`
 - `outputs/`, `work/`, aur render folders
 
+Python install hona required nahi hai. Large Excel import ke time agar Windows me `python was not found` aaye, dashboard ab automatically Node fallback se workbook load karega.
+
 Setup complete hone ke baad dashboard open hoga:
 
 ```text
@@ -88,14 +90,23 @@ Dashboard open hone ke baad Excel input field me bhi path change kar sakte ho.
 
 ## Render Final Reel Fix
 
-Agar Windows me `Render Final Reel` click karne par render start nahi hota ya terminal me `npx`/`Remotion` error aaye, project folder me PowerShell open karke ye run karo:
+Agar Windows me `Render Final Reel` click karne par render start nahi hota ya terminal me `Remotion` / browser / dependency error aaye, project folder me PowerShell open karke ye run karo:
 
 ```powershell
 .\setup-windows.bat -SkipStart
 .\run-windows.bat
 ```
 
-Ye Node/npm dependencies repair karega. Final renderer Windows par `npx.cmd` use karta hai, isliye setup ke baad naya PowerShell window open karke dashboard run karna best hai.
+Ye Node/npm dependencies repair karega. Final renderer Windows par pehle local `node_modules\.bin\remotion.cmd` use karta hai, isliye setup ke baad naya PowerShell window open karke dashboard run karna best hai.
+
+Direct render dependency check ke liye:
+
+```powershell
+Test-Path .\node_modules\.bin\remotion.cmd
+npm run render:local -- --tool-dir "PASTE_TOOL_OUTPUT_FOLDER_HERE"
+```
+
+Dashboard ke right-side terminal me jo red error aaye, usko copy karke debug karo.
 
 ## 5. Dashboard Use
 

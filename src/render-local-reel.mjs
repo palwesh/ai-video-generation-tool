@@ -1,5 +1,6 @@
 import path from "node:path";
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
 import { spawn } from "node:child_process";
 import dotenv from "dotenv";
 import { parseArgs } from "./lib/args.mjs";
@@ -86,10 +87,20 @@ function assetPath(value) {
 
 function resolveLocalCommand(command) {
   const normalized = String(command || "").trim();
+  const lower = normalized.toLowerCase();
+  if (lower === "remotion") {
+    const localBin = path.resolve(
+      "node_modules",
+      ".bin",
+      process.platform === "win32" ? "remotion.cmd" : "remotion"
+    );
+    if (fsSync.existsSync(localBin)) {
+      return localBin;
+    }
+  }
   if (process.platform !== "win32") {
     return normalized;
   }
-  const lower = normalized.toLowerCase();
   if (lower === "npx") return "npx.cmd";
   if (lower === "npm") return "npm.cmd";
   if (lower === "powershell") return "powershell.exe";
@@ -115,6 +126,9 @@ function commandInstallHint(command) {
   const normalized = String(command || "").toLowerCase();
   if (normalized.includes("npx")) {
     return "npx was not found. Run setup-windows.bat, then open a new PowerShell window and run the dashboard again.";
+  }
+  if (normalized.includes("remotion")) {
+    return "Remotion CLI was not found. Run setup-windows.bat -SkipStart, then run run-windows.bat again.";
   }
   if (normalized.includes("powershell")) {
     return "PowerShell was not found. Use Windows PowerShell or install PowerShell, then retry.";
@@ -778,10 +792,9 @@ async function createAudioAssets(scenes, assetDir, outputDir, durationSeconds = 
 
 async function runRender(propsPath, outputPath) {
   return await new Promise((resolve, reject) => {
-    const executable = resolveLocalCommand("npx");
+    const executable = resolveLocalCommand("remotion");
     process.stdout.write(`Starting Remotion render via ${executable}\n`);
-    const child = spawn(executable, [
-      "remotion",
+    const commandArgs = [
       "render",
       "src/remotion/index.jsx",
       "ToolReel",
@@ -789,7 +802,8 @@ async function runRender(propsPath, outputPath) {
       "--props",
       propsPath,
       "--overwrite"
-    ], spawnOptions({
+    ];
+    const child = spawn(executable, commandArgs, spawnOptions({
       command: executable,
       cwd: process.cwd(),
       env: process.env,

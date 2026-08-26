@@ -21,6 +21,8 @@ The script checks or installs:
 - `.env`
 - local folders for `outputs/`, `work/`, and Remotion assets
 
+Python is optional. For very large `.xlsx` files the dashboard tries a lightweight Python analyzer first, but if Windows says `python was not found`, it now falls back to the built-in Node Excel reader and still loads the workbook.
+
 Then it starts the dashboard:
 
 ```text
@@ -274,7 +276,7 @@ If the dashboard opens but `Render Final Reel` does not start on Windows, repair
 .\run-windows.bat
 ```
 
-The local renderer uses Remotion through `npx.cmd` on Windows. If PowerShell was opened before Node/npm was installed, close it and open a new PowerShell window so the updated PATH is available.
+The local renderer uses the project-local Remotion CLI first: `node_modules\.bin\remotion.cmd`. If final render fails with a Remotion/dependency error, run `.\setup-windows.bat -SkipStart`, close PowerShell, open a fresh PowerShell window, then run `.\run-windows.bat` again.
 
 ## Free Provider Clips
 

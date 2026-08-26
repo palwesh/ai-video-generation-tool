@@ -394,10 +394,51 @@ async function shouldUseLargeXlsxReader(inputPath) {
   }
 }
 
-function runLargeXlsxAnalyzer(inputPath, baseUrl = "", options = {}) {
+function pythonAnalyzerCandidates() {
+  if (/^(1|true|yes)$/i.test(String(process.env.TRF_DISABLE_PYTHON_XLSX || ""))) {
+    return [];
+  }
+  const configured = String(process.env.TRF_PYTHON || process.env.PYTHON || "").trim();
+  const candidates = [];
+  if (configured) {
+    candidates.push({ command: configured, prefixArgs: [], label: configured });
+  }
+  if (process.platform === "win32") {
+    candidates.push(
+      { command: "py", prefixArgs: ["-3"], label: "py -3" },
+      { command: "python", prefixArgs: [], label: "python" },
+      { command: "python3", prefixArgs: [], label: "python3" }
+    );
+  } else {
+    candidates.push(
+      { command: "python3", prefixArgs: [], label: "python3" },
+      { command: "python", prefixArgs: [], label: "python" }
+    );
+  }
+  const seen = new Set();
+  return candidates.filter((candidate) => {
+    const key = `${candidate.command}\0${candidate.prefixArgs.join(" ")}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function isPythonMissingError(error) {
+  const text = `${error?.code || ""} ${error?.message || ""}`.toLowerCase();
+  return text.includes("enoent")
+    || text.includes("not found")
+    || text.includes("was not found")
+    || text.includes("not recognized")
+    || text.includes("could not be found");
+}
+
+function runLargeXlsxAnalyzerWithPython(candidate, inputPath, baseUrl = "", options = {}) {
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(projectRoot, "scripts", "analyze-xlsx-light.py");
-    const analyzerArgs = [scriptPath, inputPath, "--base-url", baseUrl || ""];
+    const analyzerArgs = [...candidate.prefixArgs, scriptPath, inputPath, "--base-url", baseUrl || ""];
     if (options.fullTools) {
       analyzerArgs.push("--full-tools");
     }
@@ -410,7 +451,7 @@ function runLargeXlsxAnalyzer(inputPath, baseUrl = "", options = {}) {
     if (options.targetRow) {
       analyzerArgs.push("--target-row", String(options.targetRow));
     }
-    const child = spawn("python3", analyzerArgs, {
+    const child = spawn(candidate.command, analyzerArgs, {
       cwd: projectRoot,
       env: process.env,
       stdio: ["ignore", "pipe", "pipe"]
@@ -426,16 +467,113 @@ function runLargeXlsxAnalyzer(inputPath, baseUrl = "", options = {}) {
     child.on("error", reject);
     child.on("close", (code) => {
       if (code !== 0) {
-        reject(new Error(stderr.trim() || `Large XLSX analyzer failed with exit code ${code}`));
+        reject(new Error(stderr.trim() || `Large XLSX analyzer failed via ${candidate.label} with exit code ${code}`));
         return;
       }
       try {
-        resolve(JSON.parse(stdout));
+        const parsed = JSON.parse(stdout);
+        parsed.runtime = {
+          ...(parsed.runtime || {}),
+          analyzer: "python",
+          python: candidate.label
+        };
+        resolve(parsed);
       } catch (error) {
         reject(new Error(`Large XLSX analyzer returned invalid JSON: ${error.message}`));
       }
     });
   });
+}
+
+function analyzerToolShape(row) {
+  const sourceRow = Number(row.source_row_number || row.row || 0);
+  return {
+    ...row,
+    row: sourceRow,
+    source_row_number: sourceRow,
+    name: row.tool_name || row.name || "",
+    url: row.tool_url || row.url || "",
+    tool_name: row.tool_name || row.name || "",
+    tool_url: row.tool_url || row.url || ""
+  };
+}
+
+async function runLargeXlsxAnalyzerWithNodeFallback(inputPath, baseUrl = "", options = {}, fallbackErrors = []) {
+  const table = await readWorkbookTable(inputPath);
+  let rows = normalizeWorkbookObjects(table.objects, {
+    toolBaseUrl: baseUrl || ""
+  }).map(analyzerToolShape);
+  const targetRow = Number(options.targetRow || 0);
+  if (targetRow) {
+    rows = rows.filter((row) => Number(row.source_row_number || row.row) === targetRow);
+  }
+  const limit = Number(options.ideasLimit || 0);
+  const visibleRows = options.ideasOnly && limit > 0 ? rows.slice(0, limit) : rows;
+  const statusCounts = {};
+  const categoryCounts = {};
+  for (const row of rows) {
+    const status = row.status || "Blank";
+    const category = row.category || "Uncategorized";
+    statusCounts[status] = (statusCounts[status] || 0) + 1;
+    categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+  }
+  const pythonWarning = fallbackErrors.length
+    ? `Python XLSX analyzer was not available, so Node fallback loaded the workbook. Details: ${fallbackErrors.slice(0, 2).join(" | ")}`
+    : "Python XLSX analyzer was skipped; Node fallback loaded the workbook.";
+  return {
+    tools: visibleRows,
+    analysis: {
+      input: inputPath,
+      fileName: path.basename(inputPath),
+      headers: table.headers,
+      columnCount: table.headers.length,
+      rawRowCount: table.objects.length,
+      detectedToolRows: rows.length,
+      visibleToolRows: visibleRows.length,
+      withUrl: rows.filter((row) => row.tool_url || row.url).length,
+      missingUrl: rows.filter((row) => !(row.tool_url || row.url)).length,
+      withDescription: rows.filter((row) => row.description).length,
+      withScript: rows.filter((row) => row.script).length,
+      statusCounts,
+      categoryCounts,
+      preview: rows.slice(0, 8).map((row) => ({
+        row: row.source_row_number || row.row,
+        name: row.tool_name || row.name,
+        url: row.tool_url || row.url,
+        description: row.description,
+        script: row.script,
+        status: row.status,
+        category: row.category
+      })),
+      warnings: [
+        pythonWarning,
+        options.ideasOnly ? "Only tool idea names were loaded." : "",
+        rows.some((row) => !(row.tool_url || row.url)) ? "Some rows do not have a tool URL." : "",
+        rows.length === 0 ? "No usable tool rows detected." : ""
+      ].filter(Boolean),
+      fallback: "node-xlsx-reader"
+    },
+    runtime: {
+      analyzer: "node-fallback",
+      pythonAvailable: false,
+      fallbackErrors
+    }
+  };
+}
+
+async function runLargeXlsxAnalyzer(inputPath, baseUrl = "", options = {}) {
+  const errors = [];
+  for (const candidate of pythonAnalyzerCandidates()) {
+    try {
+      return await runLargeXlsxAnalyzerWithPython(candidate, inputPath, baseUrl, options);
+    } catch (error) {
+      errors.push(`${candidate.label}: ${error.message}`);
+      if (!isPythonMissingError(error)) {
+        break;
+      }
+    }
+  }
+  return runLargeXlsxAnalyzerWithNodeFallback(inputPath, baseUrl, options, errors);
 }
 
 function parseSceneList(value, maxScenes = 6) {
