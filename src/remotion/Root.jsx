@@ -36,8 +36,13 @@ export const RemotionRoot = () => {
         calculateMetadata={({ props }) => {
           const scenes = Array.isArray(props?.scenes) && props.scenes.length ? props.scenes : defaultScenes;
           const sceneDurationSeconds = Number(props?.sceneDurationSeconds || 10) || 10;
+          const clips = Array.isArray(props?.assets?.vidsClips) ? props.assets.vidsClips : [];
+          const lastSceneHasAvatarClip = scenes.length > 1 && Boolean(clips[scenes.length - 1]);
+          const postAvatarOutroSeconds = lastSceneHasAvatarClip && props?.assets?.postAvatarOutroSeconds !== 0
+            ? Math.max(1.4, Number(props?.assets?.postAvatarOutroSeconds || 2.4) || 2.4)
+            : 0;
           return {
-            durationInFrames: scenes.length * sceneDurationSeconds * 30
+            durationInFrames: Math.round((scenes.length * sceneDurationSeconds + postAvatarOutroSeconds) * 30)
           };
         }}
         defaultProps={{

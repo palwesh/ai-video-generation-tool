@@ -11,6 +11,12 @@ import { ensureDir, readJson, writeJson } from "./lib/fsx.mjs";
 import { readWorkbookTable, normalizeWorkbookObjects } from "./lib/input.mjs";
 import { writeSimpleXlsx } from "./lib/simple-xlsx-writer.mjs";
 import { fileHyperlink, folderHyperlink, hyperlinkFormula } from "./lib/link-cells.mjs";
+import {
+  mergeRegistryMetadata,
+  readProfileRegistry,
+  registryPathFromConfig,
+  writeProfileRegistryXlsx
+} from "./lib/profile-registry.mjs";
 import { freeVideoProviders as availableFreeVideoProviders } from "./lib/free-video-providers.mjs";
 import { captureToolWebsite } from "./lib/capture.mjs";
 import { slugify } from "./lib/slug.mjs";
@@ -68,7 +74,9 @@ const defaultEdgeTtsVoice = appConfig.voiceover?.edgeVoice || "hi-IN-SwaraNeural
 const defaultEdgeTtsRate = appConfig.voiceover?.edgeRate || "+6%";
 const defaultHookAvatarStyle = appConfig.voiceover?.hookAvatarStyle || "female";
 const defaultAvatarGenerationProvider = appConfig.avatarGeneration?.provider || "manual";
-const defaultAvatarReferenceImages = appConfig.avatarGeneration?.referenceImages || "";
+const defaultFemaleAvatarImage = appConfig.avatarGeneration?.defaultFemaleImage || "public/avatar/altftool-female-host-custom.png";
+const defaultMaleAvatarImage = appConfig.avatarGeneration?.defaultMaleImage || "public/avatar/altftool-male-host-main.png";
+const defaultAvatarReferenceImages = appConfig.avatarGeneration?.referenceImages || [defaultFemaleAvatarImage, defaultMaleAvatarImage].filter(Boolean).join(",");
 const defaultAvatarGenerationProviders = appConfig.avatarGeneration?.providers || "heygen,did,runway,veo,pika";
 const defaultHeygenVoiceId = appConfig.avatarGeneration?.heygenVoiceId || "";
 const avatarOptions = Array.isArray(googleVidsConfig.avatarOptions) && googleVidsConfig.avatarOptions.length
@@ -82,6 +90,7 @@ const finalReelRuns = new Map();
 const scriptVideoRuns = new Map();
 const uiStatePath = path.join(projectRoot, "work", "ui-state.json");
 const trackerWorkbookPath = path.join(projectRoot, "outputs", "work-tracker", "tool-work-tracker.xlsx");
+const profileRegistryPath = registryPathFromConfig(projectRoot, appConfig);
 let stateWrite = Promise.resolve();
 
 const defaultQuotaTemplate = {
@@ -98,6 +107,10 @@ const defaultQuotaTemplate = {
   lastQuotaHitAt: "",
   updatedAt: ""
 };
+
+function defaultAvatarImageForPresenter(presenter = "") {
+  return String(presenter || "").toLowerCase() === "male" ? defaultMaleAvatarImage : defaultFemaleAvatarImage;
+}
 
 const defaultDocs = [
   "WINDOWS-RUN-GUIDE.md",
@@ -452,11 +465,11 @@ function normalizeRunBody(body = {}) {
   if (!String(normalized.ttsVoice || "").trim()) {
     normalized.ttsVoice = normalized.ttsProvider === "edge" ? defaultEdgeTtsVoice : defaultOpenAiTtsVoice;
   }
-  if (!String(normalized.avatarReferenceImages || "").trim()) {
-    normalized.avatarReferenceImages = defaultAvatarReferenceImages;
-  }
   if (!String(normalized.hookAvatarStyle || "").trim()) {
     normalized.hookAvatarStyle = defaultHookAvatarStyle;
+  }
+  if (!String(normalized.avatarReferenceImages || "").trim()) {
+    normalized.avatarReferenceImages = defaultAvatarImageForPresenter(normalized.hookAvatarStyle);
   }
   if (!String(normalized.hookAvatarCharacter || "").trim()) {
     normalized.hookAvatarCharacter = "auto_by_reel";
@@ -835,7 +848,7 @@ function profileDisplayLabel(profile, index) {
     "work/shejal.sahu-anslation.com-profile": "Sejal profile"
   }[profile.path];
   const prefix = `Profile ${index + 1}`;
-  const identity = profile.email || profile.googleName || profile.profileName || "";
+  const identity = profile.email || profile.expectedEmail || profile.googleName || profile.displayName || profile.profileName || "";
   if (alias && identity) {
     return `${prefix} - ${alias} (${identity})`;
   }
@@ -970,17 +983,55 @@ async function readDoc(docPath) {
   };
 }
 
-async function listProfiles() {
+async function readProfileRegistrySafe() {
+  try {
+    return await readProfileRegistry(profileRegistryPath, { normalizeProfilePath });
+  } catch (error) {
+    console.warn(`Profile registry read skipped: ${error.message}`);
+    return [];
+  }
+}
+
+async function syncProfileRegistryQuiet(profiles, state, registryEntries = []) {
+  try {
+    await writeProfileRegistryXlsx(profileRegistryPath, profiles, {
+      registryEntries,
+      quotaForProfile: (profilePath) => profileQuota(state, profilePath)
+    });
+  } catch (error) {
+    console.warn(`Profile registry export skipped: ${error.message}`);
+  }
+}
+
+async function listProfiles(options = {}) {
   const state = await loadUiState();
+  const registryEntries = options.registryEntries || await readProfileRegistrySafe();
+  const registryByPath = new Map(registryEntries.map((entry) => [entry.path, entry]));
+  const savedByPath = new Map();
+  for (const saved of state.profiles || []) {
+    try {
+      const savedPath = normalizeProfilePath(saved.path || saved);
+      savedByPath.set(savedPath, saved);
+    } catch {
+      // Ignore invalid older local state rows.
+    }
+  }
   const removedProfiles = new Set((state.removedProfiles || []).map(normalizeProfilePathOrNull).filter(Boolean));
   const workDir = path.join(projectRoot, "work");
   const found = [];
+  const metadataByPath = new Map();
 
-  const pushProfile = (value) => {
+  const pushProfile = (value, metadata = {}) => {
     const profilePath = normalizeProfilePath(value);
     if (!removedProfiles.has(profilePath) && !found.includes(profilePath)) {
       found.push(profilePath);
     }
+    const current = metadataByPath.get(profilePath) || {};
+    metadataByPath.set(profilePath, mergeRegistryMetadata(current, metadata));
+  };
+
+  for (const registryProfile of registryEntries) {
+    pushProfile(registryProfile.path, registryProfile);
   };
 
   for (const profile of defaultProfiles) {
@@ -989,7 +1040,7 @@ async function listProfiles() {
 
   for (const saved of state.profiles || []) {
     try {
-      pushProfile(saved.path || saved);
+      pushProfile(saved.path || saved, saved);
     } catch {
       // Ignore invalid profile paths from older local state edits.
     }
@@ -1018,23 +1069,45 @@ async function listProfiles() {
   for (let index = 0; index < found.length; index += 1) {
     const profilePath = found[index];
     const identity = await profileIdentity(profilePath);
+    const saved = savedByPath.get(profilePath) || {};
+    const registry = registryByPath.get(profilePath) || {};
+    const metadata = mergeRegistryMetadata(saved, {
+      ...registry,
+      ...metadataByPath.get(profilePath)
+    });
     const profile = {
       id: profilePath,
       label: "",
       path: profilePath,
       absolutePath: path.resolve(projectRoot, profilePath),
       exists: fsSync.existsSync(path.resolve(projectRoot, profilePath)),
+      displayName: metadata.registryProfileName || saved.name || saved.displayName || "",
+      registryProfileName: metadata.registryProfileName || "",
+      expectedEmail: metadata.expectedEmail || saved.email || saved.expectedEmail || "",
+      enabled: metadata.enabled !== false,
+      priority: Number.isFinite(Number(metadata.priority)) ? Number(metadata.priority) : index + 1,
+      registryStatus: metadata.registryStatus || "",
+      registryLimitStatus: metadata.registryLimitStatus || "",
+      registryNotes: metadata.registryNotes || "",
+      registryLastUsed: metadata.registryLastUsed || "",
+      registryLastLoginCheck: metadata.registryLastLoginCheck || "",
       ...identity
     };
     profile.label = profileDisplayLabel(profile, index);
     profiles.push(profile);
   }
 
-  return profiles;
+  return profiles.sort((left, right) => {
+    const leftPriority = Number.isFinite(Number(left.priority)) ? Number(left.priority) : 999;
+    const rightPriority = Number.isFinite(Number(right.priority)) ? Number(right.priority) : 999;
+    return leftPriority - rightPriority || found.indexOf(left.path) - found.indexOf(right.path);
+  });
 }
 
 async function addProfile(body) {
   const rawName = String(body.profile || body.name || "").trim();
+  const expectedEmail = String(body.email || body.expectedEmail || body.loginId || "").trim().slice(0, 180);
+  const priority = clamp(asFiniteNumber(body.priority, 999), 1, 999);
   let profilePath = "";
   if (rawName) {
     const candidate = rawName.includes("/") ? rawName : safeProfileName(rawName);
@@ -1054,9 +1127,31 @@ async function addProfile(body) {
     state.removedProfiles = (state.removedProfiles || [])
       .map(normalizeProfilePathOrNull)
       .filter((item) => item !== profilePath);
-    if (!existing.has(profilePath)) {
+    if (existing.has(profilePath)) {
+      state.profiles = (state.profiles || []).map((item) => {
+        const itemPath = normalizeProfilePath(item.path || item);
+        if (itemPath !== profilePath) {
+          return item;
+        }
+        return {
+          ...(typeof item === "object" && item ? item : {}),
+          path: profilePath,
+          name: rawName || item.name || item.displayName || profileBasename(profilePath),
+          expectedEmail: expectedEmail || item.expectedEmail || item.email || "",
+          email: expectedEmail || item.email || "",
+          priority: priority === 999 ? (item.priority || priority) : priority,
+          enabled: item.enabled !== false,
+          updatedAt: new Date().toISOString()
+        };
+      });
+    } else {
       state.profiles.push({
         path: profilePath,
+        name: rawName || profileBasename(profilePath),
+        expectedEmail,
+        email: expectedEmail,
+        priority,
+        enabled: true,
         createdAt: new Date().toISOString()
       });
     }
@@ -1066,6 +1161,50 @@ async function addProfile(body) {
   return {
     profile: profiles.find((item) => item.path === profilePath) || { path: profilePath },
     profiles
+  };
+}
+
+async function setProfileEnabled(body) {
+  const profilePath = normalizeProfilePath(body.profile || body.path || "");
+  if (!profilePath) {
+    throw new Error("Profile path is required.");
+  }
+  const enabled = Boolean(body.enabled);
+  await updateUiState((state) => {
+    const now = new Date().toISOString();
+    let found = false;
+    state.profiles = (state.profiles || []).map((item) => {
+      const itemPath = normalizeProfilePath(item.path || item);
+      if (itemPath !== profilePath) {
+        return item;
+      }
+      found = true;
+      return {
+        ...(typeof item === "object" && item ? item : {}),
+        path: profilePath,
+        enabled,
+        updatedAt: now
+      };
+    });
+    if (!found) {
+      state.profiles.push({
+        path: profilePath,
+        enabled,
+        createdAt: now,
+        updatedAt: now
+      });
+    }
+    if (enabled) {
+      state.removedProfiles = (state.removedProfiles || [])
+        .map(normalizeProfilePathOrNull)
+        .filter((item) => item && item !== profilePath);
+    }
+  });
+
+  return {
+    profile: profilePath,
+    enabled,
+    profiles: await listProfiles()
   };
 }
 
@@ -1412,14 +1551,16 @@ async function analyzeInputWorkbookPackage(inputPath, options = {}) {
   };
 }
 
-async function listToolIdeas(inputPath) {
+async function listToolIdeas(inputPath, options = {}) {
   const config = await readJson(path.join(projectRoot, "config/default.json"));
   const resolvedInput = path.resolve(inputPath || defaultInput);
+  const configuredLimit = asFiniteNumber(config.ui?.ideaListLimit, 0);
+  const limit = asFiniteNumber(options.limit, configuredLimit);
 
   if (await shouldUseLargeXlsxReader(resolvedInput)) {
     const ideas = await runLargeXlsxAnalyzer(resolvedInput, config.toolBaseUrl || "", {
       ideasOnly: true,
-      ideasLimit: config.ui?.ideaListLimit || 0
+      ideasLimit: limit
     });
     return {
       input: resolvedInput,
@@ -1434,18 +1575,24 @@ async function listToolIdeas(inputPath) {
   const rows = normalizeWorkbookObjects(table.objects, {
     toolBaseUrl: config.toolBaseUrl || ""
   });
+  const visibleRows = limit > 0 ? rows.slice(0, limit) : rows;
+  const warnings = [
+    "Only tool idea names were loaded.",
+    limit > 0 && rows.length > visibleRows.length ? `Only first ${visibleRows.length} idea names were loaded. Enter row number directly for any later row.` : ""
+  ].filter(Boolean);
   return {
     input: resolvedInput,
     fileName: path.basename(resolvedInput),
-    tools: ideaNameOptionsFromTools(rows),
+    tools: ideaNameOptionsFromTools(visibleRows),
     analysis: {
       input: resolvedInput,
       fileName: path.basename(resolvedInput),
       detectedToolRows: rows.length,
+      visibleToolRows: visibleRows.length,
       ideaOnlyMode: true,
-      warnings: ["Only tool idea names were loaded."]
+      warnings
     },
-    warnings: ["Only tool idea names were loaded."]
+    warnings
   };
 }
 
@@ -1591,6 +1738,8 @@ async function toolRowForInput(inputPath, rowNumber) {
 function assetSummaryMarkdown(result) {
   const tool = result.tool || {};
   const files = result.files || [];
+  const guide = result.capture?.toolUseGuide || {};
+  const quality = result.assetQuality || {};
   return [
     `# ${tool.tool_name || "Tool"} Asset Build`,
     "",
@@ -1609,10 +1758,118 @@ function assetSummaryMarkdown(result) {
     "",
     result.capture?.summary || "No capture summary.",
     "",
+    "## Asset Quality",
+    "",
+    quality.score
+      ? `Score: ${quality.score}/100 (${quality.status || "review"})`
+      : "Score: Not calculated.",
+    quality.needsRecapture ? "Needs recapture: Yes" : "Needs recapture: No",
+    quality.summary ? `Summary: ${quality.summary}` : "",
+    "",
+    ...((quality.checks || []).length
+      ? quality.checks.map((check) => `- ${check.ok ? "OK" : "Fix"}: ${check.label}${check.note ? ` - ${check.note}` : ""}`)
+      : ["- No asset quality checks found."]),
+    "",
+    "## Tool Use Focus",
+    "",
+    guide.primaryUseCase ? `Use case: ${clipText(guide.primaryUseCase, 900)}` : "Use case: Real tool demo and workflow.",
+    "",
+    "How to use:",
+    "",
+    ...((guide.demoSteps || []).length
+      ? guide.demoSteps.map((step, index) => `${index + 1}. ${step}`)
+      : ["1. Open the real tool page.", "2. Add fictional demo input.", "3. Click the visible primary action.", "4. Review the output/result screen."]),
+    "",
+    "Visual priority:",
+    "",
+    ...((guide.visualPriority || []).length
+      ? guide.visualPriority.map((step) => `- ${step}`)
+      : ["- Keep the actual tool UI readable.", "- Use screenshot/video proof as the main visual."]),
+    "",
     "## Asset Files",
     "",
     ...(files.length ? files.map((file) => `- ${file.relativePath}`) : ["- No media files were captured."])
   ].join("\n");
+}
+
+function mediaNameText(files = []) {
+  return files
+    .map((file) => {
+      if (typeof file === "string") return file;
+      return [file.name, file.path, file.relativePath].filter(Boolean).join(" ");
+    })
+    .join("\n")
+    .toLowerCase();
+}
+
+function addAssetQualityCheck(checks, id, label, ok, points, note = "") {
+  checks.push({
+    id,
+    label,
+    ok: Boolean(ok),
+    points: ok ? points : 0,
+    maxPoints: points,
+    note
+  });
+}
+
+function buildAssetQualityReport(assetBuild = {}) {
+  const files = [
+    ...(assetBuild.capture?.files || []),
+    ...(assetBuild.files || [])
+  ];
+  const names = mediaNameText(files);
+  const guide = assetBuild.capture?.toolUseGuide || {};
+  const checks = [];
+
+  const hasToolUrl = Boolean(assetBuild.tool?.tool_url || assetBuild.tool?.url);
+  const hasPageCapture = /desktop-(top|full-page|landing)|tool-readable|mobile-top/.test(names);
+  const hasReadableCapture = /tool-readable|desktop-full-page|desktop-landing/.test(names);
+  const hasInputCapture = /desktop-demo-(inputs|before)|demo-input|input/.test(names);
+  const hasResultCapture = /desktop-demo-after|demo-after|result|output/.test(names);
+  const hasRecording = /desktop-demo\.(webm|mp4|mov)|mobile-scroll\.(webm|mp4|mov)|screen.*\.(webm|mp4|mov)/.test(names);
+  const hasWorkflowGuide = Boolean(
+    guide.primaryUseCase ||
+    (Array.isArray(guide.demoSteps) && guide.demoSteps.length >= 2) ||
+    (Array.isArray(guide.visualPriority) && guide.visualPriority.length)
+  );
+  const mediaCount = files.filter((file) => ["image", "video"].includes(file?.kind) || /\.(png|jpe?g|webp|webm|mp4|mov)$/i.test(String(file?.path || file))).length;
+
+  addAssetQualityCheck(checks, "tool_url", "Tool URL found", hasToolUrl, 10, hasToolUrl ? "Live tool link is available." : "Excel row needs a usable Tool URL.");
+  addAssetQualityCheck(checks, "page_capture", "Tool page screenshot captured", hasPageCapture, 20, hasPageCapture ? "Landing/top page captured." : "Capture the real tool page before script/video.");
+  addAssetQualityCheck(checks, "readable_capture", "Readable full-screen UI asset exists", hasReadableCapture, 20, hasReadableCapture ? "Editor can show the tool clearly." : "Need desktop full-page or readable crop for the demo.");
+  addAssetQualityCheck(checks, "input_capture", "Input/demo state captured", hasInputCapture, 15, hasInputCapture ? "Demo input state captured." : "Fill fictional input and recapture before render.");
+  addAssetQualityCheck(checks, "result_capture", "Result/output state captured", hasResultCapture, 20, hasResultCapture ? "Result proof is available." : "Run the tool with fictional data and capture the output.");
+  addAssetQualityCheck(checks, "recording", "Screen recording exists", hasRecording, 10, hasRecording ? "Motion footage available for body scenes." : "Optional, but a short recording makes the reel less static.");
+  addAssetQualityCheck(checks, "workflow_guide", "Workflow notes generated", hasWorkflowGuide, 5, hasWorkflowGuide ? "Script can use tool workflow context." : "Add tool-use notes or rerun asset build.");
+
+  const rawScore = checks.reduce((sum, check) => sum + check.points, 0);
+  const maxScore = checks.reduce((sum, check) => sum + check.maxPoints, 0);
+  const score = maxScore ? Math.round((rawScore / maxScore) * 100) : 0;
+  const blockers = checks.filter((check) => !check.ok && ["page_capture", "readable_capture", "result_capture"].includes(check.id));
+  const status = score >= 85 && !blockers.length
+    ? "strong_assets"
+    : score >= 65 && blockers.length <= 1
+      ? "usable_needs_review"
+      : "needs_recapture";
+
+  return {
+    ok: status !== "needs_recapture",
+    score,
+    rawScore,
+    maxScore,
+    status,
+    needsRecapture: status === "needs_recapture",
+    mediaCount,
+    summary: status === "strong_assets"
+      ? "Assets look strong for a real tool demo reel."
+      : status === "usable_needs_review"
+        ? "Assets are usable, but review the missing item before final render."
+        : "Recapture recommended before spending time on final editing.",
+    checks,
+    missing: checks.filter((check) => !check.ok).map((check) => check.label),
+    generatedAt: new Date().toISOString()
+  };
 }
 
 async function buildToolAssets(body, options = {}) {
@@ -1679,10 +1936,14 @@ async function buildToolAssets(body, options = {}) {
     capture: {
       enabled: capture.enabled,
       summary: capture.summary,
-      files: [...mediaFiles]
+      files: [...mediaFiles],
+      toolUseGuide: capture.toolUseGuide || null
     },
     files: [...mediaFiles]
   };
+  result.assetQuality = buildAssetQualityReport(result);
+  result.qualityScore = result.assetQuality.score;
+  result.qualityStatus = result.assetQuality.status;
 
   const toolDetailsPath = path.join(assetsDir, "tool-details.json");
   const manifestPath = path.join(assetsDir, "asset-manifest.json");
@@ -1707,7 +1968,10 @@ async function buildToolAssets(body, options = {}) {
       updatedAt: new Date().toISOString()
     };
   });
-  log(`Asset build ready. Total files: ${result.files.length}`);
+  log(`Asset build ready. Total files: ${result.files.length}. Asset quality: ${result.assetQuality.score}/100 (${result.assetQuality.status}).`);
+  if (result.assetQuality.needsRecapture) {
+    log(`Asset quality warning: ${result.assetQuality.missing.join(", ")}`, "stderr");
+  }
 
   return result;
 }
@@ -1768,6 +2032,61 @@ function scriptBenefitLine(row) {
   return limitScriptWords(row.main_benefit || row.description || "manual work ko faster aur cleaner banata hai", 12).replace(/\.$/, "");
 }
 
+function captureUseGuide(capture = {}) {
+  return capture?.toolUseGuide || capture?.tool_use_guide || {};
+}
+
+function captureInputLabel(guide = {}) {
+  const fields = Array.isArray(guide.inputsShown) ? guide.inputsShown : [];
+  const labels = fields
+    .map((field) => field.label || field.name || field.type || field.tagName)
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(", ");
+  if (labels) {
+    return labels;
+  }
+  if (Array.isArray(guide.uploadsShown) && guide.uploadsShown.length) {
+    return "demo upload file";
+  }
+  return "visible demo input";
+}
+
+function toolUseSceneLines(row, capture = {}) {
+  const guide = captureUseGuide(capture);
+  const label = shortToolLabel(row);
+  const toolUrl = scriptTextClean(row.tool_url || row.url, "real tool link");
+  const input = captureInputLabel(guide);
+  const action = shortScriptPhrase(guide.primaryAction, "visible action", 5, 54);
+  const output = shortScriptPhrase(guide.outputPreview, "result/output screen", 8, 86);
+  const useCase = clipText(guide.primaryUseCase || row.description || scriptBenefitLine(row), 110);
+  return {
+    intro: `${label} ka kaam simple hai: ${useCase}. Pehle real page samjho, phir exact workflow dekho.`,
+    demo: `Ye real page hai: ${toolUrl}. Fictional ${input} add karo, ${action} click karo, aur tool ka response dekho.`,
+    workflow: `Use aise karo: link open, input fill, action run, phir result screen par ruk kar review karo.`,
+    output: `Main value output me hai: ${output}. Copy, download ya share se pehle result check karo.`,
+    proof: `Before manual confusion; after ${label} me input, action aur result review ek clear flow me dikh raha hai.`
+  };
+}
+
+function toolUseVisualForRole(roleId, row, capture = {}, hasAssets = false) {
+  const guide = captureUseGuide(capture);
+  const toolUrl = scriptTextClean(row.tool_url || row.url, "real tool link");
+  const input = captureInputLabel(guide);
+  const action = shortScriptPhrase(guide.primaryAction, "visible action", 5, 54);
+  const output = shortScriptPhrase(guide.outputPreview, "result/output screen", 8, 86);
+  const mainProof = hasAssets ? "Use captured screenshots/screen recording as the main full-screen proof." : "Use the real Tool URL and avoid fake UI.";
+  const visuals = {
+    intro: `Show what the tool does on the actual page: ${toolUrl}. Keep the landing/use-case area readable. ${mainProof}`,
+    demo: `Full-screen real demo: open ${toolUrl}, zoom into ${input}, click ${action}, and keep cursor highlights visible. ${mainProof}`,
+    demo_workflow: `Full-screen workflow proof: input/upload area, ${action} click, and ${output}. ${mainProof}`,
+    workflow: `Teach the use flow with real footage: open link, fill ${input}, run ${action}, review result. ${mainProof}`,
+    workflow_output: `Hold the real output/result screen long enough to understand ${output}. ${mainProof}`,
+    proof_before_after: `Compare captured before/input screen against captured after/result screen. ${mainProof}`
+  };
+  return visuals[roleId] || "";
+}
+
 function hashtagValue(value) {
   const text = String(value || "")
     .toLowerCase()
@@ -1789,6 +2108,7 @@ function enhanceScenePlanForReel(plan, row, capture) {
   const scenes = Array.isArray(plan?.scenes) ? plan.scenes : [];
   const hasAssets = Array.isArray(capture?.files) && capture.files.length > 0;
   const hook = selectViralHook(row);
+  const useLines = toolUseSceneLines(row, capture);
 
   return {
     ...plan,
@@ -1805,18 +2125,26 @@ function enhanceScenePlanForReel(plan, row, capture) {
         next.voiceover = viralVoiceoverForRole("review_cta", row);
         next.onscreen_text = viralOnscreenTextForRole("review_cta", row);
       } else if (sceneNumber === 2) {
-        next.voiceover = viralVoiceoverForRole("intro", row);
+        next.voiceover = useLines.intro;
         next.onscreen_text = viralOnscreenTextForRole("intro", row);
       } else if (/demo/i.test(next.visual || next.video_prompt || "") || role.id === "demo" || role.id === "demo_workflow") {
-        next.voiceover = viralVoiceoverForRole(role.id === "demo_workflow" ? "demo_workflow" : "demo", row);
+        next.voiceover = useLines.demo;
         next.onscreen_text = viralOnscreenTextForRole(role.id === "demo_workflow" ? "demo_workflow" : "demo", row);
       } else if (hasAssets && ["workflow", "workflow_output", "proof_before_after"].includes(role.id)) {
-        next.voiceover = viralVoiceoverForRole(role.id, row);
+        next.voiceover = role.id === "workflow"
+          ? useLines.workflow
+          : role.id === "workflow_output"
+            ? useLines.output
+            : useLines.proof;
         next.onscreen_text = viralOnscreenTextForRole(role.id, row);
       } else {
-        next.voiceover = viralVoiceoverForRole(role.id, row);
+        next.voiceover = ["workflow", "workflow_output", "proof_before_after"].includes(role.id)
+          ? (role.id === "workflow" ? useLines.workflow : role.id === "workflow_output" ? useLines.output : useLines.proof)
+          : viralVoiceoverForRole(role.id, row);
         next.onscreen_text = viralOnscreenTextForRole(role.id, row);
       }
+      next.voiceover = limitScriptWords(next.voiceover, 24);
+      next.visual = toolUseVisualForRole(role.id, row, capture, hasAssets) || next.visual;
       next.promotion_angle = role.id === "hook" || role.id === "hook_intro" ? hook.framework : "proof_first_tool_demo";
       next.engagement_goal = lastScene ? "save_comment_share" : "watch_time";
       return next;
@@ -1888,7 +2216,8 @@ async function scriptCaptureContext(body, input, rowNumber, tool = {}) {
     capture: {
       enabled: Boolean(assetBuild?.capture?.enabled || files.length),
       summary: assetBuild?.capture?.summary || `Using ${files.length} existing asset file(s) from ${resolvedAssetsDir}.`,
-      files
+      files,
+      toolUseGuide: assetBuild?.capture?.toolUseGuide || null
     },
     assetBuild
   };
@@ -1922,6 +2251,16 @@ function scriptMarkdown(result) {
     "## Body",
     "",
     pkg.body || "",
+    "",
+    "## Tool Use Focus",
+    "",
+    pkg.tool_use_focus?.primary_use_case ? `Use case: ${pkg.tool_use_focus.primary_use_case}` : "Use case: Real tool workflow.",
+    pkg.tool_use_focus?.primary_action ? `Primary action: ${pkg.tool_use_focus.primary_action}` : "",
+    pkg.tool_use_focus?.output_preview ? `Output: ${pkg.tool_use_focus.output_preview}` : "",
+    "",
+    ...((pkg.tool_use_focus?.demo_steps || []).length
+      ? pkg.tool_use_focus.demo_steps.map((step, index) => `${index + 1}. ${step}`)
+      : ["1. Open the tool page.", "2. Add fictional input.", "3. Click the visible action.", "4. Review the result."]),
     "",
     "## CTA",
     "",
@@ -3333,6 +3672,37 @@ function safeHookProfileLabel(profileDir, index = 0) {
   return `${String(index + 1).padStart(2, "0")}-${cleanBase || "profile"}`;
 }
 
+function parseAvatarScriptMap(value) {
+  if (!value) {
+    return {};
+  }
+  if (typeof value === "object" && !Array.isArray(value)) {
+    return value;
+  }
+  if (typeof value !== "string") {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function avatarScriptOverride(value, maxWords) {
+  const clean = scriptTextClean(value, "");
+  return clean ? limitScriptWords(clean, maxWords) : "";
+}
+
+function avatarScriptOverridesFromBody(body = {}) {
+  return {
+    hook: body.avatarHookScript || body.hookScriptOverride || body.hookScript || "",
+    cta: body.avatarCtaScript || body.ctaScriptOverride || body.ctaScript || "",
+    middle: parseAvatarScriptMap(body.avatarMiddleScripts || body.middleAvatarScripts || body.focusAvatarScripts)
+  };
+}
+
 async function prepareHookAvatar(body = {}) {
   const input = path.resolve(String(body.input || defaultInput).trim());
   const rowNumber = Number(body.row || 2);
@@ -3372,7 +3742,12 @@ async function prepareHookAvatar(body = {}) {
   const assetsDir = scriptBuild.assetsDir || artifacts.latestAssets?.folder || path.join(runDir, "assets");
   await ensureDir(hookDir);
   await ensureDir(assetsDir);
-  const avatarReferenceFiles = await avatarReferenceFilesFromBody(body);
+  const avatarReferenceFiles = await avatarReferenceFilesFromBody({
+    ...body,
+    avatarReferenceImages: body.avatarReferenceImages
+      || body.avatarHostImage
+      || defaultAvatarImageForPresenter(presenter)
+  });
   const vidsClipCacheFolder = await ensureVidsClipCache(runDir);
   const scriptScenes = Array.isArray(scriptBuild.plan?.scenes) ? scriptBuild.plan.scenes : [];
   const reelSceneCount = clamp(
@@ -3381,21 +3756,25 @@ async function prepareHookAvatar(body = {}) {
     6
   );
   const ctaSceneNumber = reelSceneCount;
-  const includeCtaAvatar = body.includeCtaAvatar !== false;
-  const includeMiddleAvatar = body.includeMiddleAvatar !== false && body.includeFocusAvatar !== false;
+  const lowCreditVidsMode = body.lowCreditVidsMode === true || body.lowCreditVidsMode === "true" || body.lowCreditVidsMode === "1";
+  const includeCtaAvatar = !lowCreditVidsMode && body.includeCtaAvatar !== false;
+  const includeMiddleAvatar = !lowCreditVidsMode && body.includeMiddleAvatar !== false && body.includeFocusAvatar !== false;
   const focusDurationSeconds = clamp(asFiniteNumber(body.focusDurationSeconds || body.middleDurationSeconds || durationSeconds, 8), 6, 10);
   const middleScenes = includeMiddleAvatar
     ? middleAvatarSceneNumbers(body.middleAvatarScenes || body.focusAvatarScenes, reelSceneCount)
     : [];
-  const hookScript = buildHookAvatarScript(tool, scriptBuild, {
+  const scriptOverrides = avatarScriptOverridesFromBody(body);
+  const hookScriptBase = buildHookAvatarScript(tool, scriptBuild, {
     durationSeconds,
     scriptLanguage: body.scriptLanguage || scriptBuild.scriptLanguage
   });
+  const hookScript = avatarScriptOverride(scriptOverrides.hook, hookWordLimit(durationSeconds)) || hookScriptBase;
   const ctaDurationSeconds = clamp(asFiniteNumber(body.ctaDurationSeconds || body.ctaDuration || durationSeconds, 8), 6, 10);
-  const ctaScript = buildCtaAvatarScript(tool, scriptBuild, {
+  const ctaScriptBase = buildCtaAvatarScript(tool, scriptBuild, {
     durationSeconds: ctaDurationSeconds,
     scriptLanguage: body.scriptLanguage || scriptBuild.scriptLanguage
   });
+  const ctaScript = avatarScriptOverride(scriptOverrides.cta, hookWordLimit(ctaDurationSeconds)) || ctaScriptBase;
   const avatarChoice = selectHookAvatarForReel(
     tool,
     scriptBuild,
@@ -3413,10 +3792,11 @@ async function prepareHookAvatar(body = {}) {
   const ctaOnscreenText = buildCtaOnscreenText(tool, body.scriptLanguage || scriptBuild.scriptLanguage || tool.language || "Hinglish");
   const middleAvatarScripts = Object.fromEntries(middleScenes.map((sceneNumber) => [
     sceneNumber,
-    buildMiddleAvatarScript(tool, scriptBuild, sceneNumber, {
-      durationSeconds: focusDurationSeconds,
-      scriptLanguage: body.scriptLanguage || scriptBuild.scriptLanguage
-    })
+    avatarScriptOverride(scriptOverrides.middle?.[sceneNumber] || scriptOverrides.middle?.[String(sceneNumber)], hookWordLimit(focusDurationSeconds))
+      || buildMiddleAvatarScript(tool, scriptBuild, sceneNumber, {
+        durationSeconds: focusDurationSeconds,
+        scriptLanguage: body.scriptLanguage || scriptBuild.scriptLanguage
+      })
   ]));
   const middleAvatarOnscreenText = Object.fromEntries(middleScenes.map((sceneNumber) => [
     sceneNumber,
@@ -3427,7 +3807,7 @@ async function prepareHookAvatar(body = {}) {
     duration: durationSeconds,
     voiceover: hookScript,
     onscreen_text: onscreenText,
-    visual: `${characterDirection} ${customAvatarDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection(tone)}. ${videoSizeLabel} frame. Hook starts immediately, face fills the upper frame, laptop beside presenter briefly shows the real AltFTool page.`,
+    visual: `${characterDirection} ${customAvatarDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection(tone)}. ${videoSizeLabel} frame. Full-screen portrait avatar hook starts immediately, face and upper body fill the frame, laptop beside presenter briefly shows the real AltFTool page.`,
     video_prompt: [
       vidsVideoSizePromptLead(durationSeconds, videoSize, "hook"),
       videoSizeLine,
@@ -3435,6 +3815,7 @@ async function prepareHookAvatar(body = {}) {
       customAvatarDirection,
       hookPresenterDirection(presenter),
       hookToneDirection(tone),
+      "The avatar/presenter must be full-screen in the 9:16 portrait frame, not picture-in-picture or a small overlay.",
       `The avatar speaks this exact line naturally in the first 2 seconds without greeting: ${hookScript}`,
       "Modern SaaS desk setup, soft daylight, clean background, direct eye contact, quick push-in camera move.",
       "Laptop beside presenter should briefly show the real AltFTool/tool page context, not a fake generated app.",
@@ -3446,13 +3827,14 @@ async function prepareHookAvatar(body = {}) {
     duration: focusDurationSeconds,
     voiceover: middleAvatarScripts[sceneNumber],
     onscreen_text: middleAvatarOnscreenText[sceneNumber],
-    visual: `${characterDirection} ${customAvatarDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection("professional")} Mid-reel human focus break beside a laptop showing the real AltFTool demo; the avatar points at the useful workflow and keeps attention before the screen demo continues.`,
+    visual: `${characterDirection} ${customAvatarDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection("professional")} Full-screen mid-reel human focus break with the real AltFTool demo only as context; the avatar points at the useful workflow and keeps attention before the screen demo continues.`,
     video_prompt: [
       vidsVideoSizePromptLead(focusDurationSeconds, videoSize, `focus Scene ${sceneNumber}`),
       videoSizeLine,
       characterDirection,
       customAvatarDirection,
       hookPresenterDirection(presenter),
+      "The avatar/presenter must fill the full vertical frame as a talking-head or waist-up shot, never as a small overlay.",
       "Professional but engaging mid-reel focus break, direct eye contact, short hand gesture toward the laptop screen.",
       `The avatar speaks this exact line naturally: ${middleAvatarScripts[sceneNumber]}`,
       "Keep the real AltFTool/tool page visible on a laptop or phone as context, but do not invent UI. This clip will be used between real screenshots and demo footage.",
@@ -3464,13 +3846,14 @@ async function prepareHookAvatar(body = {}) {
     duration: ctaDurationSeconds,
     voiceover: ctaScript,
     onscreen_text: ctaOnscreenText,
-    visual: `${characterDirection} ${customAvatarDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection("friendly")} Final face-to-camera CTA, phone shows an Instagram draft/caption area, laptop has the real AltFTool page visible in the background.`,
+    visual: `${characterDirection} ${customAvatarDirection} ${hookPresenterDirection(presenter)}. ${hookToneDirection("friendly")} Final full-screen face-to-camera CTA, phone shows an Instagram draft/caption area, laptop has the real AltFTool page visible in the background.`,
     video_prompt: [
       vidsVideoSizePromptLead(ctaDurationSeconds, videoSize, "CTA"),
       videoSizeLine,
       characterDirection,
       customAvatarDirection,
       hookPresenterDirection(presenter),
+      "The avatar/presenter must be full-screen in portrait mode, not a small host window or UI overlay.",
       "Friendly confident closing energy, direct eye contact, natural hand gesture toward the caption area.",
       `The avatar speaks this exact line naturally: ${ctaScript}`,
       "Show a phone with a generic Instagram caption draft saying link in caption, no real account details, and a laptop in the background with the actual AltFTool/tool context.",
@@ -3487,6 +3870,7 @@ async function prepareHookAvatar(body = {}) {
       generated_at: new Date().toISOString(),
       language: scriptBuild.scriptLanguage || tool.language || "Hinglish",
       script_type: scriptBuild.scriptLanguage || tool.language || "Hinglish",
+      low_credit_vids_mode: lowCreditVidsMode,
       hook_avatar_only: !includeCtaAvatar && !middleScenes.length,
       hook_cta_avatar_pack: includeCtaAvatar,
       hook_focus_cta_avatar_pack: Boolean(includeCtaAvatar || middleScenes.length),
@@ -3513,6 +3897,7 @@ async function prepareHookAvatar(body = {}) {
         .slice(0, 6)
     },
     avatarReferences: avatarReferenceFiles,
+    lowCreditVidsMode,
     hookAvatar: {
       presenter,
       avatarChoice,
@@ -3612,6 +3997,7 @@ async function prepareHookAvatar(body = {}) {
     videoSize,
     videoSizeLabel,
     portrait: videoSize === "portrait",
+    lowCreditVidsMode,
     tone,
     durationSeconds,
     focusDurationSeconds,
@@ -4578,10 +4964,15 @@ async function prepareFinalReelPackage(body = {}, run) {
   const renderDir = path.join(finalDir, "render");
   await ensureDir(finalDir);
   await ensureDir(renderDir);
-  const copiedVoiceovers = await copyVoiceoversIntoFinal(body.voiceoverDir || body.vidsVoiceoverDir, finalDir);
+  const latestVidsVoiceover = artifacts.latestVidsVoiceover || {};
+  const requestedVoiceoverDir = body.voiceoverDir
+    || body.vidsVoiceoverDir
+    || latestVidsVoiceover.voiceoverDir
+    || "";
+  const copiedVoiceovers = await copyVoiceoversIntoFinal(requestedVoiceoverDir, finalDir);
   const voiceoverDir = path.join(finalDir, "voiceovers");
   await ensureDir(voiceoverDir);
-  const sourceVoiceoverDir = body.voiceoverDir || body.vidsVoiceoverDir || "";
+  const sourceVoiceoverDir = requestedVoiceoverDir;
   const sourceVoiceoverRoot = sourceVoiceoverDir && path.basename(path.resolve(sourceVoiceoverDir)) === "voiceovers"
     ? path.dirname(path.resolve(sourceVoiceoverDir))
     : path.resolve(sourceVoiceoverDir || finalDir);
@@ -4590,6 +4981,9 @@ async function prepareFinalReelPackage(body = {}, run) {
     body.voiceoverSourcePath,
     body.vidsVoiceoverExport,
     body.lastVidsVoiceoverExport,
+    latestVidsVoiceover.exportedPath,
+    latestVidsVoiceover.voiceover?.vidsVoiceover?.exportedPath,
+    latestVidsVoiceover.voiceover?.voiceoverSourceVideo,
     sourceVoiceoverDir ? path.join(sourceVoiceoverDir, "voiceover-source.mp4") : "",
     sourceVoiceoverDir ? path.join(sourceVoiceoverDir, "voiceover-source.webm") : "",
     sourceVoiceoverDir ? path.join(sourceVoiceoverDir, "voiceover-source.mov") : "",
@@ -4702,7 +5096,8 @@ async function prepareFinalReelPackage(body = {}, run) {
     capture: {
       enabled: Boolean(captureFiles.length),
       summary: assetBuild.capture?.summary || scriptBuild.capture?.summary || "Using saved Basic workflow assets.",
-      files: captureFiles
+      files: captureFiles,
+      toolUseGuide: assetBuild.capture?.toolUseGuide || scriptBuild.capture?.toolUseGuide || null
     },
     vids_clip_cache: {
       folder: vidsClipCacheFolder,
@@ -4714,18 +5109,20 @@ async function prepareFinalReelPackage(body = {}, run) {
       assetsManifest: artifacts.latestAssets?.path || assetBuild.manifestPath || "",
       scriptJson: artifacts.latestScript?.path || scriptBuild.scriptPath || "",
       hookManifest: artifacts.latestHookAvatar?.path || hookAvatar.hookManifestPath || "",
-      voiceoverDir: body.voiceoverDir || body.vidsVoiceoverDir || "",
+      voiceoverDir: requestedVoiceoverDir,
       voiceoverSourceVideo: copiedVoiceoverSourceVideo || voiceoverSourceVideo || ""
     },
     decisions: {
       hook: hookVideoPath
         ? "Using downloaded/cached hook avatar clip for Scene 1."
         : "No hook avatar clip found; using local presenter fallback for Scene 1.",
-      body: "Using real tool screenshots/screen recordings with generated voiceover.",
+      body: "Using real tool screenshots/screen recordings as the main how-to-use demo: page, input, action, result, review.",
       cta: ctaVideoPath
         ? `Using cached CTA avatar clip for Scene ${ctaSceneNumber}.`
         : "No CTA avatar clip found; using local CTA review scene with generated voiceover.",
-      voiceoverProvider: normalizeFinalVoiceProvider(body.voiceoverProvider)
+      voiceoverProvider: copiedVoiceovers.length || copiedVoiceoverSourceVideo || latestVidsVoiceover.voiceoverDir
+        ? "google-vids-voiceover-first"
+        : normalizeFinalVoiceProvider(body.voiceoverProvider)
     },
     files: {
       scene_plan: scenePlanPath,
@@ -4755,6 +5152,8 @@ async function prepareFinalReelPackage(body = {}, run) {
     ctaVideoPath,
     voiceoverDir,
     voiceoverSourceVideo: copiedVoiceoverSourceVideo,
+    preferredVoiceoverDir: requestedVoiceoverDir,
+    latestVidsVoiceover,
     copiedVoiceovers,
     decisions: manifest.decisions,
     sourceArtifacts: manifest.source_artifacts,
@@ -5461,6 +5860,26 @@ async function generateVidsVoiceoverWithGoogleVids(prepared, body, run) {
 async function generateFinalVoiceovers(prepared, body, run) {
   const provider = normalizeFinalVoiceProvider(body.voiceoverProvider);
   const existingVoiceovers = await existingVoiceoverFiles(prepared.voiceoverDir || path.join(prepared.finalDir, "voiceovers"));
+  const existingVidsVoiceoverSource = await firstExistingFile([
+    prepared.voiceoverSourceVideo,
+    prepared.latestVidsVoiceover?.exportedPath,
+    prepared.latestVidsVoiceover?.fullAudioPath,
+    prepared.voiceoverDir ? path.join(prepared.voiceoverDir, "voiceover-source.mp4") : "",
+    prepared.voiceoverDir ? path.join(prepared.voiceoverDir, "voiceover-source.webm") : "",
+    prepared.voiceoverDir ? path.join(prepared.voiceoverDir, "voiceover-source.mov") : "",
+    prepared.voiceoverDir ? path.join(prepared.voiceoverDir, "voiceover-full.m4a") : ""
+  ]);
+  if (existingVidsVoiceoverSource && !body.forceVoiceover) {
+    return {
+      ok: true,
+      skipped: true,
+      provider: "google-vids-voiceover",
+      sourcePath: existingVidsVoiceoverSource,
+      existingCount: existingVoiceovers.length,
+      files: existingVoiceovers,
+      note: `Using saved Google Vids voiceover first: ${path.basename(existingVidsVoiceoverSource)}.`
+    };
+  }
   if (existingVoiceovers.length && !body.forceVoiceover) {
     return {
       ok: true,
@@ -5510,20 +5929,37 @@ async function generateFinalVoiceovers(prepared, body, run) {
 
 async function renderFinalReel(prepared, body, run) {
   const presenter = normalizeHookPresenter(body.presenter || body.hookAvatarStyle || defaultHookAvatarStyle);
+  const isPreview = Boolean(body.preview);
   const avatarHostImage = await existingAvatarReferencePath(
     body.avatarHostImage || body.avatarReferenceImage || body.customAvatarImage || body.avatarImage || ""
   );
   const renderArgs = [
     "--tool-dir", prepared.finalDir,
     "--output", prepared.renderDir,
-    "--filename", "final_reel.mp4",
+    "--filename", isPreview ? "preview_reel.mp4" : "final_reel.mp4",
     "--hook-avatar", presenter
   ];
+  if (isPreview) {
+    renderArgs.push(
+      "--preview",
+      "--preview-seconds", String(clamp(asFiniteNumber(body.previewSeconds, 15), 6, 30)),
+      "--preview-scenes", String(clamp(asFiniteNumber(body.previewScenes, 2), 1, 3))
+    );
+  }
   if (avatarHostImage) {
     renderArgs.push("--avatar-host", avatarHostImage);
     addFinalReelLog(run, `Using custom avatar host image: ${avatarHostImage}`);
   }
-  await runFinalNodeScript(run, "render:local", "src/render-local-reel.mjs", renderArgs);
+  const needsVidsVoiceover = !isPreview && (["google-vids-voiceover", "vids-voiceover"].includes(normalizeFinalVoiceProvider(body.voiceoverProvider))
+    || Boolean(body.requireVidsVoiceover)
+    || Boolean(prepared.voiceoverSourceVideo)
+    || Boolean(prepared.latestVidsVoiceover?.exportedPath)
+    || Boolean(prepared.latestVidsVoiceover?.fullAudioPath));
+  if (needsVidsVoiceover) {
+    renderArgs.push("--require-vids-voiceover");
+    addFinalReelLog(run, "Body/demo scenes are locked to saved Google Vids voiceover. Local TTS fallback is disabled for this render.");
+  }
+  await runFinalNodeScript(run, isPreview ? "render:preview" : "render:local", "src/render-local-reel.mjs", renderArgs);
   const reportPath = path.join(prepared.renderDir, "local-reel-report.json");
   const report = await readJsonArtifact(reportPath);
   if (!report?.ok) {
@@ -5538,14 +5974,15 @@ async function renderFinalReel(prepared, body, run) {
 }
 
 async function startFinalReelRun(body = {}) {
-  const id = `final-reel-${timestampSlug()}`;
+  const isPreview = Boolean(body.preview);
+  const id = `${isPreview ? "final-preview" : "final-reel"}-${timestampSlug()}`;
   const run = {
     id,
     kind: "video",
     status: "running",
     body: {
       ...body,
-      mode: body.mode || "basic-final-local"
+      mode: body.mode || (isPreview ? "basic-final-preview" : "basic-final-local")
     },
     result: null,
     report: null,
@@ -5559,7 +5996,7 @@ async function startFinalReelRun(body = {}) {
     child: null
   };
   finalReelRuns.set(id, run);
-  setFinalReelStep(run, "start", "Final Reel", "running", `Starting row ${Number(body.row || 2)}.`);
+  setFinalReelStep(run, "start", isPreview ? "Quick Preview" : "Final Reel", "running", `Starting row ${Number(body.row || 2)}.`);
 
   setTimeout(async () => {
     let prepared = null;
@@ -5570,27 +6007,51 @@ async function startFinalReelRun(body = {}) {
       run.result = prepared;
       setFinalReelStep(run, "artifacts", "Reading artifacts", "complete", `${prepared.captureFileCount} real asset file(s) linked.`);
 
-      setFinalReelStep(run, "voiceover", "Voiceover", "running", "Trying selected voice provider, then local fallback if needed.");
+      const strictVidsVoiceover = !isPreview && (["google-vids-voiceover", "vids-voiceover"].includes(normalizeFinalVoiceProvider(body.voiceoverProvider))
+        || Boolean(body.requireVidsVoiceover));
+      setFinalReelStep(run, "voiceover", "Voiceover", "running", isPreview
+        ? "Quick preview uses local voiceover only; no external credits."
+        : strictVidsVoiceover
+          ? "Using saved Google Vids voiceover only. Local/free fallback is disabled."
+          : "Trying selected voice provider, then local fallback if needed.");
       let voiceover = null;
-      try {
-        voiceover = await generateFinalVoiceovers(prepared, body, run);
-        const note = voiceover.skipped
-          ? voiceover.note
-          : `${voiceover.generatedCount || 0} generated, ${voiceover.existingCount || 0} existing.`;
-        setFinalReelStep(run, "voiceover", "Voiceover", voiceover.ok || voiceover.skipped ? "complete" : "warning", note);
-      } catch (error) {
-        voiceover = { ok: false, provider: normalizeFinalVoiceProvider(body.voiceoverProvider), error: error.message };
-        setFinalReelStep(run, "voiceover", "Voiceover fallback", "warning", `${error.message} Local render voiceover will be used.`);
+      if (isPreview) {
+        voiceover = {
+          ok: true,
+          skipped: true,
+          provider: "local-preview",
+          note: "Preview render skips external voiceover generation to avoid credit/API usage."
+        };
+        setFinalReelStep(run, "voiceover", "Voiceover", "complete", voiceover.note);
+      } else {
+        try {
+          voiceover = await generateFinalVoiceovers(prepared, body, run);
+          const note = voiceover.skipped
+            ? voiceover.note
+            : `${voiceover.generatedCount || 0} generated, ${voiceover.existingCount || 0} existing.`;
+          setFinalReelStep(run, "voiceover", "Voiceover", voiceover.ok || voiceover.skipped ? "complete" : "warning", note);
+          if (strictVidsVoiceover && !voiceover.ok) {
+            throw new Error(voiceover.note || "Google Vids voiceover missing. Step 6 Generate Vids Voiceover run karo, phir final render karo.");
+          }
+        } catch (error) {
+          voiceover = { ok: false, provider: normalizeFinalVoiceProvider(body.voiceoverProvider), error: error.message };
+          if (strictVidsVoiceover) {
+            setFinalReelStep(run, "voiceover", "Vids voiceover required", "failed", `${error.message} Local/free voiceover skipped.`);
+            throw error;
+          }
+          setFinalReelStep(run, "voiceover", "Voiceover fallback", "warning", `${error.message} Local render voiceover will be used.`);
+        }
       }
 
-      setFinalReelStep(run, "render", "Rendering video", "running", "Merging hook, real demo footage, CTA, captions, and music.");
+      setFinalReelStep(run, "render", isPreview ? "Rendering preview" : "Rendering video", "running", isPreview ? "Creating short local preview from saved hook/demo assets." : "Merging hook, real demo footage, CTA, captions, and music.");
       const rendered = await renderFinalReel(prepared, body, run);
       const quality = rendered.report.quality || {};
-      setFinalReelStep(run, "render", "Rendering video", "complete", `Saved MP4. Quality ${rendered.report.qualityScore || quality.score || 0}/100.`);
+      setFinalReelStep(run, "render", isPreview ? "Preview saved" : "Rendering video", "complete", `Saved MP4. Quality ${rendered.report.qualityScore || quality.score || 0}/100.`);
 
       const result = {
         ...prepared,
-        status: "complete",
+        status: isPreview ? "preview_complete" : "complete",
+        preview: isPreview,
         outputPath: rendered.outputPath,
         videoPath: rendered.outputPath,
         reportPath: rendered.reportPath,
@@ -5601,7 +6062,9 @@ async function startFinalReelRun(body = {}) {
         voiceover,
         audio: rendered.report.audio || null,
         renderReport: rendered.report,
-        summary: quality.summary || "Final reel rendered. Do one human review before posting.",
+        summary: isPreview
+          ? "Quick preview rendered. Review pacing/tool visibility, then run full final render."
+          : quality.summary || "Final reel rendered. Do one human review before posting.",
         files: [
           rendered.outputPath,
           rendered.reportPath,
@@ -5609,13 +6072,15 @@ async function startFinalReelRun(body = {}) {
           prepared.scenePlanPath,
           prepared.manifestPath,
           prepared.packagePath,
-          prepared.readmePath
+          prepared.readmePath,
+          prepared.voiceoverSourceVideo,
+          ...(prepared.copiedVoiceovers || [])
         ].filter(Boolean).map(publicAssetFile)
       };
       await writeJson(prepared.packagePath, result);
 
       run.report = {
-        mode: "basic-final-local",
+        mode: isPreview ? "basic-final-preview" : "basic-final-local",
         input: prepared.input,
         selectedRow: {
           source_row_number: prepared.row,
@@ -5632,31 +6097,40 @@ async function startFinalReelRun(body = {}) {
         qaStatus: "Needs human review",
         error: ""
       };
-      await recordRunHistory({
-        ...run,
-        status: "complete",
-        endedAt: new Date().toISOString()
-      });
+      if (!isPreview) {
+        await recordRunHistory({
+          ...run,
+          status: "complete",
+          endedAt: new Date().toISOString()
+        });
+      }
       await updateUiState((state) => {
-        state.settings = {
+        const nextSettings = {
           ...(state.settings || {}),
           inputPath: prepared.input,
           row: prepared.row,
-          lastFinalReelFolder: prepared.finalDir,
-          lastFinalReelVideo: rendered.outputPath,
-          lastFinalReelReport: rendered.reportPath,
           updatedAt: new Date().toISOString()
         };
+        if (isPreview) {
+          nextSettings.lastPreviewReelFolder = prepared.finalDir;
+          nextSettings.lastPreviewReelVideo = rendered.outputPath;
+          nextSettings.lastPreviewReelReport = rendered.reportPath;
+        } else {
+          nextSettings.lastFinalReelFolder = prepared.finalDir;
+          nextSettings.lastFinalReelVideo = rendered.outputPath;
+          nextSettings.lastFinalReelReport = rendered.reportPath;
+        }
+        state.settings = nextSettings;
       });
-      setFinalReelStep(run, "start", "Final Reel", "complete", `Completed row ${prepared.row}.`);
-      setFinalReelStep(run, "done", "Final saved", "complete", rendered.outputPath);
-      addFinalReelLog(run, `Final reel ready: ${rendered.outputPath}`, "stdout");
+      setFinalReelStep(run, "start", isPreview ? "Quick Preview" : "Final Reel", "complete", `Completed row ${prepared.row}.`);
+      setFinalReelStep(run, "done", isPreview ? "Preview saved" : "Final saved", "complete", rendered.outputPath);
+      addFinalReelLog(run, `${isPreview ? "Preview" : "Final reel"} ready: ${rendered.outputPath}`, "stdout");
       finishFinalReelRun(run, "complete", result);
     } catch (error) {
-      setFinalReelStep(run, "start", "Final Reel", "failed", `Stopped at row ${Number(body.row || 2)}.`);
-      setFinalReelStep(run, "failed", "Final failed", "failed", error.message);
+      setFinalReelStep(run, "start", isPreview ? "Quick Preview" : "Final Reel", "failed", `Stopped at row ${Number(body.row || 2)}.`);
+      setFinalReelStep(run, "failed", isPreview ? "Preview failed" : "Final failed", "failed", error.message);
       run.report = {
-        mode: "basic-final-local",
+        mode: isPreview ? "basic-final-preview" : "basic-final-local",
         input: body.input || defaultInput,
         selectedRow: {
           source_row_number: Number(body.row || 0),
@@ -6035,6 +6509,10 @@ async function findToolArtifacts(body = {}) {
   const latestAssets = sortLatestArtifacts(assetManifests)[0] || null;
   const latestScript = sortLatestArtifacts(scripts)[0] || null;
   const latestHookAvatar = sortLatestArtifacts(hookAvatars)[0] || null;
+  const finalVideos = await findFinalVideoArtifactsForTool({ rowNumber, tool });
+  const latestFinalVideo = finalVideos[0] || null;
+  const vidsVoiceovers = await findVidsVoiceoverArtifactsForTool({ rowNumber, tool });
+  const latestVidsVoiceover = vidsVoiceovers[0] || null;
   const latestHookAvatarHasVideo = Boolean(
     latestHookAvatar?.videoPath
     || latestHookAvatar?.cachedScenePath
@@ -6058,9 +6536,13 @@ async function findToolArtifacts(body = {}) {
     hasScript: Boolean(latestScript),
     hasHookAvatar: Boolean(latestHookAvatar),
     hasHookAvatarVideo: latestHookAvatarHasVideo,
+    hasVidsVoiceover: Boolean(latestVidsVoiceover),
+    hasFinalVideo: Boolean(latestFinalVideo?.videoPath),
     latestAssets,
     latestScript,
     latestHookAvatar,
+    latestVidsVoiceover,
+    latestFinalVideo,
     assets: sortLatestArtifacts(assetManifests).slice(0, 5).map((item) => ({
       ...item,
       assetBuild: undefined
@@ -6073,8 +6555,175 @@ async function findToolArtifacts(body = {}) {
       ...item,
       hasVideo: Boolean(item.videoPath || item.cachedScenePath || item.hookAvatar?.ctaVideoPath || item.hookAvatar?.ctaCachedScenePath || item.hookAvatar?.ctaAvatar?.videoPath || item.hookAvatar?.ctaAvatar?.cachedScenePath || Object.values(item.hookAvatar?.middleAvatarVideos || {}).some(Boolean)),
       hookAvatar: undefined
-    }))
+    })),
+    vidsVoiceovers,
+    finalVideos
   };
+}
+
+async function findFinalVideoArtifactsForTool({ rowNumber, tool }) {
+  const finalRoot = path.join(projectRoot, "outputs", "final-reels");
+  const runsRoot = path.join(projectRoot, "outputs", "runs");
+  const [finalFiles, runFiles] = await Promise.all([
+    listFilesRecursive(finalRoot),
+    listFilesRecursive(runsRoot)
+  ]);
+  const candidateFiles = [
+    ...finalFiles.filter((item) => path.basename(item) === "final-reel-package.json").map((filePath) => ({ filePath, source: "final_reel" })),
+    ...runFiles.filter((item) => path.basename(item) === "one-video-agent-report.json").map((filePath) => ({ filePath, source: "agent_report" }))
+  ];
+  const candidates = [];
+  for (const item of candidateFiles) {
+    const candidate = await finalVideoCandidateFromFile(item.filePath, item.source);
+    if (!candidate || Number(candidate.row) !== Number(rowNumber)) {
+      continue;
+    }
+    if (!sameArtifactTool({ name: candidate.toolName, tool_name: candidate.toolName }, tool)) {
+      continue;
+    }
+    candidates.push({
+      ...candidate,
+      kind: "final",
+      path: candidate.sourcePath,
+      folder: candidate.folderPath || candidate.folder || "",
+      finalReel: undefined
+    });
+  }
+  return dedupeVideoCandidates(candidates).slice(0, 10);
+}
+
+function publicFilesFromArtifactFiles(files = []) {
+  return files.map((file) => {
+    const filePath = file?.path || "";
+    return {
+      ...file,
+      url: file?.url || (filePath ? `/file?path=${encodeURIComponent(filePath)}` : "")
+    };
+  });
+}
+
+async function loadToolArtifact(body = {}) {
+  const requestedKind = String(body.kind || "").trim().toLowerCase();
+  const rawPath = String(body.path || "").trim();
+  if (!rawPath) {
+    throw new Error("Artifact path is required.");
+  }
+  const artifactPath = path.resolve(rawPath);
+  if (!allowedOutputPath(artifactPath)) {
+    throw new Error("Artifact path is not allowed.");
+  }
+  const allowedNames = new Set([
+    "asset-manifest.json",
+    "reel-script.json",
+    "hook-avatar-manifest.json",
+    "final-reel-package.json",
+    "one-video-agent-report.json"
+  ]);
+  const fileName = path.basename(artifactPath);
+  if (!allowedNames.has(fileName)) {
+    throw new Error("Only saved reel artifact JSON files can be loaded.");
+  }
+  const data = await readJsonArtifact(artifactPath);
+  if (!data) {
+    throw new Error("Saved artifact JSON could not be read.");
+  }
+  const modifiedAt = await fileModifiedAt(artifactPath);
+
+  if (requestedKind === "assets" || fileName === "asset-manifest.json") {
+    const folder = data.assetsDir || path.dirname(artifactPath);
+    const files = Array.isArray(data.files) && data.files.length
+      ? publicFilesFromArtifactFiles(data.files)
+      : (await listFilesRecursive(folder)).map(publicAssetFile);
+    const assetBuild = { ...data, files };
+    return {
+      kind: "assets",
+      path: artifactPath,
+      folder,
+      runDir: data.runDir || path.dirname(folder),
+      generatedAt: artifactGeneratedAt(data, modifiedAt),
+      modifiedAt,
+      fileCount: files.length,
+      assetBuild
+    };
+  }
+
+  if (requestedKind === "script" || fileName === "reel-script.json") {
+    const folder = data.scriptDir || path.dirname(artifactPath);
+    return {
+      kind: "script",
+      path: artifactPath,
+      folder,
+      runDir: data.runDir || path.dirname(folder),
+      generatedAt: artifactGeneratedAt(data, modifiedAt),
+      modifiedAt,
+      duration: data.totalDurationSeconds || data.plan?.metadata?.total_duration_seconds || 0,
+      sceneCount: data.sceneCount || data.plan?.scenes?.length || 0,
+      scriptBuild: data
+    };
+  }
+
+  if (requestedKind === "hook" || requestedKind === "hook_avatar" || fileName === "hook-avatar-manifest.json") {
+    const folder = data.hookDir || path.dirname(artifactPath);
+    return {
+      kind: "hook",
+      path: artifactPath,
+      folder,
+      runDir: data.runDir || path.dirname(folder),
+      generatedAt: artifactGeneratedAt(data, modifiedAt),
+      modifiedAt,
+      status: data.status || data.hookAvatar?.status || "",
+      videoPath: data.videoPath || data.hookAvatar?.videoPath || "",
+      cachedScenePath: data.cachedScenePath || data.hookAvatar?.cachedScenePath || "",
+      hasVideo: Boolean(data.videoPath || data.hookAvatar?.videoPath || data.ctaVideoPath || data.ctaAvatar?.videoPath || Object.values(data.middleAvatarVideos || {}).some(Boolean)),
+      hookAvatar: data
+    };
+  }
+
+  if (requestedKind === "voiceover" || requestedKind === "vids_voiceover") {
+    const candidate = await voiceoverCandidateFromFile(artifactPath);
+    if (!candidate) {
+      throw new Error("Selected artifact does not contain a saved Google Vids voiceover.");
+    }
+    return candidate;
+  }
+
+  if (requestedKind === "final" || fileName === "final-reel-package.json" || fileName === "one-video-agent-report.json") {
+    const source = fileName === "one-video-agent-report.json" ? "agent_report" : "final_reel";
+    const candidate = await finalVideoCandidateFromFile(artifactPath, source);
+    const folder = candidate?.folderPath || data.finalDir || data.toolDir || data.outputDir || path.dirname(artifactPath);
+    const videoPath = candidate?.videoPath || await existingOutputPath(videoPathsFromPackage(data)) || await existingOutputPath(videoPathsFromRunReport(data));
+    const finalReel = {
+      ...data,
+      kind: "final",
+      status: data.status || candidate?.status || "complete",
+      finalDir: folder,
+      folder,
+      videoPath,
+      outputPath: videoPath || data.outputPath || data.mp4Path || "",
+      qualityScore: candidate?.qualityScore || data.qualityScore || data.renderReport?.qualityScore || data.quality?.score || 0,
+      qualityStatus: candidate?.qualityStatus || data.qualityStatus || data.renderReport?.qualityStatus || data.quality?.status || "",
+      sourcePath: artifactPath,
+      tool: data.tool || {
+        name: candidate?.toolName || "",
+        url: candidate?.toolUrl || ""
+      },
+      files: publicFilesFromArtifactFiles([
+        ...(Array.isArray(data.files) ? data.files : []),
+        videoPath ? { kind: "video", name: path.basename(videoPath), path: videoPath } : null
+      ].filter(Boolean))
+    };
+    return {
+      kind: "final",
+      path: artifactPath,
+      folder,
+      videoPath,
+      generatedAt: artifactTime(data) || modifiedAt,
+      modifiedAt,
+      finalReel
+    };
+  }
+
+  throw new Error("Unknown artifact kind.");
 }
 
 function videoCandidateRow(value = {}) {
@@ -6112,6 +6761,28 @@ function videoPathsFromPackage(value = {}) {
   ];
 }
 
+function voiceoverPathsFromPackage(value = {}) {
+  const files = Array.isArray(value.files) ? value.files : [];
+  const filePaths = files
+    .filter((file) => {
+      const kind = String(file?.kind || "").toLowerCase();
+      const text = `${file?.path || ""} ${file?.name || ""} ${file?.relativePath || ""}`.toLowerCase();
+      return kind === "audio"
+        || /google-vids-voiceover|voiceover-source|voiceover-full|scene-\d{2}\.(m4a|mp3|wav|aac)/i.test(text);
+    })
+    .map((file) => file.path || "");
+  const extracted = value.vidsVoiceover?.extracted || {};
+  return [
+    value.vidsVoiceover?.exportedPath,
+    value.voiceoverSourceVideo,
+    value.sourceArtifacts?.voiceoverSourceVideo,
+    value.source_artifacts?.voiceoverSourceVideo,
+    extracted.fullAudioPath,
+    ...(Array.isArray(extracted.extractedVoiceovers) ? extracted.extractedVoiceovers : []),
+    ...filePaths
+  ];
+}
+
 function videoPathsFromRunReport(value = {}) {
   const files = Array.isArray(value.files) ? value.files : [];
   const filePaths = files
@@ -6131,9 +6802,33 @@ function videoPathsFromRunReport(value = {}) {
   ];
 }
 
+function dedupeVideoCandidates(items = []) {
+  const byPath = new Map();
+  for (const item of items) {
+    const key = path.resolve(item.videoPath || item.folderPath || item.sourcePath || item.id || `candidate-${byPath.size}`);
+    if (!byPath.has(key)) {
+      byPath.set(key, item);
+      continue;
+    }
+    const current = byPath.get(key);
+    byPath.set(key, {
+      ...current,
+      ...item,
+      generatedAt: item.generatedAt || current.generatedAt,
+      modifiedAt: item.modifiedAt || current.modifiedAt,
+      videoPath: item.videoPath || current.videoPath,
+      folderPath: item.folderPath || current.folderPath,
+      qualityScore: item.qualityScore || current.qualityScore,
+      qualityStatus: item.qualityStatus || current.qualityStatus
+    });
+  }
+  return sortLatestArtifacts([...byPath.values()]);
+}
+
 async function finalVideoCandidateFromFile(filePath, source) {
   const data = await readJsonArtifact(filePath);
   if (!data || typeof data !== "object") return null;
+  if (data.preview || data.status === "preview_complete") return null;
   const row = videoCandidateRow(data);
   const tool = videoCandidateTool(data);
   const videoPath = await existingOutputPath(source === "agent_report"
@@ -6161,6 +6856,60 @@ async function finalVideoCandidateFromFile(filePath, source) {
   };
 }
 
+async function voiceoverCandidateFromFile(filePath) {
+  const data = await readJsonArtifact(filePath);
+  if (!data || typeof data !== "object") return null;
+  const row = videoCandidateRow(data);
+  const tool = videoCandidateTool(data);
+  if (!row) return null;
+  const folder = data.finalDir || data.toolDir || data.outputDir || path.dirname(filePath);
+  const voiceoverDir = data.voiceoverDir
+    || data.vidsVoiceover?.extracted?.voiceoverDir
+    || data.sourceArtifacts?.voiceoverDir
+    || data.source_artifacts?.voiceoverDir
+    || path.join(folder, "voiceovers");
+  const exportedPath = await existingOutputPath(voiceoverPathsFromPackage(data));
+  const existingFiles = await existingVoiceoverFiles(voiceoverDir);
+  const hasGoogleVidsVoiceover = Boolean(
+    data.status === "vids_voiceover_ready"
+    || data.vidsVoiceover?.exportedPath
+    || data.vidsVoiceover?.extracted?.fullAudioPath
+    || exportedPath
+    || existingFiles.some((item) => /google-vids-voiceover|voiceover-source|voiceover-full|scene-\d{2}/i.test(item))
+  );
+  if (!hasGoogleVidsVoiceover) return null;
+  const modifiedAt = await fileModifiedAt(filePath);
+  return {
+    kind: "voiceover",
+    path: filePath,
+    folder,
+    runDir: folder,
+    voiceoverDir,
+    exportedPath,
+    fullAudioPath: await existingOutputPath([data.vidsVoiceover?.extracted?.fullAudioPath, path.join(voiceoverDir, "voiceover-full.m4a")]),
+    fileCount: existingFiles.length + (exportedPath ? 1 : 0),
+    sceneNumbers: data.vidsVoiceover?.sceneNumbers || data.vidsVoiceover?.extracted?.sceneNumbers || [],
+    generatedAt: artifactTime(data) || modifiedAt,
+    modifiedAt,
+    row,
+    toolName: tool.name,
+    toolUrl: tool.url,
+    status: data.vidsVoiceover?.status || data.status || "voiceover_ready",
+    voiceover: {
+      ...data,
+      finalDir: folder,
+      folder,
+      voiceoverDir,
+      exportedPath,
+      files: publicFilesFromArtifactFiles([
+        ...(Array.isArray(data.files) ? data.files : []),
+        ...existingFiles.map((item) => ({ kind: "audio", name: path.basename(item), path: item })),
+        exportedPath ? { kind: "video", name: path.basename(exportedPath), path: exportedPath } : null
+      ].filter(Boolean))
+    }
+  };
+}
+
 async function listToolVideoStatus(body = {}) {
   const finalRoot = path.join(projectRoot, "outputs", "final-reels");
   const runsRoot = path.join(projectRoot, "outputs", "runs");
@@ -6179,18 +6928,50 @@ async function listToolVideoStatus(body = {}) {
       candidates.push(candidate);
     }
   }
+  const grouped = {};
+  for (const candidate of dedupeVideoCandidates(candidates)) {
+    const key = String(candidate.row);
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(candidate);
+  }
   const byRow = {};
-  for (const candidate of sortLatestArtifacts(candidates)) {
-    if (!byRow[String(candidate.row)]) {
-      byRow[String(candidate.row)] = candidate;
-    }
+  let totalVideos = 0;
+  for (const [row, versions] of Object.entries(grouped)) {
+    const sortedVersions = sortLatestArtifacts(versions);
+    totalVideos += sortedVersions.length;
+    byRow[row] = {
+      ...sortedVersions[0],
+      videoCount: sortedVersions.length,
+      versions: sortedVersions.slice(0, 20).map((item, index) => ({
+        ...item,
+        versionLabel: `V${String(sortedVersions.length - index).padStart(2, "0")}`
+      }))
+    };
   }
   return {
     input: String(body.input || defaultInput),
     count: Object.keys(byRow).length,
+    totalVideos,
     videos: Object.values(byRow),
     byRow
   };
+}
+
+async function findVidsVoiceoverArtifactsForTool({ rowNumber, tool }) {
+  const finalRoot = path.join(projectRoot, "outputs", "final-reels");
+  const finalFiles = await listFilesRecursive(finalRoot);
+  const candidates = [];
+  for (const filePath of finalFiles.filter((item) => path.basename(item) === "final-reel-package.json")) {
+    const candidate = await voiceoverCandidateFromFile(filePath);
+    if (!candidate || Number(candidate.row) !== Number(rowNumber)) {
+      continue;
+    }
+    if (!sameArtifactTool({ name: candidate.toolName, tool_name: candidate.toolName }, tool)) {
+      continue;
+    }
+    candidates.push(candidate);
+  }
+  return sortLatestArtifacts(candidates).slice(0, 10);
 }
 
 function publicAssetRun(run) {
@@ -6636,6 +7417,7 @@ async function startRun(body, options = {}) {
 async function startProfileLogin(body) {
   const id = `login-${timestampSlug()}`;
   const profile = normalizeProfilePath(body.profile || "work/google-vids-profile-2");
+  const expectedEmail = String(body.email || body.expectedEmail || "").trim().slice(0, 180);
   const waitMs = Number(body.waitMs || 600000);
   const outputDir = path.resolve(projectRoot, "outputs", "runs", `ui-${id}`);
   await ensureDir(path.resolve(projectRoot, profile));
@@ -6644,7 +7426,23 @@ async function startProfileLogin(body) {
     if (!existing.has(profile)) {
       state.profiles.push({
         path: profile,
+        expectedEmail,
+        email: expectedEmail,
         createdAt: new Date().toISOString()
+      });
+    } else if (expectedEmail) {
+      state.profiles = (state.profiles || []).map((item) => {
+        const itemPath = normalizeProfilePath(item.path || item);
+        if (itemPath !== profile) {
+          return item;
+        }
+        return {
+          ...(typeof item === "object" && item ? item : {}),
+          path: profile,
+          expectedEmail,
+          email: expectedEmail,
+          updatedAt: new Date().toISOString()
+        };
       });
     }
   });
@@ -6653,13 +7451,16 @@ async function startProfileLogin(body) {
     "--profile", profile,
     "--wait-ms", String(Number.isFinite(waitMs) ? waitMs : 600000)
   ];
+  if (expectedEmail) {
+    runArgs.push("--email", expectedEmail);
+  }
   const run = {
     id,
     kind: "login",
     status: "running",
     command: process.execPath,
     args: runArgs,
-    body: { profile },
+    body: { profile, expectedEmail },
     queueId: "",
     queueItemId: "",
     outputDir,
@@ -7220,10 +8021,15 @@ function runTrackerExport() {
 }
 
 async function openWorkTracker() {
-  return openPath({ path: await ensureWorkTracker() });
+  return openPath({ path: await ensureWorkTracker({ refresh: true }) });
 }
 
-async function ensureWorkTracker() {
+async function ensureWorkTracker(options = {}) {
+  const shouldRefresh = options.refresh !== false;
+  if (shouldRefresh) {
+    await runTrackerExport();
+    return trackerWorkbookPath;
+  }
   try {
     await fs.access(trackerWorkbookPath);
   } catch {
@@ -7233,7 +8039,7 @@ async function ensureWorkTracker() {
 }
 
 async function downloadWorkTracker(res) {
-  const target = await ensureWorkTracker();
+  const target = await ensureWorkTracker({ refresh: true });
   const stat = await fs.stat(target);
   res.writeHead(200, {
     "content-type": mimeType(target),
@@ -7287,17 +8093,26 @@ async function serveFile(req, res, searchParams) {
 
 async function publicQuotaState() {
   const state = await loadUiState();
-  const profiles = await listProfiles();
+  const registryEntries = await readProfileRegistrySafe();
+  const profiles = await listProfiles({ registryEntries });
+  const publicProfiles = profiles.map((profile) => publicProfileWithQuota(profile, state));
+  await syncProfileRegistryQuiet(publicProfiles, state, registryEntries);
   return {
-    profiles: profiles.map((profile) => publicProfileWithQuota(profile, state)),
-    raw: state.quotas
+    profiles: publicProfiles,
+    raw: state.quotas,
+    registry: {
+      path: profileRegistryPath,
+      relativePath: path.relative(projectRoot, profileRegistryPath).replace(/[\\]+/g, "/")
+    }
   };
 }
 
 function publicProfileWithQuota(profile, state) {
   const quota = profileQuota(state, profile.path);
   const limitUsed = quota.quotaExhausted || quota.limitStatus === "limit_used";
-  const status = limitUsed
+  const status = profile.enabled === false
+    ? "disabled"
+    : limitUsed
     ? "limit_used"
     : !profile.exists
       ? "missing"
@@ -7306,11 +8121,13 @@ function publicProfileWithQuota(profile, state) {
         : "login_needed";
   const statusLabel = status === "limit_used"
     ? "Limit used"
-    : status === "available"
-      ? "Available"
-      : status === "missing"
-        ? "Folder missing"
-        : "Login needed";
+    : status === "disabled"
+      ? "Disabled"
+      : status === "available"
+        ? "Available"
+        : status === "missing"
+          ? "Folder missing"
+          : "Login needed";
   return {
     ...profile,
     status,
@@ -7365,6 +8182,7 @@ async function saveSettingsState(body) {
     "hookAvatarStyle",
     "hookAvatarCharacter",
     "hookVideoSize",
+    "lowCreditVidsMode",
     "avatarHostImage",
     "hookPrimaryProfile",
     "hookFallbackProfile",
@@ -7395,7 +8213,7 @@ async function saveSettingsState(body) {
         next.sceneCount = clamp(asFiniteNumber(body.sceneCount, current.sceneCount || 6), 3, 6);
       } else if (key === "updateSourceWorkbook") {
         next.updateSourceWorkbook = Boolean(body.updateSourceWorkbook);
-      } else if (["hookFallbackEnabled", "scriptVideoFallbackEnabled", "globalFallbackEnabled"].includes(key)) {
+      } else if (["hookFallbackEnabled", "scriptVideoFallbackEnabled", "globalFallbackEnabled", "lowCreditVidsMode"].includes(key)) {
         next[key] = Boolean(body[key]);
       } else if (key === "basicWorkflowMode") {
         const mode = String(body.basicWorkflowMode || "").trim();
@@ -7431,6 +8249,7 @@ async function handleApi(req, res, pathname, searchParams) {
       const quota = await publicQuotaState();
       const savedSettings = uiState.settings || {};
       const savedInput = savedSettings.inputPath || defaultInput;
+      const effectiveHookAvatarStyle = savedSettings.hookAvatarStyle || defaultHookAvatarStyle;
       json(res, 200, {
         ok: true,
         input: savedInput,
@@ -7440,10 +8259,11 @@ async function handleApi(req, res, pathname, searchParams) {
           inputPath: savedInput,
           row: savedSettings.row || 2,
           basicWorkflowMode: savedSettings.basicWorkflowMode || "google-hook",
-          hookAvatarStyle: savedSettings.hookAvatarStyle || defaultHookAvatarStyle,
+          hookAvatarStyle: effectiveHookAvatarStyle,
           hookAvatarCharacter: savedSettings.hookAvatarCharacter || "auto_by_reel",
           hookVideoSize: normalizeVidsVideoSize(savedSettings.hookVideoSize || "portrait"),
-          avatarHostImage: savedSettings.avatarHostImage || "",
+          lowCreditVidsMode: savedSettings.lowCreditVidsMode !== false,
+          avatarHostImage: savedSettings.avatarHostImage || defaultAvatarImageForPresenter(effectiveHookAvatarStyle),
           hookPrimaryProfile: savedSettings.hookPrimaryProfile || savedSettings.globalPrimaryProfile || defaultProfiles[0] || "",
           hookFallbackProfile: savedSettings.hookFallbackProfile || savedSettings.globalFallbackProfile || defaultProfiles[1] || "",
           hookFallbackEnabled: typeof savedSettings.hookFallbackEnabled === "boolean" ? savedSettings.hookFallbackEnabled : true,
@@ -7459,6 +8279,7 @@ async function handleApi(req, res, pathname, searchParams) {
         },
         profiles: quota.profiles,
         quota,
+        profileRegistry: quota.registry,
         googleVids: {
           defaultAvatar,
           defaultAvatarScenes,
@@ -7492,6 +8313,12 @@ async function handleApi(req, res, pathname, searchParams) {
           defaultProvider: defaultAvatarGenerationProvider,
           providers: defaultAvatarGenerationProviders,
           referenceImages: defaultAvatarReferenceImages,
+          defaultFemaleImage: defaultFemaleAvatarImage,
+          defaultMaleImage: defaultMaleAvatarImage,
+          defaultAvatarPhotos: {
+            female: defaultFemaleAvatarImage,
+            male: defaultMaleAvatarImage
+          },
           scenes: appConfig.avatarGeneration?.scenes || defaultAvatarScenes,
           heygenVoiceId: defaultHeygenVoiceId,
           hasHeyGenKey: Boolean(process.env.HEYGEN_API_KEY),
@@ -7530,13 +8357,20 @@ async function handleApi(req, res, pathname, searchParams) {
 
     if (req.method === "POST" && pathname === "/api/quota") {
       const saved = await saveQuotaState(await readBody(req));
+      await publicQuotaState();
       json(res, 200, { ok: true, quota: saved });
       return;
     }
 
     if (req.method === "GET" && pathname === "/api/profiles") {
       const quota = await publicQuotaState();
-      json(res, 200, { ok: true, profiles: quota.profiles });
+      json(res, 200, { ok: true, profiles: quota.profiles, registry: quota.registry });
+      return;
+    }
+
+    if (req.method === "GET" && pathname === "/api/profiles/registry") {
+      const quota = await publicQuotaState();
+      json(res, 200, { ok: true, registry: quota.registry, profiles: quota.profiles });
       return;
     }
 
@@ -7544,6 +8378,7 @@ async function handleApi(req, res, pathname, searchParams) {
       const added = await addProfile(await readBody(req));
       const state = await loadUiState();
       const profiles = added.profiles.map((profile) => publicProfileWithQuota(profile, state));
+      await syncProfileRegistryQuiet(profiles, state, await readProfileRegistrySafe());
       json(res, 201, { ok: true, profile: profiles.find((item) => item.path === added.profile.path), profiles });
       return;
     }
@@ -7552,7 +8387,17 @@ async function handleApi(req, res, pathname, searchParams) {
       const removed = await removeProfile(await readBody(req));
       const state = await loadUiState();
       const profiles = removed.profiles.map((profile) => publicProfileWithQuota(profile, state));
+      await syncProfileRegistryQuiet(profiles, state, await readProfileRegistrySafe());
       json(res, 200, { ok: true, profile: removed.profile, deletedFolder: removed.deletedFolder, profiles });
+      return;
+    }
+
+    if (req.method === "POST" && pathname === "/api/profiles/toggle") {
+      const toggled = await setProfileEnabled(await readBody(req));
+      const state = await loadUiState();
+      const profiles = toggled.profiles.map((profile) => publicProfileWithQuota(profile, state));
+      await syncProfileRegistryQuiet(profiles, state, await readProfileRegistrySafe());
+      json(res, 200, { ok: true, profile: toggled.profile, enabled: toggled.enabled, profiles });
       return;
     }
 
@@ -7560,6 +8405,7 @@ async function handleApi(req, res, pathname, searchParams) {
       const renamed = await renameProfile(await readBody(req));
       const state = await loadUiState();
       const profiles = renamed.profiles.map((profile) => publicProfileWithQuota(profile, state));
+      await syncProfileRegistryQuiet(profiles, state, await readProfileRegistrySafe());
       json(res, 200, { ok: true, fromProfile: renamed.fromProfile, profile: renamed.profile, renamed: renamed.renamed, profiles });
       return;
     }
@@ -7575,7 +8421,9 @@ async function handleApi(req, res, pathname, searchParams) {
     }
 
     if (req.method === "GET" && pathname === "/api/tool-ideas") {
-      const ideas = await listToolIdeas(searchParams.get("input") || defaultInput);
+      const ideas = await listToolIdeas(searchParams.get("input") || defaultInput, {
+        limit: asFiniteNumber(searchParams.get("limit"), 0)
+      });
       json(res, 200, { ok: true, ...ideas });
       return;
     }
@@ -7588,6 +8436,17 @@ async function handleApi(req, res, pathname, searchParams) {
           row: searchParams.get("row") || 2,
           toolName: searchParams.get("toolName") || "",
           toolUrl: searchParams.get("toolUrl") || ""
+        })
+      });
+      return;
+    }
+
+    if (req.method === "GET" && pathname === "/api/tool-artifact/load") {
+      json(res, 200, {
+        ok: true,
+        artifact: await loadToolArtifact({
+          kind: searchParams.get("kind") || "",
+          path: searchParams.get("path") || ""
         })
       });
       return;

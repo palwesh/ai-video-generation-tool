@@ -35,6 +35,10 @@
             <span class="mini-icon">?</span>
             <span>Docs</span>
           </a>
+          <a class="icon-link" href="/vids-flow.html" aria-label="Open Google Vids flow version">
+            <span class="mini-icon">VF</span>
+            <span>Vids Flow</span>
+          </a>
           <a class="icon-link" href="/advanced.html" aria-label="Open old Version 1 tool">
             <span class="mini-icon">V1</span>
             <span>Old Tool</span>
@@ -94,6 +98,7 @@
             </a>
           </nav>
           <a class="version-link" href="/advanced.html">Open Version 1</a>
+          <a class="version-link" href="/vids-flow.html">Open Vids Flow</a>
         </aside>
 
         <section class="workflow-main" aria-label="Tool asset workflow">
@@ -155,8 +160,8 @@
               </div>
               <div class="upload-actions">
                 <button id="defaultBtn" class="secondary-action" type="button">Default Excel</button>
-                <button id="openTrackerExcelBtn" class="secondary-action" type="button">Open Tracker</button>
-                <a class="secondary-action download-action" href="/api/work-tracker/download" download>Download Excel</a>
+                <button id="openTrackerExcelBtn" class="secondary-action" type="button">Open Tracker Excel</button>
+                <a class="secondary-action download-action" href="/api/work-tracker/download" download>Download Tracker</a>
                 <button id="importBtn" class="primary-action" type="button" disabled>Import</button>
               </div>
             </div>
@@ -167,7 +172,7 @@
               <div>
                 <p class="eyebrow">Google Vids Users</p>
                 <h2>Global Profile Manager</h2>
-                <p>Add, login, rename, remove, and choose the primary/fallback profile used by every flow.</p>
+                <p>Add, login, rename, remove, and choose primary/fallback profiles. Passwords are never saved.</p>
               </div>
               <span id="profileState" class="state-pill">Loading</span>
             </div>
@@ -178,7 +183,16 @@
                   <span>New profile name</span>
                   <input id="newHookProfileName" type="text" placeholder="optional-name" autocomplete="off">
                 </label>
+                <label class="field-label profile-email-field" for="newHookProfileEmail">
+                  <span>Email / login ID</span>
+                  <input id="newHookProfileEmail" type="email" placeholder="name@gmail.com" autocomplete="off">
+                </label>
+                <label class="field-label profile-priority-field" for="newHookProfilePriority">
+                  <span>Priority</span>
+                  <input id="newHookProfilePriority" type="number" min="1" max="999" placeholder="1">
+                </label>
                 <button id="profileRefreshBtn" class="secondary-action" type="button">Refresh</button>
+                <button id="openProfileRegistryBtn" class="secondary-action" type="button">Open Profile Excel</button>
                 <button id="profileAddBtn" class="secondary-action" type="button">Add Profile</button>
                 <button id="profileAddLoginBtn" class="primary-action" type="button">Add + Login</button>
                 <button id="profileLoginSelectedBtn" class="secondary-action" type="button">Login Selected</button>
@@ -357,15 +371,38 @@
                 </label>
               </div>
 
+              <div class="tool-filter-bar" aria-label="Tool list filters">
+                <label class="tool-filter-chip">
+                  <input id="toolReadyOnlyFilter" type="checkbox" checked>
+                  <span>Ready tools only</span>
+                </label>
+                <label class="tool-filter-chip">
+                  <input id="toolNoVideoFilter" type="checkbox">
+                  <span>No video yet</span>
+                </label>
+                <label class="tool-filter-chip">
+                  <input id="toolP0Filter" type="checkbox">
+                  <span>P0 priority</span>
+                </label>
+                <span id="toolFilterSummary" class="filter-summary">Load Excel to filter rows.</span>
+              </div>
+
               <div id="selectedToolName" class="selected-tool">No row selected yet.</div>
               <div class="tool-credit-toolbar">
                 <label class="auto-check-row credit-safe-row">
                   <input id="creditSafeMode" type="checkbox" checked>
                   <span>Credit Safe</span>
                 </label>
+                <label class="auto-check-row low-credit-row">
+                  <input id="lowCreditVidsMode" type="checkbox" checked>
+                  <span>Low-credit Vids</span>
+                </label>
                 <div id="creditGuardNotice" class="credit-guard-notice" data-tone="safe">
                   <strong>Credit Safe ON</strong>
                   <span>No Google Vids generation will run unless you unlock and confirm.</span>
+                </div>
+                <div id="lowCreditVidsNotice" class="low-credit-notice">
+                  Hook avatar only. Body uses real tool demo assets, captions, and local voice.
                 </div>
               </div>
               <div id="artifactNotice" class="artifact-notice is-hidden" data-tone="idle">
@@ -380,6 +417,14 @@
                   <button id="useExistingHookBtn" class="secondary-action" type="button" disabled>Use Old Avatar</button>
                   <button id="jumpToAvatarStepBtn" class="primary-action" type="button" disabled>Avatar Step</button>
                   <button id="jumpToFinalStepBtn" class="secondary-action" type="button" disabled>Final Step</button>
+                </div>
+                <div id="resumeVersionsPanel" class="resume-versions is-hidden">
+                  <label class="field-label" for="resumeArtifactSelect">
+                    <span>Saved versions</span>
+                    <select id="resumeArtifactSelect"></select>
+                  </label>
+                  <button id="loadResumeArtifactBtn" class="primary-action" type="button" disabled>Load Selected</button>
+                  <button id="openResumeArtifactBtn" class="secondary-action" type="button" disabled>Open Folder</button>
                 </div>
               </div>
 
@@ -425,6 +470,63 @@
                   <span data-status="idle">Waiting for row selection.</span>
                 </div>
               </div>
+
+              <section class="auto-run-panel" aria-label="Campaign queue">
+                <div class="auto-run-head">
+                  <div>
+                    <strong>Campaign Run</strong>
+                    <small>Multiple reels one by one, with profile fallback and progress workbook.</small>
+                  </div>
+                  <span id="autoQueueState" class="state-pill">Ready</span>
+                </div>
+                <div class="auto-run-controls">
+                  <label class="field-label auto-count-field" for="autoVideoCount">
+                    <span>Videos</span>
+                    <input id="autoVideoCount" type="number" min="1" max="50" step="1" value="1">
+                  </label>
+                  <label class="field-label auto-rows-field" for="autoRowsInput">
+                    <span>Rows</span>
+                    <input id="autoRowsInput" type="text" placeholder="2,3,4 or blank">
+                  </label>
+                  <label class="auto-check-row">
+                    <input id="autoStartSelectedRow" type="checkbox" checked>
+                    <span>Start selected row</span>
+                  </label>
+                  <label class="auto-check-row">
+                    <input id="autoUseVidsHook" type="checkbox">
+                    <span id="autoUseVidsHookLabel">Hook Vids + Local</span>
+                  </label>
+                  <label class="auto-check-row">
+                    <input id="autoUpdateWorkbook" type="checkbox">
+                    <span>Update Excel</span>
+                  </label>
+                  <button id="autoRunQueueBtn" class="primary-action" type="button" disabled>Run Safe Auto</button>
+                  <button id="autoStopQueueBtn" class="secondary-action" type="button" disabled>Stop</button>
+                  <button id="autoOpenProgressBtn" class="secondary-action" type="button" disabled>Open Progress</button>
+                </div>
+                <div id="autoQueueMeta" class="auto-queue-meta">Load Excel, select tool row, then run campaign.</div>
+                <div id="campaignCreditEstimate" class="credit-estimate">Credit Safe: 0 Google Vids clips planned.</div>
+                <details class="auto-profile-panel checkbox-dropdown">
+                  <summary>
+                    <span>
+                      <strong>Fallback profiles</strong>
+                      <small>Ready ya login-needed profiles use ho sakte hain.</small>
+                    </span>
+                    <span id="autoProfileCount" class="state-pill">0 selected</span>
+                  </summary>
+                  <div class="checkbox-dropdown-menu">
+                    <div id="autoProfileList" class="auto-profile-list">
+                      <span class="muted">Profiles loading...</span>
+                    </div>
+                  </div>
+                </details>
+                <div id="autoRunTimeline" class="auto-run-timeline">
+                  <span class="muted">Campaign steps will appear here.</span>
+                </div>
+                <div id="autoQueueList" class="auto-queue-list">
+                  <span class="muted">Queue rows will appear here.</span>
+                </div>
+              </section>
             </section>
 
             <div class="stats-grid">
@@ -482,6 +584,13 @@
                 </div>
                 <p id="assetFolderPath" class="path-text"></p>
                 <p id="assetSummary" class="asset-summary"></p>
+                <div id="assetQualityPanel" class="asset-quality-panel is-hidden" aria-live="polite">
+                  <div class="asset-quality-head">
+                    <strong>Asset Quality</strong>
+                    <span id="assetQualityScore" class="state-pill">0/100</span>
+                  </div>
+                  <div id="assetQualityList" class="asset-quality-list"></div>
+                </div>
                 <div id="assetFileList" class="asset-file-list"></div>
               </div>
             </section>
@@ -529,14 +638,14 @@
                   <strong id="scriptDuration">0 sec</strong>
                 </div>
                 <p id="scriptFolderPath" class="path-text"></p>
-                <div id="scriptParts" class="script-parts"></div>
-                <details id="scriptEditorPanel" class="script-editor-panel">
+                <div id="scriptParts" class="script-parts is-hidden" aria-hidden="true"></div>
+                <details id="scriptEditorPanel" class="script-editor-panel" open>
                   <summary>
                     <span>
-                      <strong>Script editor</strong>
-                      <small id="scriptEditorMeta">Edit hook, body, CTA, captions, and scene text.</small>
+                      <strong>Editable reel script</strong>
+                      <small id="scriptEditorMeta">Edit once here. Avatar, voiceover, preview, and final render use this saved script.</small>
                     </span>
-                    <span class="state-pill">Update ready</span>
+                    <span class="state-pill">Single source</span>
                   </summary>
                   <div class="script-editor-body">
                     <div class="script-editor-grid">
@@ -562,15 +671,15 @@
                       </label>
                     </div>
                     <div class="script-editor-actions">
-                      <span class="muted">Hook Scene 1 me jayega, CTA last scene me. Body edit karoge to middle scenes auto split honge.</span>
+                      <span class="muted">Yahi final script hai. Hook Scene 1 me jayega, Body middle scenes me auto split hoga, CTA last scene me jayega.</span>
                       <button id="resetScriptEditorBtn" class="secondary-action" type="button" disabled>Reset Editor</button>
                     </div>
-                    <div id="scriptSceneEditorList" class="script-scene-editor-list">
+                    <div id="scriptSceneEditorList" class="script-scene-editor-list is-hidden" aria-hidden="true">
                       <span class="muted">Generate script to edit scene-wise voiceover.</span>
                     </div>
                   </div>
                 </details>
-                <details class="scene-drawer">
+                <details class="scene-drawer is-hidden" aria-hidden="true">
                   <summary>
                     <strong>Scene-wise script</strong>
                     <span id="scriptSceneCountLabel" class="path-text">0 scenes</span>
@@ -681,6 +790,36 @@
                 <span>Use Prepare Avatar Pack for prompts. Google Vids generation is locked until you turn Credit Safe off.</span>
               </div>
 
+              <details id="hookAvatarScriptEditorPanel" class="script-editor-panel avatar-script-editor-panel">
+                <summary>
+                  <span>
+                    <strong>Review / Edit Avatar Script</strong>
+                    <small id="hookAvatarScriptEditorMeta">Prepare Avatar Pack first, then edit before Google Vids generation.</small>
+                  </span>
+                  <span class="state-pill" data-tone="idle">Before credits</span>
+                </summary>
+                <div class="script-editor-body">
+                  <div class="script-editor-grid">
+                    <label class="field-label">
+                      <span>Hook avatar line</span>
+                      <textarea id="hookAvatarHookScriptEditor" rows="3" placeholder="Hook avatar line for first 6-10 seconds..."></textarea>
+                    </label>
+                    <label class="field-label">
+                      <span>Mid focus line</span>
+                      <textarea id="hookAvatarFocusScriptEditor" rows="3" placeholder="Optional mid-reel avatar focus line..."></textarea>
+                    </label>
+                    <label class="field-label">
+                      <span>CTA avatar line</span>
+                      <textarea id="hookAvatarCtaScriptEditor" rows="3" placeholder="Final CTA avatar line..."></textarea>
+                    </label>
+                  </div>
+                  <div class="script-editor-actions">
+                    <span id="hookAvatarScriptReviewStatus">These exact lines will be used for avatar clips. Keep them short and natural.</span>
+                    <button id="resetHookAvatarScriptBtn" class="secondary-action" type="button">Reset Prepared Script</button>
+                  </div>
+                </div>
+              </details>
+
               <div id="hookResult" class="hook-result is-hidden">
                 <div class="hook-result-head">
                   <div>
@@ -715,6 +854,16 @@
                 <span id="finalState" class="state-pill">Ready</span>
               </div>
 
+              <div id="finalReviewPanel" class="final-review-panel" aria-live="polite">
+                <div>
+                  <strong>Pre-render review</strong>
+                  <span id="finalReviewMeta">Select a row and prepare assets/script/avatar before render.</span>
+                </div>
+                <div id="finalReviewChecklist" class="final-review-checklist">
+                  <span data-status="idle">Waiting for row.</span>
+                </div>
+              </div>
+
               <div class="final-controls">
                 <label class="field-label final-voice" for="finalVoiceProviderSelect">
                   <span>Voice</span>
@@ -728,6 +877,7 @@
                 </label>
                 <button id="generateRemainingVidsBtn" class="secondary-action" type="button" disabled>Generate Vids Voiceover</button>
                 <button id="playVoiceoverBtn" class="secondary-action" type="button" disabled>Play Voiceover</button>
+                <button id="previewFinalReelBtn" class="secondary-action" type="button" disabled>Quick Preview</button>
                 <button id="renderFinalReelBtn" class="primary-action build-main-action" type="button" disabled>Render Final Reel</button>
                 <button id="viewFinalFolderBtn" class="secondary-action" type="button" disabled>View Final Folder</button>
               </div>

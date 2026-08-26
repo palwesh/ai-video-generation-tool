@@ -68,12 +68,20 @@ const els = {
   refreshDocsBtn: document.getElementById("refreshDocsBtn"),
   toolSearchInput: document.getElementById("toolSearchInput"),
   toolOptionCount: document.getElementById("toolOptionCount"),
+  toolReadyOnlyFilter: document.getElementById("toolReadyOnlyFilter"),
+  toolNoVideoFilter: document.getElementById("toolNoVideoFilter"),
+  toolP0Filter: document.getElementById("toolP0Filter"),
+  toolFilterSummary: document.getElementById("toolFilterSummary"),
   toolIdeaDropdown: document.getElementById("toolIdeaDropdown"),
   toolDropdownLabel: document.getElementById("toolDropdownLabel"),
   toolDropdownHint: document.getElementById("toolDropdownHint"),
   artifactNotice: document.getElementById("artifactNotice"),
   artifactNoticeTitle: document.getElementById("artifactNoticeTitle"),
   artifactNoticeDetail: document.getElementById("artifactNoticeDetail"),
+  resumeVersionsPanel: document.getElementById("resumeVersionsPanel"),
+  resumeArtifactSelect: document.getElementById("resumeArtifactSelect"),
+  loadResumeArtifactBtn: document.getElementById("loadResumeArtifactBtn"),
+  openResumeArtifactBtn: document.getElementById("openResumeArtifactBtn"),
   useExistingAssetsBtn: document.getElementById("useExistingAssetsBtn"),
   generateNewAssetsBtn: document.getElementById("generateNewAssetsBtn"),
   useExistingScriptBtn: document.getElementById("useExistingScriptBtn"),
@@ -99,7 +107,10 @@ const els = {
   autoUseVidsHookLabel: document.getElementById("autoUseVidsHookLabel"),
   autoUpdateWorkbook: document.getElementById("autoUpdateWorkbook"),
   creditSafeMode: document.getElementById("creditSafeMode"),
+  lowCreditVidsMode: document.getElementById("lowCreditVidsMode"),
   creditGuardNotice: document.getElementById("creditGuardNotice"),
+  lowCreditVidsNotice: document.getElementById("lowCreditVidsNotice"),
+  campaignCreditEstimate: document.getElementById("campaignCreditEstimate"),
   autoRunQueueBtn: document.getElementById("autoRunQueueBtn"),
   autoStopQueueBtn: document.getElementById("autoStopQueueBtn"),
   autoOpenProgressBtn: document.getElementById("autoOpenProgressBtn"),
@@ -160,23 +171,40 @@ const els = {
   profileManagerSummary: document.getElementById("profileManagerSummary"),
   profileManagerList: document.getElementById("profileManagerList"),
   newHookProfileName: document.getElementById("newHookProfileName"),
+  newHookProfileEmail: document.getElementById("newHookProfileEmail"),
+  newHookProfilePriority: document.getElementById("newHookProfilePriority"),
   profileRefreshBtn: document.getElementById("profileRefreshBtn"),
+  openProfileRegistryBtn: document.getElementById("openProfileRegistryBtn"),
   profileAddBtn: document.getElementById("profileAddBtn"),
   profileAddLoginBtn: document.getElementById("profileAddLoginBtn"),
   profileLoginSelectedBtn: document.getElementById("profileLoginSelectedBtn"),
   prepareHookAvatarBtn: document.getElementById("prepareHookAvatarBtn"),
   generateHookAvatarBtn: document.getElementById("generateHookAvatarBtn"),
   viewHookAvatarBtn: document.getElementById("viewHookAvatarBtn"),
+  hookAvatarScriptEditorPanel: document.getElementById("hookAvatarScriptEditorPanel"),
+  hookAvatarScriptEditorMeta: document.getElementById("hookAvatarScriptEditorMeta"),
+  hookAvatarHookScriptEditor: document.getElementById("hookAvatarHookScriptEditor"),
+  hookAvatarFocusScriptEditor: document.getElementById("hookAvatarFocusScriptEditor"),
+  hookAvatarCtaScriptEditor: document.getElementById("hookAvatarCtaScriptEditor"),
+  hookAvatarScriptReviewStatus: document.getElementById("hookAvatarScriptReviewStatus"),
+  resetHookAvatarScriptBtn: document.getElementById("resetHookAvatarScriptBtn"),
   finalVoiceProviderSelect: document.getElementById("finalVoiceProviderSelect"),
   generateRemainingVidsBtn: document.getElementById("generateRemainingVidsBtn"),
   playVoiceoverBtn: document.getElementById("playVoiceoverBtn"),
+  previewFinalReelBtn: document.getElementById("previewFinalReelBtn"),
   renderFinalReelBtn: document.getElementById("renderFinalReelBtn"),
   viewFinalFolderBtn: document.getElementById("viewFinalFolderBtn"),
+  finalReviewPanel: document.getElementById("finalReviewPanel"),
+  finalReviewMeta: document.getElementById("finalReviewMeta"),
+  finalReviewChecklist: document.getElementById("finalReviewChecklist"),
   assetResult: document.getElementById("assetResult"),
   assetToolName: document.getElementById("assetToolName"),
   assetFileCount: document.getElementById("assetFileCount"),
   assetFolderPath: document.getElementById("assetFolderPath"),
   assetSummary: document.getElementById("assetSummary"),
+  assetQualityPanel: document.getElementById("assetQualityPanel"),
+  assetQualityScore: document.getElementById("assetQualityScore"),
+  assetQualityList: document.getElementById("assetQualityList"),
   assetFileList: document.getElementById("assetFileList"),
   scriptResult: document.getElementById("scriptResult"),
   scriptToolName: document.getElementById("scriptToolName"),
@@ -239,21 +267,35 @@ const state = {
   lastAssetRow: 0,
   lastAssetInput: "",
   lastScriptFolder: "",
+  lastScriptRow: 0,
   currentScriptBuild: null,
   scriptEditorOriginal: null,
+  scriptEditorDirty: false,
   lastHookAvatarFolder: "",
   lastHookAvatarVideo: "",
   lastHookAvatarRunId: "",
+  lastHookAvatarRow: 0,
+  avatarScriptDraft: null,
+  avatarScriptPreparedDraft: null,
+  avatarScriptPreparedRow: 0,
+  avatarScriptUserEdited: false,
   lastFinalReelFolder: "",
   lastFinalReelVideo: "",
   lastFinalReelRunId: "",
   lastFinalReelRow: 0,
+  lastPreviewReelFolder: "",
+  lastPreviewReelVideo: "",
+  lastPreviewReelRow: 0,
+  finalBusyMode: "",
+  lastVidsVoiceoverFolder: "",
   lastVidsVoiceoverExport: "",
+  lastVidsVoiceoverRow: 0,
   lastVoiceoverPreviewUrl: "",
   lastVoiceoverPreviewName: "",
   currentRow: 0,
   currentInput: "",
   latestArtifacts: null,
+  resumeArtifacts: [],
   toolVideoStatusByRow: new Map(),
   toolVideoStatusLoading: false,
   artifactCheckTimer: null,
@@ -267,7 +309,9 @@ const state = {
   lastScriptVideoVideo: "",
   lastScriptVideoRunId: "",
   hookProfiles: [],
+  profileRegistry: null,
   hookAvatarOptions: [],
+  defaultAvatarPhotos: {},
   avatarHostImage: "",
   avatarHostLabel: "",
   dashboardDefaults: null,
@@ -280,6 +324,11 @@ const state = {
   selectedAutoProfiles: new Set(),
   autoProfilesTouched: false,
   activeWorkspaceTab: "tool-promo",
+  toolFilters: {
+    readyOnly: true,
+    noVideo: false,
+    p0: false
+  },
   toolRowRenderLimit: 500,
   docs: [],
   docCache: new Map(),
@@ -308,6 +357,13 @@ const DEFAULT_AVATAR_PHOTOS = {
   female: "public/avatar/altftool-female-host-custom.png",
   male: "public/avatar/altftool-male-host-main.png"
 };
+
+function currentDefaultAvatarPhotos() {
+  return {
+    ...DEFAULT_AVATAR_PHOTOS,
+    ...(state.defaultAvatarPhotos || {})
+  };
+}
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -639,10 +695,10 @@ function hookProfileIdentity(profile = {}, index = 0) {
     "work/shejal.sahu-anslation.com-profile": "Sejal profile"
   }[profile.path];
   if (alias) {
-    const identity = profile.email || profile.googleName || profile.profileName || "";
+    const identity = profile.email || profile.expectedEmail || profile.googleName || profile.displayName || profile.profileName || "";
     return identity ? `${alias} (${identity})` : alias;
   }
-  return profile.email || profile.googleName || profile.profileName || profile.label || `Profile ${index + 1}`;
+  return profile.email || profile.expectedEmail || profile.googleName || profile.displayName || profile.profileName || profile.label || `Profile ${index + 1}`;
 }
 
 function hookProfileStatus(profile = {}) {
@@ -651,8 +707,13 @@ function hookProfileStatus(profile = {}) {
       ? "success"
       : profile.status === "limit_used"
         ? "error"
-        : "warn";
+        : profile.status === "disabled"
+          ? "idle"
+          : "warn";
     return { label: profile.statusLabel, tone };
+  }
+  if (profile.enabled === false) {
+    return { label: "Disabled", tone: "idle" };
   }
   if (quotaLimitUsed(profile.quota)) {
     return { label: "Limit used", tone: "error" };
@@ -699,28 +760,33 @@ function currentGlobalProfiles(source = "hook") {
   const primarySelect = useScript ? els.customScriptPrimaryProfileSelect : els.hookPrimaryProfileSelect;
   const fallbackSelect = useScript ? els.customScriptFallbackProfileSelect : els.hookFallbackProfileSelect;
   const fallbackToggle = useScript ? els.customScriptFallbackEnabled : els.hookFallbackEnabled;
+  const profiles = state.hookProfiles || [];
   const fallbackEnabled = Boolean(fallbackToggle?.checked);
+  const primary = resolvePrimaryProfile(profiles, primarySelect?.value || DEFAULT_PRIMARY_PROFILE);
+  const fallback = fallbackEnabled ? resolveFallbackProfile(profiles, fallbackSelect?.value || "", primary) : "";
+  const cleanFallback = fallback && fallback !== primary ? fallback : "";
   return {
-    primary: primarySelect?.value || DEFAULT_PRIMARY_PROFILE,
-    fallback: fallbackEnabled ? (fallbackSelect?.value || "") : "",
-    fallbackEnabled
+    primary,
+    fallback: cleanFallback,
+    fallbackEnabled: fallbackEnabled && Boolean(cleanFallback)
   };
 }
 
 function applyGlobalProfileSelection(selection = {}) {
-  const primary = selection.primary || DEFAULT_PRIMARY_PROFILE;
+  const profiles = state.hookProfiles || [];
+  const primary = resolvePrimaryProfile(profiles, selection.primary || DEFAULT_PRIMARY_PROFILE);
   const fallbackEnabled = Boolean(selection.fallbackEnabled);
-  const fallback = selection.fallback || "";
+  const fallback = fallbackEnabled ? resolveFallbackProfile(profiles, selection.fallback || "", primary) : "";
   for (const primarySelect of [els.hookPrimaryProfileSelect, els.customScriptPrimaryProfileSelect].filter(Boolean)) {
     if ([...primarySelect.options].some((option) => option.value === primary)) {
       primarySelect.value = primary;
     }
   }
   for (const fallbackToggle of [els.hookFallbackEnabled, els.customScriptFallbackEnabled].filter(Boolean)) {
-    fallbackToggle.checked = fallbackEnabled;
+    fallbackToggle.checked = fallbackEnabled && Boolean(fallback);
   }
   for (const fallbackSelect of [els.hookFallbackProfileSelect, els.customScriptFallbackProfileSelect].filter(Boolean)) {
-    fallbackSelect.disabled = !fallbackEnabled;
+    fallbackSelect.disabled = !fallbackEnabled || !fallback;
     if ([...fallbackSelect.options].some((option) => option.value === fallback)) {
       fallbackSelect.value = fallback;
     } else if (!fallbackEnabled) {
@@ -732,17 +798,20 @@ function applyGlobalProfileSelection(selection = {}) {
 function renderGlobalProfileStrip() {
   const counts = profileCounts();
   const selection = currentGlobalProfiles("hook");
+  const hasReadyFallback = Boolean(resolveFallbackProfile(state.hookProfiles || [], "", selection.primary));
   if (els.globalProfileSummary) {
     els.globalProfileSummary.textContent = `${counts.available}/${counts.total} available | ${counts.limitUsed} limit used | ${counts.loginNeeded} login needed`;
   }
   if (els.globalPrimaryProfileLabel) {
-    els.globalPrimaryProfileLabel.textContent = `Primary: ${profileFriendlyName(selection.primary, "Not selected")}`;
+    els.globalPrimaryProfileLabel.textContent = selection.primary
+      ? `Primary: ${profileFriendlyName(selection.primary, "Not selected")}`
+      : "Primary: no selectable profile";
     els.globalPrimaryProfileLabel.title = selection.primary || "";
   }
   if (els.globalFallbackProfileLabel) {
     els.globalFallbackProfileLabel.textContent = selection.fallbackEnabled && selection.fallback
       ? `Fallback: ${profileFriendlyName(selection.fallback, "Not selected")}`
-      : "Fallback: off";
+      : hasReadyFallback ? "Fallback: off" : "Fallback: no second selectable profile";
     els.globalFallbackProfileLabel.title = selection.fallback || "";
   }
 }
@@ -775,7 +844,46 @@ function setProfileState(label, tone = "idle") {
 }
 
 function isHookProfileReady(profile = {}) {
-  return !quotaLimitUsed(profile.quota) && Boolean(profile.loggedIn || profile.status === "available");
+  return isHookProfileSelectable(profile) && Boolean(profile.loggedIn || profile.status === "available");
+}
+
+function isHookProfileSelectable(profile = {}) {
+  return Boolean(profile.path)
+    && profile.enabled !== false
+    && profile.status !== "disabled"
+    && profile.status !== "limit_used"
+    && !quotaLimitUsed(profile.quota);
+}
+
+function resolvePrimaryProfile(profiles = [], preferredPath = "") {
+  if (preferredPath) {
+    const preferred = profiles.find((profile) => profile.path === preferredPath);
+    if (preferred && isHookProfileSelectable(preferred)) {
+      return preferred.path;
+    }
+  }
+  return profiles.find(isHookProfileReady)?.path || profiles.find(isHookProfileSelectable)?.path || "";
+}
+
+function resolveFallbackProfile(profiles = [], preferredPath = "", primaryPath = "") {
+  if (preferredPath && preferredPath !== primaryPath) {
+    const preferred = profiles.find((profile) => profile.path === preferredPath);
+    if (preferred && isHookProfileSelectable(preferred)) {
+      return preferred.path;
+    }
+  }
+  return profiles.find((profile) => profile.path !== primaryPath && isHookProfileReady(profile))?.path
+    || profiles.find((profile) => profile.path !== primaryPath && isHookProfileSelectable(profile))?.path
+    || "";
+}
+
+function uniqueProfilePaths(paths = []) {
+  const seen = new Set();
+  return paths.filter((profilePath) => {
+    if (!profilePath || seen.has(profilePath)) return false;
+    seen.add(profilePath);
+    return true;
+  });
 }
 
 function hookProfileOptionLabel(profile = {}, index = 0) {
@@ -786,10 +894,12 @@ function hookProfileOptionLabel(profile = {}, index = 0) {
 function renderHookProfileOptions(preferred = {}) {
   const profiles = state.hookProfiles.length
     ? state.hookProfiles
-    : [{ path: DEFAULT_PRIMARY_PROFILE, label: "HR profile", quota: {} }];
+    : [{ path: DEFAULT_PRIMARY_PROFILE, label: "HR profile", quota: {}, loggedIn: true, status: "available" }];
+  const hasSelectableProfile = profiles.some(isHookProfileSelectable);
   const options = profiles.map((profile, index) => (
-    `<option value="${escapeHtml(profile.path)}">${escapeHtml(hookProfileOptionLabel(profile, index))}</option>`
+    `<option value="${escapeHtml(profile.path)}" ${isHookProfileSelectable(profile) ? "" : "disabled"}>${escapeHtml(hookProfileOptionLabel(profile, index))}</option>`
   )).join("");
+  const primaryOptions = `${hasSelectableProfile ? "" : '<option value="">No selectable profile - add/login or wait for limit reset</option>'}${options}`;
   const applyProfileSelects = (primarySelect, fallbackSelect, fallbackToggle) => {
     if (!primarySelect || !fallbackSelect) return;
     const settings = state.dashboardDefaults?.settings || {};
@@ -808,22 +918,18 @@ function renderHookProfileOptions(preferred = {}) {
       : typeof settings.hookFallbackEnabled === "boolean"
         ? settings.hookFallbackEnabled
         : Boolean(fallbackToggle?.checked ?? true);
-    primarySelect.innerHTML = options;
+    primarySelect.innerHTML = primaryOptions;
     fallbackSelect.innerHTML = `<option value="">No fallback</option>${options}`;
-    const hasPrimary = profiles.some((profile) => profile.path === primaryPrevious);
-    primarySelect.value = hasPrimary ? primaryPrevious : (profiles[0]?.path || "");
+    primarySelect.value = resolvePrimaryProfile(profiles, primaryPrevious);
     const selectedPrimary = primarySelect.value;
-    const fallbackCandidate = fallbackPrevious && profiles.some((profile) => profile.path === fallbackPrevious)
-      ? fallbackPrevious
-      : profiles.find((profile) => profile.path !== selectedPrimary && isHookProfileReady(profile))?.path
-        || profiles.find((profile) => profile.path !== selectedPrimary && !quotaLimitUsed(profile.quota))?.path
-        || profiles.find((profile) => profile.path !== selectedPrimary)?.path
-        || "";
+    const fallbackCandidate = fallbackEnabled
+      ? resolveFallbackProfile(profiles, fallbackPrevious, selectedPrimary)
+      : "";
     fallbackSelect.value = fallbackCandidate;
     if (fallbackToggle) {
-      fallbackToggle.checked = fallbackEnabled;
+      fallbackToggle.checked = fallbackEnabled && Boolean(fallbackCandidate);
     }
-    fallbackSelect.disabled = !fallbackEnabled;
+    fallbackSelect.disabled = !fallbackEnabled || !fallbackCandidate;
   };
   applyProfileSelects(els.hookPrimaryProfileSelect, els.hookFallbackProfileSelect, els.hookFallbackEnabled);
   applyProfileSelects(els.customScriptPrimaryProfileSelect, els.customScriptFallbackProfileSelect, els.customScriptFallbackEnabled);
@@ -832,9 +938,37 @@ function renderHookProfileOptions(preferred = {}) {
 }
 
 function selectedHookProfiles() {
-  const primary = els.hookPrimaryProfileSelect?.value || DEFAULT_PRIMARY_PROFILE;
-  const fallback = els.hookFallbackEnabled?.checked ? (els.hookFallbackProfileSelect?.value || "") : "";
-  return [primary, fallback].filter(Boolean);
+  return selectedGenerationProfiles("hook");
+}
+
+function selectedGenerationProfiles(source = "hook") {
+  const useScript = source === "script-video";
+  const profiles = state.hookProfiles || [];
+  const primarySelect = useScript ? els.customScriptPrimaryProfileSelect : els.hookPrimaryProfileSelect;
+  const fallbackSelect = useScript ? els.customScriptFallbackProfileSelect : els.hookFallbackProfileSelect;
+  const fallbackToggle = useScript ? els.customScriptFallbackEnabled : els.hookFallbackEnabled;
+  const primary = resolvePrimaryProfile(profiles, primarySelect?.value || DEFAULT_PRIMARY_PROFILE);
+  const fallback = fallbackToggle?.checked
+    ? resolveFallbackProfile(profiles, fallbackSelect?.value || "", primary)
+    : "";
+  const selected = uniqueProfilePaths([primary, fallback])
+    .filter((profilePath) => {
+      if (!profiles.length) return Boolean(profilePath);
+      const profile = profiles.find((item) => item.path === profilePath);
+      return profile ? isHookProfileSelectable(profile) : false;
+    });
+  if (selected.length) {
+    return selected;
+  }
+  return profiles.filter(isHookProfileSelectable).map((profile) => profile.path).slice(0, 2);
+}
+
+function requireGenerationProfiles(source = "hook") {
+  const profiles = selectedGenerationProfiles(source);
+  if (!profiles.length) {
+    throw new Error("Koi selectable Google Vids profile nahi hai. Profiles tab me profile add karo, disabled profile enable karo, ya limit-used profile ke bajay doosra profile select karo.");
+  }
+  return profiles;
 }
 
 function defaultAutomationProfilePaths() {
@@ -842,12 +976,15 @@ function defaultAutomationProfilePaths() {
   const selected = selectedHookProfiles()
     .filter((profilePath) => {
       const profile = profiles.find((item) => item.path === profilePath);
-      return profile ? isHookProfileReady(profile) : true;
+      return profile ? isHookProfileSelectable(profile) : true;
     });
   const ready = profiles
     .filter(isHookProfileReady)
     .map((profile) => profile.path);
-  const combined = [...selected, ...ready]
+  const selectable = profiles
+    .filter(isHookProfileSelectable)
+    .map((profile) => profile.path);
+  const combined = [...selected, ...ready, ...selectable]
     .filter((profilePath, index, list) => profilePath && list.indexOf(profilePath) === index)
     .slice(0, AUTO_PROFILE_LIMIT);
   if (combined.length) {
@@ -861,7 +998,7 @@ function selectedAutomationProfiles() {
   const explicit = [...state.selectedAutoProfiles]
     .filter((profilePath) => {
       const profile = profiles.find((item) => item.path === profilePath);
-      return profile ? isHookProfileReady(profile) : true;
+      return profile ? isHookProfileSelectable(profile) : true;
     })
     .slice(0, AUTO_PROFILE_LIMIT);
   const selected = explicit.length ? explicit : defaultAutomationProfilePaths();
@@ -889,7 +1026,7 @@ function renderAutoProfileChecklist() {
   const selectedOrder = [...selectedSet];
   els.autoProfileList.innerHTML = profiles.map((profile, index) => {
     const status = hookProfileStatus(profile);
-    const disabled = state.autoQueueRunning || quotaLimitUsed(profile.quota) || !profile.exists || !profile.loggedIn;
+    const disabled = state.autoQueueRunning || !isHookProfileSelectable(profile);
     const checked = selectedSet.has(profile.path) && !disabled;
     const selectedIndex = selectedOrder.indexOf(profile.path);
     const role = selectedIndex === 0
@@ -928,11 +1065,13 @@ function renderHookProfileStatus() {
     const label = [role, identity, status.label, hookProfileUsage(profile)].filter(Boolean).join(" | ");
     return `<span data-tone="${escapeHtml(status.tone)}" title="${escapeHtml(profile.path || "")}">${escapeHtml(label)}</span>`;
   }).join("");
+  const readyFallback = resolveFallbackProfile(profiles, "", els.hookPrimaryProfileSelect?.value || "");
   const fallbackText = els.hookFallbackEnabled?.checked
     ? `Fallback enabled: ${els.hookFallbackProfileSelect?.value || "not selected"}`
-    : "Fallback disabled";
+    : readyFallback ? "Fallback disabled" : "Fallback disabled: no second selectable profile";
   els.hookProfileStatus.innerHTML = `${chips}<span>${escapeHtml(fallbackText)}</span>`;
   renderAutoProfileChecklist();
+  renderFinalReview();
 }
 
 function profileCounts() {
@@ -941,7 +1080,8 @@ function profileCounts() {
     total: profiles.length,
     available: profiles.filter(isHookProfileReady).length,
     limitUsed: profiles.filter((profile) => quotaLimitUsed(profile.quota)).length,
-    loginNeeded: profiles.filter((profile) => profile.status === "login_needed" || (!profile.loggedIn && !quotaLimitUsed(profile.quota))).length
+    disabled: profiles.filter((profile) => profile.enabled === false).length,
+    loginNeeded: profiles.filter((profile) => profile.enabled !== false && (profile.status === "login_needed" || (!profile.loggedIn && !quotaLimitUsed(profile.quota)))).length
   };
 }
 
@@ -949,12 +1089,13 @@ function renderProfileManager() {
   if (!els.profileManagerSummary || !els.profileManagerList) return;
   const profiles = state.hookProfiles || [];
   const counts = profileCounts();
-  setProfileState(`${counts.available}/${counts.total} available`, profiles.length ? "success" : "idle");
+  setProfileState(`${counts.available}/${counts.total} available`, profiles.length ? (counts.available ? "success" : "error") : "idle");
   renderGlobalProfileStrip();
   els.profileManagerSummary.innerHTML = [
     ["Total", counts.total],
     ["Available", counts.available],
     ["Limit used", counts.limitUsed],
+    ["Disabled", counts.disabled],
     ["Login needed", counts.loginNeeded]
   ].map(([label, value]) => (
     `<span><strong>${escapeHtml(value)}</strong>${escapeHtml(label)}</span>`
@@ -970,12 +1111,17 @@ function renderProfileManager() {
   els.profileManagerList.innerHTML = profiles.map((profile, index) => {
     const status = hookProfileStatus(profile);
     const identity = hookProfileIdentity(profile, index);
+    const canUseForGeneration = isHookProfileSelectable(profile);
+    const canSetPrimary = canUseForGeneration && profile.path !== primary;
+    const canSetFallback = canUseForGeneration && profile.path !== primary;
     const rowLabel = `P${String(index + 1).padStart(2, "0")}`;
     const roleBadges = [
       profile.path === primary ? `<span data-tone="primary">Primary</span>` : "",
       profile.path === fallback ? `<span data-tone="fallback">Fallback</span>` : ""
     ].filter(Boolean).join("");
     const noteParts = [
+      profile.expectedEmail ? `Expected: ${profile.expectedEmail}` : "",
+      Number.isFinite(Number(profile.priority)) ? `Priority: ${profile.priority}` : "",
       profile.browserProfile ? `Chrome: ${profile.browserProfile}` : "",
       profile.quota?.lastQuotaHitAt ? `Last limit hit: ${shortDateTime(profile.quota.lastQuotaHitAt)}` : "",
       profile.quota?.quotaNote || ""
@@ -998,9 +1144,10 @@ function renderProfileManager() {
           <span title="${escapeHtml(metaText)}">${escapeHtml(metaText)}</span>
         </div>
         <div class="profile-card-actions">
-          <button class="secondary-action" data-profile-action="primary" data-profile="${escapeHtml(profile.path)}" type="button">Primary</button>
-          <button class="secondary-action" data-profile-action="fallback" data-profile="${escapeHtml(profile.path)}" type="button">Fallback</button>
+          <button class="secondary-action" data-profile-action="primary" data-profile="${escapeHtml(profile.path)}" type="button" ${canSetPrimary ? "" : "disabled"}>Primary</button>
+          <button class="secondary-action" data-profile-action="fallback" data-profile="${escapeHtml(profile.path)}" type="button" ${canSetFallback ? "" : "disabled"}>Fallback</button>
           <button class="secondary-action" data-profile-action="login" data-profile="${escapeHtml(profile.path)}" type="button">Login</button>
+          <button class="secondary-action" data-profile-action="toggle" data-enabled="${profile.enabled === false ? "true" : "false"}" data-profile="${escapeHtml(profile.path)}" type="button">${profile.enabled === false ? "Enable" : "Disable"}</button>
           <button class="secondary-action" data-profile-action="rename" data-profile="${escapeHtml(profile.path)}" type="button">Rename</button>
           <button class="secondary-action danger-action" data-profile-action="remove" data-profile="${escapeHtml(profile.path)}" type="button">Remove</button>
         </div>
@@ -1020,6 +1167,7 @@ async function loadHookProfiles(preferred = {}) {
     throw new Error(data.error || `Profiles failed: ${response.status}`);
   }
   state.hookProfiles = data.profiles || [];
+  state.profileRegistry = data.registry || state.profileRegistry || null;
   renderHookProfileOptions(preferred);
   renderHookProfileStatus();
   renderProfileManager();
@@ -1028,6 +1176,8 @@ async function loadHookProfiles(preferred = {}) {
 
 async function addHookProfile(options = {}) {
   const profileName = String(options.profileName ?? els.newHookProfileName?.value ?? "").trim();
+  const email = String(options.email ?? els.newHookProfileEmail?.value ?? "").trim();
+  const priority = String(options.priority ?? els.newHookProfilePriority?.value ?? "").trim();
   setTask("Adding Vids profile", "New browser profile folder create ho raha hai", "busy");
   setTerminalStatus("Adding Google Vids profile");
   setProfileState("Adding", "busy");
@@ -1035,7 +1185,7 @@ async function addHookProfile(options = {}) {
   const response = await fetch("/api/profiles", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ profile: profileName })
+    body: JSON.stringify({ profile: profileName, email, priority })
   });
   const data = await response.json();
   if (!response.ok || data.ok === false) {
@@ -1046,6 +1196,12 @@ async function addHookProfile(options = {}) {
   syncGlobalProfiles("hook");
   if (els.newHookProfileName) {
     els.newHookProfileName.value = "";
+  }
+  if (els.newHookProfileEmail) {
+    els.newHookProfileEmail.value = "";
+  }
+  if (els.newHookProfilePriority) {
+    els.newHookProfilePriority.value = "";
   }
   appendTerminal(`Profile added: ${data.profile?.path || "new profile"}`, "stdout");
   setTask("Profile added", data.profile?.path || "New profile ready", "success");
@@ -1141,8 +1297,61 @@ async function removeHookProfile(profilePath = "") {
   activeStep("profile");
 }
 
+async function openProfileRegistryExcel() {
+  setTask("Opening Profile Excel", "Profile registry sync ho raha hai", "busy");
+  setTerminalStatus("Opening profile Excel");
+  appendTerminal("GET /api/profiles/registry");
+  const registry = await readJsonApi("/api/profiles/registry");
+  state.profileRegistry = registry.registry || state.profileRegistry;
+  const registryPath = state.profileRegistry?.path || state.profileRegistry?.absolutePath || "";
+  if (!registryPath) {
+    throw new Error("Profile Excel path not available.");
+  }
+  appendTerminal(`POST /api/open ${registryPath}`);
+  await readJsonApi("/api/open", {
+    method: "POST",
+    body: JSON.stringify({ path: registryPath })
+  });
+  setTask("Profile Excel opened", registryPath, "success");
+  setTerminalStatus("Profile Excel opened");
+  activeStep("profile");
+}
+
+async function toggleHookProfile(profilePath = "", enabled = true) {
+  const profile = String(profilePath || "").trim();
+  if (!profile) {
+    throw new Error("Profile path missing.");
+  }
+
+  setTask(enabled ? "Enabling Vids profile" : "Disabling Vids profile", profile, "busy");
+  setTerminalStatus(enabled ? "Enabling profile" : "Disabling profile");
+  setProfileState("Updating", "busy");
+  appendTerminal(`POST /api/profiles/toggle ${profile} enabled=${enabled}`);
+  const response = await fetch("/api/profiles/toggle", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ profile, enabled })
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.error || `Profile toggle failed: ${response.status}`);
+  }
+
+  state.hookProfiles = data.profiles || [];
+  renderHookProfileOptions({
+    primary: els.hookPrimaryProfileSelect?.value || "",
+    fallback: els.hookFallbackProfileSelect?.value || ""
+  });
+  syncGlobalProfiles("hook");
+  appendTerminal(`Profile ${enabled ? "enabled" : "disabled"}: ${data.profile || profile}`, "stdout");
+  setTask(enabled ? "Profile enabled" : "Profile disabled", data.profile || profile, "success");
+  setTerminalStatus(enabled ? "Profile enabled" : "Profile disabled");
+  activeStep("profile");
+}
+
 async function loginHookProfile(profilePath = "") {
   const profile = profilePath || els.hookPrimaryProfileSelect?.value || selectedHookProfiles()[0] || "work/google-vids-profile";
+  const profileInfo = profileByPath(profile);
   setTask("Opening profile login", profile, "busy");
   setTerminalStatus("Opening Google Vids login");
   setProfileState("Login open", "busy");
@@ -1150,7 +1359,7 @@ async function loginHookProfile(profilePath = "") {
   const response = await fetch("/api/profile-login", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ profile })
+    body: JSON.stringify({ profile, email: profileInfo?.expectedEmail || "" })
   });
   const data = await response.json();
   if (!response.ok || data.ok === false) {
@@ -1337,7 +1546,7 @@ function setBusy(isBusy) {
   els.openTrackerExcelBtn.disabled = isBusy;
   els.importBtn.textContent = isBusy ? "Importing..." : "Import";
   els.defaultBtn.textContent = isBusy ? "Loading..." : "Default Excel";
-  els.openTrackerExcelBtn.textContent = isBusy ? "Wait..." : "Open Tracker";
+  els.openTrackerExcelBtn.textContent = isBusy ? "Wait..." : "Open Tracker Excel";
 }
 
 function setAssetBusy(isBusy) {
@@ -1370,6 +1579,10 @@ function creditSafeEnabled() {
   return els.creditSafeMode ? els.creditSafeMode.checked : true;
 }
 
+function lowCreditVidsEnabled() {
+  return els.lowCreditVidsMode ? els.lowCreditVidsMode.checked : true;
+}
+
 function plannedAutoQueueRows() {
   const requestedCount = Math.floor(finiteClamp(els.autoVideoCount?.value, 1, 1, 50));
   const explicitRows = parseAutoRows(els.autoRowsInput?.value || "").slice(0, requestedCount);
@@ -1379,9 +1592,55 @@ function plannedAutoQueueRows() {
   return Array.from({ length: requestedCount }, (_, index) => startRow + index);
 }
 
+function campaignCreditEstimate() {
+  const rows = plannedAutoQueueRows();
+  const safe = creditSafeEnabled();
+  const lowCredit = lowCreditVidsEnabled();
+  const useVidsHook = Boolean(els.autoUseVidsHook?.checked) && !safe;
+  const stepFlowVidsAvatar = Boolean(els.flowRunAvatar?.checked && els.flowUseVidsAvatar?.checked) && !safe;
+  const stepFlowVidsVoiceover = Boolean(els.flowRunVidsVoiceover?.checked) && !safe;
+  const stepAvatarClips = lowCredit ? 1 : 3;
+  const queueClips = useVidsHook ? rows.length : 0;
+  const currentRowClips = (stepFlowVidsAvatar ? stepAvatarClips : 0) + (stepFlowVidsVoiceover ? 1 : 0);
+  return {
+    rows,
+    safe,
+    lowCredit,
+    queueClips,
+    currentRowClips,
+    totalClips: queueClips + currentRowClips,
+    availableProfiles: (state.hookProfiles || []).filter(isHookProfileReady).length,
+    selectableProfiles: selectedAutomationProfiles().length
+  };
+}
+
+function renderCampaignCreditEstimate() {
+  if (!els.campaignCreditEstimate) return;
+  const estimate = campaignCreditEstimate();
+  const rowLabel = estimate.rows.length ? `Rows ${estimate.rows.slice(0, 8).join(", ")}${estimate.rows.length > 8 ? "..." : ""}` : "No rows";
+  const mode = estimate.safe ? "Credit Safe local mode" : estimate.lowCredit ? "Low-credit Vids" : "Full Vids pack";
+  const profileText = estimate.safe
+    ? "No Vids profile required for safe local queue."
+    : estimate.availableProfiles
+      ? `${estimate.availableProfiles} ready profile(s), ${estimate.selectableProfiles} selected for fallback.`
+      : `${estimate.selectableProfiles} selected profile(s). Login may open before generation.`;
+  const clipPlan = !estimate.safe && estimate.lowCredit
+    ? "Hook avatar only; body/final stays local real demo."
+    : !estimate.safe
+      ? "Hook, focus, CTA clips may use quota."
+      : "No Vids clips planned unless unlocked.";
+  els.campaignCreditEstimate.dataset.tone = estimate.safe
+    ? "safe"
+    : estimate.totalClips
+      ? "armed"
+      : "warn";
+  els.campaignCreditEstimate.textContent = `${mode}: approx ${estimate.totalClips} Google Vids clip(s). ${clipPlan} ${rowLabel}. ${profileText}`;
+}
+
 function creditGuardSummary() {
   const safe = creditSafeEnabled();
   const useVidsHook = Boolean(els.autoUseVidsHook?.checked);
+  const lowCredit = lowCreditVidsEnabled();
   if (safe) {
     return {
       tone: "safe",
@@ -1392,28 +1651,42 @@ function creditGuardSummary() {
   if (useVidsHook) {
     return {
       tone: "armed",
-      title: "Vids Unlocked",
-      detail: `Google Vids actions are unlocked. You will confirm before any avatar or voiceover generation starts.`
+      title: lowCredit ? "Low-Credit Vids" : "Vids Unlocked",
+      detail: lowCredit
+        ? "Only hook avatar generation is planned; body uses real demo assets and local edit."
+        : "Google Vids actions are unlocked. You will confirm before any avatar or voiceover generation starts."
     };
   }
   return {
     tone: "warn",
-    title: "Vids Unlocked",
-    detail: "Google Vids avatar/voice buttons can spend credits after confirmation."
+    title: lowCredit ? "Low-Credit Ready" : "Vids Unlocked",
+    detail: lowCredit
+      ? "Avatar pack generation will use hook-only by default to save credits."
+      : "Google Vids avatar/voice buttons can spend credits after confirmation."
   };
 }
 
 function renderCreditGuard() {
   const summary = creditGuardSummary();
+  const lowCredit = lowCreditVidsEnabled();
   for (const notice of [els.creditGuardNotice, els.hookCreditGuardNotice, els.scriptVideoCreditGuardNotice].filter(Boolean)) {
     notice.dataset.tone = summary.tone;
     notice.innerHTML = `<strong>${escapeHtml(summary.title)}</strong><span>${escapeHtml(summary.detail)}</span>`;
   }
+  if (els.lowCreditVidsNotice) {
+    els.lowCreditVidsNotice.dataset.tone = lowCredit ? "safe" : "full";
+    els.lowCreditVidsNotice.textContent = lowCredit
+      ? "Low-credit ON: Google Vids hook only. Body uses real tool demo, local voice, captions, and final edit."
+      : "Full pack ON: hook, focus, and CTA avatar clips can be generated when Vids is unlocked.";
+  }
   if (els.autoUseVidsHookLabel) {
     els.autoUseVidsHookLabel.textContent = creditSafeEnabled()
       ? "Hook Vids + Local (locked)"
-      : "Hook Vids + Local";
+      : lowCredit
+        ? "Hook-only Vids + Local"
+        : "Hook Vids + Local";
   }
+  renderCampaignCreditEstimate();
   if (creditSafeEnabled() && ["openai", "elevenlabs"].includes(els.finalVoiceProviderSelect?.value || "")) {
     els.finalVoiceProviderSelect.value = "free";
     setTerminalStatus("Credit Safe: voice switched to free");
@@ -1443,17 +1716,26 @@ function confirmCreditSpend(title, detail) {
 function setHookBusy(isBusy) {
   const hasRow = Boolean(state.inputPath && Number(els.assetRowInput.value || 0));
   const safe = creditSafeEnabled();
+  const lowCredit = lowCreditVidsEnabled();
   els.prepareHookAvatarBtn.disabled = isBusy || !hasRow;
   els.generateHookAvatarBtn.disabled = isBusy || !hasRow || safe;
   els.viewHookAvatarBtn.disabled = isBusy || !state.lastHookAvatarFolder;
-  els.prepareHookAvatarBtn.textContent = isBusy ? "Preparing..." : "Prepare Avatar Pack";
-  els.generateHookAvatarBtn.textContent = isBusy ? "Generating..." : safe ? "Unlock Vids to Generate" : "Generate Avatar Pack";
+  els.prepareHookAvatarBtn.textContent = isBusy ? "Preparing..." : lowCredit ? "Prepare Hook Prompt" : "Prepare Avatar Pack";
+  els.generateHookAvatarBtn.textContent = isBusy
+    ? "Generating..."
+    : safe
+      ? "Unlock Vids to Generate"
+      : lowCredit
+        ? "Generate Hook Only"
+        : "Generate Avatar Pack";
   renderCreditGuard();
 }
 
 function setFinalBusy(isBusy) {
   const hasRow = Boolean(state.inputPath && Number(els.assetRowInput.value || 0));
   const safe = creditSafeEnabled();
+  const previewBusy = isBusy && state.finalBusyMode === "preview";
+  const renderBusy = isBusy && state.finalBusyMode !== "preview";
   if (els.generateRemainingVidsBtn) {
     els.generateRemainingVidsBtn.disabled = isBusy || !hasRow || safe;
     els.generateRemainingVidsBtn.textContent = isBusy ? "Working..." : safe ? "Unlock Vids Voiceover" : "Generate Vids Voiceover";
@@ -1461,12 +1743,19 @@ function setFinalBusy(isBusy) {
   if (els.playVoiceoverBtn) {
     els.playVoiceoverBtn.disabled = isBusy || !state.lastVoiceoverPreviewUrl;
   }
+  if (els.previewFinalReelBtn) {
+    els.previewFinalReelBtn.disabled = isBusy || !hasRow;
+    els.previewFinalReelBtn.textContent = previewBusy ? "Previewing..." : "Quick Preview";
+  }
   if (els.renderFinalReelBtn) {
     els.renderFinalReelBtn.disabled = isBusy || !hasRow;
-    els.renderFinalReelBtn.textContent = isBusy ? "Rendering..." : "Render Final Reel";
+    els.renderFinalReelBtn.textContent = renderBusy ? "Rendering..." : "Render Final Reel";
   }
   if (els.viewFinalFolderBtn) {
-    els.viewFinalFolderBtn.disabled = isBusy || !state.lastFinalReelFolder;
+    els.viewFinalFolderBtn.disabled = isBusy || !(state.lastFinalReelFolder || state.lastPreviewReelFolder);
+  }
+  if (!isBusy) {
+    state.finalBusyMode = "";
   }
   renderCreditGuard();
 }
@@ -1530,9 +1819,12 @@ function stepFlowPlan() {
   if (options.assets) steps.push({ key: "asset", label: "Assets" });
   if (options.script) steps.push({ key: "script", label: "Script" });
   if (options.avatar) {
+    const useVidsAvatar = options.vidsAvatar && !creditSafeEnabled();
     steps.push({
-      key: options.vidsAvatar && !creditSafeEnabled() ? "vids-avatar" : "avatar",
-      label: options.vidsAvatar && !creditSafeEnabled() ? "Vids Avatar" : "Avatar Prompt"
+      key: useVidsAvatar ? "vids-avatar" : "avatar",
+      label: useVidsAvatar
+        ? (lowCreditVidsEnabled() ? "Vids Hook" : "Vids Avatar")
+        : (lowCreditVidsEnabled() ? "Hook Prompt" : "Avatar Prompt")
     });
   }
   if (options.vidsVoiceover) {
@@ -1643,7 +1935,8 @@ function refreshAutoQueueControls() {
     els.autoStartSelectedRow,
     els.autoUseVidsHook,
     els.autoUpdateWorkbook,
-    els.creditSafeMode
+    els.creditSafeMode,
+    els.lowCreditVidsMode
   ].filter(Boolean)) {
     input.disabled = busy;
   }
@@ -1662,7 +1955,11 @@ function setAutoQueueBusy(isBusy) {
 
 function updateAutoQueueHint() {
   if (!els.autoQueueMeta || state.autoQueueRunning || state.activeAutoQueueId) return;
-  const creditHint = creditSafeEnabled() ? "Credit Safe: local only." : "Vids unlocked.";
+  const creditHint = creditSafeEnabled()
+    ? "Credit Safe: local only."
+    : lowCreditVidsEnabled()
+      ? "Low-credit Vids: hook-only avatar."
+      : "Full Vids pack unlocked.";
   if (!state.inputPath) {
     els.autoQueueMeta.textContent = "Load Excel, select tool row, then run automation.";
     renderCreditGuard();
@@ -1696,6 +1993,27 @@ function selectedToolForRow(row = Number(els.assetRowInput.value || 0)) {
   return state.tools.find((item) => Number(item.row || item.source_row_number) === Number(row));
 }
 
+function selectedWorkflowRow() {
+  return Number(els.assetRowInput?.value || state.currentRow || 0);
+}
+
+function artifactRowValue(artifact = {}) {
+  return Number(
+    artifact.row
+    || artifact.assetBuild?.row
+    || artifact.scriptBuild?.row
+    || artifact.hookAvatar?.row
+    || artifact.finalReel?.row
+    || artifact.voiceover?.row
+    || 0
+  );
+}
+
+function artifactMatchesWorkflowRow(artifact = {}, row = selectedWorkflowRow()) {
+  const artifactRow = artifactRowValue(artifact);
+  return !artifactRow || !row || artifactRow === Number(row);
+}
+
 function resetRowOutputs(row) {
   const input = state.inputPath || "";
   if (state.currentRow === row && state.currentInput === input) return;
@@ -1705,18 +2023,33 @@ function resetRowOutputs(row) {
   state.lastAssetRow = 0;
   state.lastAssetInput = "";
   state.lastScriptFolder = "";
+  state.lastScriptRow = 0;
   state.lastHookAvatarFolder = "";
   state.lastHookAvatarVideo = "";
   state.lastHookAvatarRunId = "";
+  state.lastHookAvatarRow = 0;
   state.lastFinalReelFolder = "";
   state.lastFinalReelVideo = "";
   state.lastFinalReelRunId = "";
   state.lastFinalReelRow = 0;
+  state.lastPreviewReelFolder = "";
+  state.lastPreviewReelVideo = "";
+  state.lastPreviewReelRow = 0;
+  state.lastVidsVoiceoverFolder = "";
+  state.lastVidsVoiceoverExport = "";
+  state.lastVidsVoiceoverRow = 0;
   state.lastVoiceoverPreviewUrl = "";
   state.lastVoiceoverPreviewName = "";
   state.currentScriptBuild = null;
   state.scriptEditorOriginal = null;
   state.latestArtifacts = null;
+  state.resumeArtifacts = [];
+  if (els.resumeVersionsPanel) {
+    els.resumeVersionsPanel.classList.add("is-hidden");
+  }
+  if (els.resumeArtifactSelect) {
+    els.resumeArtifactSelect.innerHTML = "";
+  }
   state.stepFlowSteps = [];
   els.assetResult.classList.add("is-hidden");
   els.scriptResult.classList.add("is-hidden");
@@ -1744,6 +2077,7 @@ function resetRowOutputs(row) {
   setHookState("Ready", "idle");
   setFinalState("Ready", "idle");
   renderFinalPipeline([]);
+  renderFinalReview();
   setArtifactNotice("", "", "idle", true);
 }
 
@@ -1766,6 +2100,74 @@ function renderFinalPipeline(steps = []) {
       ${step.detail ? `<small>${escapeHtml(step.detail)}</small>` : ""}
     </span>
   `).join("");
+}
+
+function finalReviewItem(label, ok, detail = "", status = "") {
+  const finalStatus = status || (ok ? "complete" : "pending");
+  return `
+    <span data-status="${escapeHtml(finalStatus)}" title="${escapeHtml(detail || label)}">
+      <strong>${escapeHtml(label)}</strong>
+      ${detail ? `<small>${escapeHtml(detail)}</small>` : ""}
+    </span>
+  `;
+}
+
+function renderFinalReview(finalReel = {}) {
+  if (!els.finalReviewChecklist) return;
+  const row = Number(els.assetRowInput?.value || 0);
+  const tool = selectedToolForRow(row) || {};
+  const resultIsPreview = Boolean(finalReel.preview);
+  const assetsReady = Boolean(Number(state.lastAssetRow || 0) === row && state.lastAssetFolder);
+  const scriptReady = Boolean(Number(state.lastScriptRow || 0) === row && state.lastScriptFolder && state.currentScriptBuild);
+  const hookPrepared = Boolean(Number(state.lastHookAvatarRow || 0) === row && state.lastHookAvatarFolder);
+  const hookVideoReady = Boolean(Number(state.lastHookAvatarRow || 0) === row && state.lastHookAvatarVideo);
+  const previewVideo = resultIsPreview
+    ? (finalReel.videoPath || finalReel.outputPath || "")
+    : Number(state.lastPreviewReelRow || 0) === row ? state.lastPreviewReelVideo || "" : "";
+  const finalVideo = resultIsPreview
+    ? (Number(state.lastFinalReelRow || 0) === row ? state.lastFinalReelVideo : "")
+    : (finalReel.videoPath || finalReel.outputPath || (Number(state.lastFinalReelRow || 0) === row ? state.lastFinalReelVideo || "" : ""));
+  const qualityScore = resultIsPreview ? 0 : Number(finalReel.qualityScore || finalReel.quality?.score || 0);
+  const warnings = resultIsPreview ? [] : (finalReel.qualityWarnings || finalReel.quality?.warnings || []);
+  const safe = creditSafeEnabled();
+  const lowCredit = lowCreditVidsEnabled();
+  const readyProfileCount = (state.hookProfiles || []).filter(isHookProfileReady).length;
+  const selectedProfilePaths = selectedGenerationProfiles("hook");
+  const selectedNeedsLogin = selectedProfilePaths.some((profilePath) => {
+    const profile = profileByPath(profilePath);
+    return profile && !isHookProfileReady(profile);
+  });
+  const voiceMode = els.finalVoiceProviderSelect?.value || "free";
+  const sameRowVidsVoiceover = Number(state.lastVidsVoiceoverRow || 0) === row;
+  const hasVidsVoiceover = sameRowVidsVoiceover && Boolean(state.lastVidsVoiceoverFolder || state.lastVidsVoiceoverExport);
+  const selectedName = toolDisplayName(tool || {});
+  const profileReady = safe || readyProfileCount > 0 || selectedProfilePaths.length > 0;
+  const profileDetail = safe
+    ? "Credit Safe ON, local render allowed."
+    : readyProfileCount > 0
+      ? `${readyProfileCount} ready profile(s), ${selectedProfilePaths.length || readyProfileCount} selected.`
+      : selectedProfilePaths.length
+        ? `${selectedProfilePaths.length} selected. Login may open before Vids generation.`
+        : "Select or add a profile.";
+  const checks = [
+    finalReviewItem("Tool row", row >= 2, row >= 2 ? `Row ${row}${selectedName ? ` | ${selectedName}` : ""}` : "Select a valid Excel row."),
+    finalReviewItem("Real assets", assetsReady, assetsReady ? shortPath(state.lastAssetFolder) : "Build or load old assets first.", assetsReady ? "complete" : "warning"),
+    finalReviewItem("Reel script", scriptReady, scriptReady ? shortPath(state.lastScriptFolder) : "Generate or load old script.", scriptReady ? "complete" : "warning"),
+    finalReviewItem("Vids mode", true, safe ? "Credit Safe local render." : lowCredit ? "Hook-only Vids, local body/CTA." : "Full hook/focus/CTA avatar pack."),
+    finalReviewItem("Avatar", hookVideoReady, hookVideoReady ? (lowCredit ? "Hook video available." : "Hook/focus/CTA video available.") : hookPrepared ? (lowCredit ? "Hook prompt ready, video optional." : "Prompt pack ready, video optional.") : (lowCredit ? "Prepare hook prompt or load old hook." : "Prepare avatar pack or load old avatar."), hookVideoReady ? "complete" : hookPrepared ? "warning" : "pending"),
+    finalReviewItem("Voice", true, hasVidsVoiceover ? "Saved Google Vids voiceover will be used first." : voiceMode === "free" ? "Free/local voice selected." : `${voiceMode} selected. Review credits/API first.`),
+    finalReviewItem("Profiles", profileReady, profileDetail, safe || (readyProfileCount > 0 && !selectedNeedsLogin) ? "complete" : selectedProfilePaths.length ? "warning" : "warning"),
+    finalReviewItem("Quick preview", Boolean(previewVideo || finalVideo), previewVideo ? shortPath(previewVideo) : finalVideo ? "Final render available." : "Optional 15 sec local preview before full render.", previewVideo || finalVideo ? "complete" : "pending"),
+    finalReviewItem("Final QA", Boolean(finalVideo), finalVideo ? `Final ready${qualityScore ? ` | Quality ${qualityScore}/100` : ""}` : "Render will create final MP4.", finalVideo ? (warnings.length ? "warning" : "complete") : "pending")
+  ];
+  els.finalReviewChecklist.innerHTML = checks.join("");
+  if (els.finalReviewMeta) {
+    els.finalReviewMeta.textContent = finalVideo
+      ? `Ready to review: ${shortPath(finalVideo)}${qualityScore ? ` | Quality ${qualityScore}/100` : ""}`
+      : previewVideo
+        ? `Preview ready: ${shortPath(previewVideo)} | Full render pending`
+      : `${safe ? "Credit Safe local render" : lowCredit ? "Low-credit hook-only Vids" : "Full Vids pack"} | ${assetsReady ? "assets ready" : "assets pending"} | ${scriptReady ? "script ready" : "script pending"}`;
+  }
 }
 
 function renderDocToc(headings = []) {
@@ -1874,14 +2276,15 @@ function finalVideoUrl(filePath) {
 
 function isDefaultAvatarPhoto(filePath) {
   const normalized = String(filePath || "").replaceAll("\\", "/");
-  return Object.values(DEFAULT_AVATAR_PHOTOS).some((avatarPath) => normalized.endsWith(avatarPath));
+  return Object.values(currentDefaultAvatarPhotos()).some((avatarPath) => normalized.endsWith(avatarPath));
 }
 
 function avatarPhotoLabel(filePath, explicitLabel = "") {
   if (explicitLabel) return explicitLabel;
   const normalized = String(filePath || "").replaceAll("\\", "/");
-  if (normalized.endsWith(DEFAULT_AVATAR_PHOTOS.female)) return "Default female avatar";
-  if (normalized.endsWith(DEFAULT_AVATAR_PHOTOS.male)) return "Default male avatar";
+  const defaults = currentDefaultAvatarPhotos();
+  if (normalized.endsWith(defaults.female)) return "Default AltFTool female avatar";
+  if (normalized.endsWith(defaults.male)) return "Default AltFTool male avatar";
   const base = normalized.split("/").filter(Boolean).pop() || "";
   return base ? `Custom avatar: ${base}` : "No avatar photo";
 }
@@ -1914,7 +2317,8 @@ function setAvatarHostImage(filePath = "", label = "", options = {}) {
 }
 
 function avatarPhotoForPresenter(presenter = "") {
-  return presenter === "male" ? DEFAULT_AVATAR_PHOTOS.male : DEFAULT_AVATAR_PHOTOS.female;
+  const defaults = currentDefaultAvatarPhotos();
+  return presenter === "male" ? defaults.male : defaults.female;
 }
 
 function syncDefaultAvatarPhotoWithPresenter(options = {}) {
@@ -1953,11 +2357,7 @@ async function uploadAvatarPhoto(file) {
 }
 
 function selectedScriptVideoProfiles() {
-  const primary = els.customScriptPrimaryProfileSelect?.value || els.hookPrimaryProfileSelect?.value || DEFAULT_PRIMARY_PROFILE;
-  const fallback = els.customScriptFallbackEnabled?.checked
-    ? (els.customScriptFallbackProfileSelect?.value || "")
-    : "";
-  return [primary, fallback].filter(Boolean);
+  return selectedGenerationProfiles("script-video");
 }
 
 function scriptVideoPayload(extra = {}) {
@@ -1965,8 +2365,9 @@ function scriptVideoPayload(extra = {}) {
   if (!script) {
     throw new Error("Pehle script paste/write karo.");
   }
-  const primaryProfile = els.customScriptPrimaryProfileSelect?.value || DEFAULT_PRIMARY_PROFILE;
-  const fallbackProfile = els.customScriptFallbackEnabled?.checked ? (els.customScriptFallbackProfileSelect?.value || "") : "";
+  const profiles = requireGenerationProfiles("script-video");
+  const primaryProfile = profiles[0] || "";
+  const fallbackProfile = profiles[1] || "";
   return {
     title: String(els.customScriptTitleInput?.value || "").trim(),
     script,
@@ -1979,8 +2380,8 @@ function scriptVideoPayload(extra = {}) {
     profile: primaryProfile,
     primaryProfile,
     fallbackProfile,
-    fallbackEnabled: Boolean(els.customScriptFallbackEnabled?.checked && fallbackProfile),
-    profiles: selectedScriptVideoProfiles(),
+    fallbackEnabled: Boolean(fallbackProfile),
+    profiles,
     creditSafeMode: creditSafeEnabled(),
     ...extra
   };
@@ -2242,31 +2643,215 @@ function scrollToWorkflowStep(step) {
   }
 }
 
-function applyExistingAssetsFromArtifacts() {
-  const asset = state.latestArtifacts?.latestAssets;
+function artifactVersionKey(item = {}, fallback = "") {
+  return [item.kind || "", item.path || item.sourcePath || item.videoPath || item.folder || fallback].filter(Boolean).join(":");
+}
+
+function artifactVersionDate(item = {}) {
+  return item.generatedAt || item.modifiedAt || item.startedAt || "";
+}
+
+function artifactVersionLabel(kind, item = {}, index = 0, total = 0) {
+  const version = `V${String(Math.max(1, total - index)).padStart(2, "0")}`;
+  const date = artifactVersionDate(item);
+  const time = date ? shortDateTime(date) : "saved";
+  if (kind === "assets") {
+    return `Assets ${version} - ${item.fileCount || item.assetBuild?.files?.length || 0} files - ${time}`;
+  }
+  if (kind === "script") {
+    const duration = item.duration || item.scriptBuild?.totalDurationSeconds || 0;
+    return `Script ${version} - ${duration || "?"} sec - ${time}`;
+  }
+  if (kind === "hook") {
+    const hasVideo = item.hasVideo || hookArtifactHasVideo(item.hookAvatar || item);
+    return `Avatar ${version} - ${hasVideo ? "video ready" : "prompt only"} - ${time}`;
+  }
+  if (kind === "voiceover") {
+    const count = item.fileCount || item.voiceover?.files?.length || 0;
+    return `Vids Voice ${version} - ${count || "saved"} file(s) - ${time}`;
+  }
+  if (kind === "final") {
+    const quality = item.qualityScore ? ` - Q ${item.qualityScore}/100` : "";
+    return `Final Reel ${version}${quality} - ${time}`;
+  }
+  return `Saved ${version} - ${time}`;
+}
+
+function uniqueArtifactVersions(items = []) {
+  const seen = new Set();
+  return items.filter((item, index) => {
+    const key = artifactVersionKey(item, `artifact-${index}`);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return Boolean(item.path || item.sourcePath || item.videoPath || item.folder);
+  });
+}
+
+function buildResumeArtifacts(artifacts = {}) {
+  const groups = [
+    ["assets", uniqueArtifactVersions([artifacts.latestAssets, ...(artifacts.assets || [])].filter(Boolean))],
+    ["script", uniqueArtifactVersions([artifacts.latestScript, ...(artifacts.scripts || [])].filter(Boolean))],
+    ["hook", uniqueArtifactVersions([artifacts.latestHookAvatar, ...(artifacts.hookAvatars || [])].filter(Boolean))],
+    ["voiceover", uniqueArtifactVersions([artifacts.latestVidsVoiceover, ...(artifacts.vidsVoiceovers || [])].filter(Boolean))],
+    ["final", uniqueArtifactVersions([artifacts.latestFinalVideo, ...(artifacts.finalVideos || [])].filter(Boolean))]
+  ];
+  return groups.flatMap(([kind, items]) => items.map((item, index) => ({
+    ...item,
+    kind,
+    resumeLabel: artifactVersionLabel(kind, item, index, items.length)
+  })));
+}
+
+function renderResumeVersionPicker(artifacts = {}) {
+  if (!els.resumeVersionsPanel || !els.resumeArtifactSelect) return;
+  const items = buildResumeArtifacts(artifacts);
+  state.resumeArtifacts = items;
+  const hasItems = Boolean(items.length);
+  els.resumeVersionsPanel.classList.toggle("is-hidden", !hasItems);
+  if (els.loadResumeArtifactBtn) {
+    els.loadResumeArtifactBtn.disabled = !hasItems;
+  }
+  if (els.openResumeArtifactBtn) {
+    els.openResumeArtifactBtn.disabled = !hasItems;
+  }
+  els.resumeArtifactSelect.innerHTML = items.map((item, index) => (
+    `<option value="${escapeHtml(index)}">${escapeHtml(item.resumeLabel)}</option>`
+  )).join("");
+}
+
+function selectedResumeArtifact() {
+  const index = Number(els.resumeArtifactSelect?.value || 0);
+  return state.resumeArtifacts[index] || null;
+}
+
+function applyExistingAssetsFromArtifacts(asset = state.latestArtifacts?.latestAssets) {
   if (!asset?.assetBuild) return false;
+  if (!artifactMatchesWorkflowRow(asset)) {
+    appendTerminal(`Skipped assets from another row: ${artifactRowValue(asset)}`, "stderr");
+    return false;
+  }
   appendTerminal(`Using existing assets: ${asset.folder}`, "stdout");
   renderAssetBuild(asset.assetBuild);
   setAssetState("Old assets ready", "success");
   return true;
 }
 
-function applyExistingScriptFromArtifacts() {
-  const script = state.latestArtifacts?.latestScript;
+function applyExistingScriptFromArtifacts(script = state.latestArtifacts?.latestScript) {
   if (!script?.scriptBuild) return false;
+  if (!artifactMatchesWorkflowRow(script)) {
+    appendTerminal(`Skipped script from another row: ${artifactRowValue(script)}`, "stderr");
+    return false;
+  }
   appendTerminal(`Using existing script: ${script.folder}`, "stdout");
   renderScriptResult(script.scriptBuild);
   setScriptState("Old script ready", "success");
   return true;
 }
 
-function applyExistingHookFromArtifacts() {
-  const hook = state.latestArtifacts?.latestHookAvatar;
+function applyExistingHookFromArtifacts(hook = state.latestArtifacts?.latestHookAvatar) {
   if (!hook?.hookAvatar) return false;
+  if (!artifactMatchesWorkflowRow(hook)) {
+    appendTerminal(`Skipped avatar pack from another row: ${artifactRowValue(hook)}`, "stderr");
+    return false;
+  }
   appendTerminal(`Using existing avatar pack: ${hook.folder}`, "stdout");
   renderHookAvatarResult(hook.hookAvatar);
   setHookState(hookArtifactHasVideo(hook) ? "Old avatar video ready" : "Old avatar prompt ready", "success");
   return true;
+}
+
+function applyExistingVoiceoverFromArtifacts(voiceover = state.latestArtifacts?.latestVidsVoiceover) {
+  if (!voiceover?.voiceoverDir && !voiceover?.exportedPath) return false;
+  if (!artifactMatchesWorkflowRow(voiceover)) {
+    appendTerminal(`Skipped Vids voiceover from another row: ${artifactRowValue(voiceover)}`, "stderr");
+    return false;
+  }
+  state.lastVidsVoiceoverFolder = voiceover.voiceoverDir || state.lastVidsVoiceoverFolder || "";
+  state.lastVidsVoiceoverExport = voiceover.exportedPath || voiceover.voiceover?.vidsVoiceover?.exportedPath || state.lastVidsVoiceoverExport || "";
+  state.lastVidsVoiceoverRow = Number(voiceover.row || els.assetRowInput.value || 0);
+  appendTerminal(`Using existing Vids voiceover: ${state.lastVidsVoiceoverFolder || state.lastVidsVoiceoverExport}`, "stdout");
+  setFinalState("Vids voice ready", "success");
+  renderFinalReview();
+  return true;
+}
+
+function applyExistingFinalFromArtifacts(finalArtifact = state.latestArtifacts?.latestFinalVideo) {
+  const finalReel = finalArtifact?.finalReel || finalArtifact;
+  if (!finalReel?.videoPath && !finalReel?.outputPath && !finalReel?.finalDir && !finalReel?.folder) return false;
+  if (!artifactMatchesWorkflowRow(finalArtifact)) {
+    appendTerminal(`Skipped final reel from another row: ${artifactRowValue(finalArtifact)}`, "stderr");
+    return false;
+  }
+  appendTerminal(`Using existing final reel: ${finalReel.videoPath || finalReel.outputPath || finalReel.finalDir || finalReel.folder}`, "stdout");
+  renderFinalReelResult(finalReel);
+  setFinalState(finalReel.videoPath || finalReel.outputPath ? "Old final video ready" : "Old final package ready", "success");
+  return true;
+}
+
+function applyLoadedResumeArtifact(artifact = {}) {
+  if (artifact.kind === "assets") {
+    return applyExistingAssetsFromArtifacts(artifact);
+  }
+  if (artifact.kind === "script") {
+    return applyExistingScriptFromArtifacts(artifact);
+  }
+  if (artifact.kind === "hook" || artifact.kind === "hook_avatar") {
+    return applyExistingHookFromArtifacts(artifact);
+  }
+  if (artifact.kind === "voiceover" || artifact.kind === "vids_voiceover") {
+    return applyExistingVoiceoverFromArtifacts(artifact);
+  }
+  if (artifact.kind === "final") {
+    return applyExistingFinalFromArtifacts(artifact);
+  }
+  return false;
+}
+
+async function loadSelectedResumeArtifact() {
+  const selected = selectedResumeArtifact();
+  const artifactPath = selected?.path || selected?.sourcePath || "";
+  if (!selected || !artifactPath) {
+    throw new Error("Saved version select karo.");
+  }
+  setTask("Loading saved version", selected.resumeLabel || artifactPath, "busy");
+  setTerminalStatus("Loading saved artifact");
+  appendTerminal(`GET /api/tool-artifact/load kind=${selected.kind} path=${artifactPath}`);
+  const params = new URLSearchParams({
+    kind: selected.kind || "",
+    path: artifactPath
+  });
+  const response = await fetch(`/api/tool-artifact/load?${params.toString()}`);
+  const data = await response.json();
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.error || `Saved version load failed: ${response.status}`);
+  }
+  if (!applyLoadedResumeArtifact(data.artifact || {})) {
+    throw new Error("Selected saved version load nahi ho paaya.");
+  }
+  setTask("Saved version loaded", selected.resumeLabel || artifactPath, "success");
+  setTerminalStatus("Saved version loaded");
+  refreshStepFlowControls();
+  return data.artifact;
+}
+
+async function openSelectedResumeArtifact() {
+  const selected = selectedResumeArtifact();
+  const target = selected?.folder || selected?.folderPath || selected?.runDir || (selected?.videoPath ? selected.videoPath.replace(/[\\/][^\\/]+$/, "") : "");
+  if (!selected || !target) {
+    throw new Error("Open karne ke liye saved version select karo.");
+  }
+  appendTerminal(`POST /api/open ${target}`);
+  const response = await fetch("/api/open", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: target })
+  });
+  const data = await response.json();
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.error || `Open folder failed: ${response.status}`);
+  }
+  setTask("Saved folder opened", data.path || target, "success");
+  setTerminalStatus("Saved version folder opened");
 }
 
 function hydrateResumeStateFromArtifacts(options = {}) {
@@ -2282,13 +2867,18 @@ function hydrateResumeStateFromArtifacts(options = {}) {
 
 function renderArtifactNotice(artifacts) {
   state.latestArtifacts = artifacts || null;
+  renderResumeVersionPicker(artifacts || {});
   const asset = artifacts?.latestAssets || null;
   const script = artifacts?.latestScript || null;
   const hook = artifacts?.latestHookAvatar || null;
+  const voiceover = artifacts?.latestVidsVoiceover || null;
+  const finalVideo = artifacts?.latestFinalVideo || null;
   const hasAsset = Boolean(asset?.assetBuild);
   const hasScript = Boolean(script?.scriptBuild);
   const hasHook = Boolean(hook?.hookAvatar);
   const hasHookVideo = hookArtifactHasVideo(hook || {});
+  const hasVidsVoiceover = Boolean(voiceover?.voiceoverDir || voiceover?.exportedPath);
+  const hasFinalVideo = Boolean(finalVideo?.videoPath);
   els.useExistingAssetsBtn.disabled = !hasAsset;
   els.generateNewAssetsBtn.disabled = !state.inputPath || !Number(els.assetRowInput.value || 0);
   els.useExistingScriptBtn.disabled = !hasScript;
@@ -2311,12 +2901,16 @@ function renderArtifactNotice(artifacts) {
     els.hookStepMeta.textContent = hasHookVideo ? "Old avatar video found" : "Old avatar prompt found";
     renderHookAvatarResult(hook.hookAvatar);
   }
+  if (hasVidsVoiceover && !state.lastVidsVoiceoverFolder && !state.lastVidsVoiceoverExport) {
+    applyExistingVoiceoverFromArtifacts(voiceover);
+  }
   if (hasAsset && hasScript && !state.lastFinalReelFolder) {
     setFinalState(hasHookVideo ? "Ready after avatar" : "Ready, avatar optional", "idle");
     setFinalBusy(false);
   }
+  renderFinalReview();
 
-  if (!hasAsset && !hasScript && !hasHook) {
+  if (!hasAsset && !hasScript && !hasHook && !hasVidsVoiceover && !hasFinalVideo) {
     setArtifactNotice(
       "No old work found",
       "Fresh assets, script aur avatar pack generate kar sakte ho.",
@@ -2335,6 +2929,12 @@ function renderArtifactNotice(artifacts) {
   }
   if (hasHook) {
     parts.push(`Avatar: ${hasHookVideo ? "video ready" : "prompt pack only"}${hook.generatedAt ? `, ${shortDateTime(hook.generatedAt)}` : ""}`);
+  }
+  if (hasVidsVoiceover) {
+    parts.push(`Vids voice: ${voiceover.fileCount || "saved"} file(s)${voiceover.generatedAt ? `, ${shortDateTime(voiceover.generatedAt)}` : ""}`);
+  }
+  if (hasFinalVideo) {
+    parts.push(`Final: video ready${finalVideo.generatedAt ? `, ${shortDateTime(finalVideo.generatedAt)}` : ""}`);
   }
   if (hasAsset && hasScript && (!hasHook || !hasHookVideo)) {
     parts.push("Avatar video missing: click Avatar Step, generate/download avatar, then Final Step");
@@ -2515,7 +3115,8 @@ function renderIdeaList(data) {
   els.previewTitle.textContent = "Preview skipped";
   els.savedPath.textContent = data.input || analysis.input || "";
   els.previewBody.innerHTML = '<tr><td colspan="5">Full Excel preview skipped. Select idea name above and build assets for that row.</td></tr>';
-  els.toolOptionCount.textContent = `${tools.length} tools`;
+  const stats = toolListStats(tools);
+  els.toolOptionCount.textContent = `${stats.ready} ready / ${tools.length} total`;
   renderToolOptions(filterTools(els.toolSearchInput.value));
   setAssetBusy(false);
   setScriptBusy(false);
@@ -2523,11 +3124,11 @@ function renderIdeaList(data) {
   updateSelectedTool();
   refreshAutoQueueControls();
   updateAutoQueueHint();
-  els.selectStepMeta.textContent = `${tools.length} idea names loaded`;
+  els.selectStepMeta.textContent = `${stats.ready} ready / ${tools.length} loaded`;
   els.selectStepLink.classList.add("done");
-  appendTerminal(`Loaded ${tools.length} idea names from ${data.fileName || analysis.fileName || "workbook"}.`, "stdout");
-  setTask("Idea names loaded", `${tools.length} tools ready to select`, "success");
-  setTerminalStatus(`${tools.length} idea names loaded`);
+  appendTerminal(`Loaded ${tools.length} idea names (${stats.ready} ready) from ${data.fileName || analysis.fileName || "workbook"}.`, "stdout");
+  setTask("Idea names loaded", `${stats.ready} ready tools, ${tools.length} total rows`, "success");
+  setTerminalStatus(`${stats.ready} ready / ${tools.length} loaded`);
   activeStep("select");
   loadToolVideoStatus().catch((error) => appendTerminal(error.message, "stderr"));
 }
@@ -2580,23 +3181,38 @@ async function loadDashboardDefaults() {
     throw new Error(defaults.error || `Defaults failed: ${response.status}`);
   }
   state.dashboardDefaults = defaults;
+  const settings = defaults.settings || {};
+  state.lastFinalReelFolder = settings.lastFinalReelFolder || state.lastFinalReelFolder || "";
+  state.lastFinalReelVideo = settings.lastFinalReelVideo || state.lastFinalReelVideo || "";
+  state.lastFinalReelRow = Number(settings.row || state.lastFinalReelRow || 0);
+  state.lastVidsVoiceoverFolder = settings.lastVidsVoiceoverFolder || state.lastVidsVoiceoverFolder || "";
+  state.lastVidsVoiceoverExport = settings.lastVidsVoiceoverExport || state.lastVidsVoiceoverExport || "";
+  state.lastVidsVoiceoverRow = Number(settings.row || state.lastVidsVoiceoverRow || 0);
+  state.profileRegistry = defaults.profileRegistry || defaults.quota?.registry || state.profileRegistry || null;
+  state.defaultAvatarPhotos = defaults.avatarGeneration?.defaultAvatarPhotos || {
+    female: defaults.avatarGeneration?.defaultFemaleImage || DEFAULT_AVATAR_PHOTOS.female,
+    male: defaults.avatarGeneration?.defaultMaleImage || DEFAULT_AVATAR_PHOTOS.male
+  };
   renderHookCharacterOptions(
     defaults.googleVids?.avatarOptions || [{ label: "Google Vids auto", value: "auto" }],
-    defaults.settings?.hookAvatarCharacter || "auto_by_reel"
+    settings.hookAvatarCharacter || "auto_by_reel"
   );
-  if (els.hookPresenterSelect && defaults.settings?.hookAvatarStyle) {
-    els.hookPresenterSelect.value = defaults.settings.hookAvatarStyle;
+  if (els.hookPresenterSelect && settings.hookAvatarStyle) {
+    els.hookPresenterSelect.value = settings.hookAvatarStyle;
   }
   if (els.hookVideoSizeSelect) {
-    els.hookVideoSizeSelect.value = defaults.settings?.hookVideoSize || "portrait";
+    els.hookVideoSizeSelect.value = settings.hookVideoSize || "portrait";
+  }
+  if (els.lowCreditVidsMode) {
+    els.lowCreditVidsMode.checked = settings.lowCreditVidsMode !== false;
   }
   if (els.customScriptVideoSizeSelect) {
-    els.customScriptVideoSizeSelect.value = defaults.settings?.scriptVideoSize || defaults.settings?.hookVideoSize || "portrait";
+    els.customScriptVideoSizeSelect.value = settings.scriptVideoSize || settings.hookVideoSize || "portrait";
   }
-  const defaultAvatarPath = avatarPhotoForPresenter(els.hookPresenterSelect?.value || defaults.settings?.hookAvatarStyle || "female");
+  const defaultAvatarPath = avatarPhotoForPresenter(els.hookPresenterSelect?.value || settings.hookAvatarStyle || "female");
   setAvatarHostImage(
-    defaults.settings?.avatarHostImage || defaultAvatarPath,
-    defaults.settings?.avatarHostImage ? "" : avatarPhotoLabel(defaultAvatarPath),
+    settings.avatarHostImage || defaultAvatarPath,
+    settings.avatarHostImage ? "" : avatarPhotoLabel(defaultAvatarPath),
     { persist: false }
   );
   if (state.hookProfiles.length) {
@@ -2604,9 +3220,13 @@ async function loadDashboardDefaults() {
     renderHookProfileStatus();
     renderProfileManager();
   }
-  if (!workspaceTabForHash() && !readSavedWorkspaceTab() && defaults.settings?.workspaceTab) {
-    setWorkspaceTab(defaults.settings.workspaceTab, { persist: false });
+  if (!workspaceTabForHash() && !readSavedWorkspaceTab() && settings.workspaceTab) {
+    setWorkspaceTab(settings.workspaceTab, { persist: false });
   }
+  setHookBusy(false);
+  refreshAutoQueueControls();
+  refreshStepFlowControls();
+  renderFinalReview();
   return defaults;
 }
 
@@ -2620,6 +3240,7 @@ async function saveHookSettings() {
       hookAvatarStyle: els.hookPresenterSelect.value || "female",
       hookAvatarCharacter: els.hookCharacterSelect.value || "auto_by_reel",
       hookVideoSize: els.hookVideoSizeSelect?.value || "portrait",
+      lowCreditVidsMode: lowCreditVidsEnabled(),
       avatarHostImage: state.avatarHostImage || "",
       hookPrimaryProfile: selection.primary,
       hookFallbackProfile: selection.fallback,
@@ -2672,15 +3293,21 @@ async function openTrackerExcel() {
     setTerminalStatus("Tracker Excel opened");
   } finally {
     els.openTrackerExcelBtn.disabled = false;
-    els.openTrackerExcelBtn.textContent = "Open Tracker";
+    els.openTrackerExcelBtn.textContent = "Open Tracker Excel";
   }
 }
 
 function renderToolOptions(tools = []) {
   state.filteredTools = tools;
+  renderToolFilterSummary();
+  if (els.toolOptionCount) {
+    const stats = toolListStats();
+    els.toolOptionCount.textContent = `${tools.length} shown / ${stats.ready} ready`;
+  }
   if (!tools.length) {
     els.toolSelect.innerHTML = '<option value="">No matching tool rows</option>';
     renderToolRowChecklist([]);
+    updateToolDropdownSummary();
     return;
   }
   const selectedRow = String(els.assetRowInput.value || "");
@@ -2706,10 +3333,9 @@ function renderToolOptions(tools = []) {
 
 function filterTools(query) {
   const needle = String(query || "").trim().toLowerCase();
-  if (!needle) {
-    return state.tools;
-  }
   return state.tools.filter((tool) => {
+    if (!toolPassesFilters(tool)) return false;
+    if (!needle) return true;
     const haystack = [
       tool.name || tool.tool_name || "",
       tool.url || tool.tool_url || "",
@@ -2738,6 +3364,66 @@ function normalizedToolName(value) {
     .trim();
 }
 
+function toolStatusText(tool = {}) {
+  return String(tool.status || tool.readiness || "").trim();
+}
+
+function toolIsReady(tool = {}) {
+  const status = toolStatusText(tool);
+  return /\bbuilt\b/i.test(status)
+    && !/\bnot\s+built\b|needs\s+deploy|needs\s+fix|failed/i.test(status)
+    && (/ready|api\s*check/i.test(status) || /^built\b/i.test(status));
+}
+
+function toolIsP0(tool = {}) {
+  return String(tool.priority || "").trim().toUpperCase() === "P0";
+}
+
+function toolHasVideo(tool = {}) {
+  return Boolean(videoStatusForTool(tool));
+}
+
+function currentToolFilters() {
+  return {
+    readyOnly: els.toolReadyOnlyFilter ? els.toolReadyOnlyFilter.checked : state.toolFilters.readyOnly,
+    noVideo: els.toolNoVideoFilter ? els.toolNoVideoFilter.checked : state.toolFilters.noVideo,
+    p0: els.toolP0Filter ? els.toolP0Filter.checked : state.toolFilters.p0
+  };
+}
+
+function toolPassesFilters(tool = {}) {
+  const filters = currentToolFilters();
+  if (filters.readyOnly && !toolIsReady(tool)) return false;
+  if (filters.noVideo && toolHasVideo(tool)) return false;
+  if (filters.p0 && !toolIsP0(tool)) return false;
+  return true;
+}
+
+function toolListStats(tools = state.tools) {
+  const total = tools.length;
+  const ready = tools.filter(toolIsReady).length;
+  const withVideo = tools.filter(toolHasVideo).length;
+  const p0 = tools.filter(toolIsP0).length;
+  return { total, ready, withVideo, p0 };
+}
+
+function renderToolFilterSummary() {
+  if (!els.toolFilterSummary) return;
+  const stats = toolListStats();
+  const visible = (state.filteredTools || []).length;
+  if (!stats.total) {
+    els.toolFilterSummary.textContent = "Load Excel to filter rows.";
+    return;
+  }
+  const filters = currentToolFilters();
+  const active = [
+    filters.readyOnly ? "Ready" : "",
+    filters.noVideo ? "No video" : "",
+    filters.p0 ? "P0" : ""
+  ].filter(Boolean).join(" + ") || "All";
+  els.toolFilterSummary.textContent = `Showing ${visible}/${stats.total} | Ready ${stats.ready} | Videos ${stats.withVideo} | P0 ${stats.p0} | ${active}`;
+}
+
 function videoStatusForTool(tool = {}) {
   const row = toolRowNumber(tool);
   const status = state.toolVideoStatusByRow.get(String(row));
@@ -2761,9 +3447,10 @@ async function loadToolVideoStatus() {
       throw new Error(data.error || `Video status failed: ${response.status}`);
     }
     state.toolVideoStatusByRow = new Map(Object.entries(data.byRow || {}));
-    renderToolRowChecklist();
+    state.toolRowRenderLimit = TOOL_ROW_RENDER_BATCH;
+    renderToolOptions(filterTools(els.toolSearchInput?.value || ""));
     updateToolDropdownSummary();
-    appendTerminal(`Video status loaded: ${data.count || 0} row(s) with final video.`, "stdout");
+    appendTerminal(`Video status loaded: ${data.count || 0} row(s), ${data.totalVideos || data.count || 0} saved video version(s).`, "stdout");
   } catch (error) {
     appendTerminal(`Video status load failed: ${error.message}`, "stderr");
   } finally {
@@ -2782,13 +3469,16 @@ function updateToolDropdownSummary() {
     return;
   }
   if (selectedRow) {
-    els.toolDropdownLabel.textContent = `Row ${selectedRow} - ${tool ? toolDisplayName(tool) : "Tool"}${videoStatus ? " | Video Ready" : ""}`;
+    const videoLabel = videoStatus ? ` | ${Number(videoStatus.videoCount || 1)} Video${Number(videoStatus.videoCount || 1) === 1 ? "" : "s"}` : "";
+    els.toolDropdownLabel.textContent = `Row ${selectedRow} - ${tool ? toolDisplayName(tool) : "Tool"}${videoLabel}`;
   } else {
     els.toolDropdownLabel.textContent = "Choose tool idea name";
   }
   const visibleRows = (state.filteredTools || state.tools || []).filter((item) => toolRowNumber(item) >= 2).length;
+  const totalVideos = [...state.toolVideoStatusByRow.values()]
+    .reduce((sum, item) => sum + Number(item.videoCount || (item.videoPath ? 1 : 0)), 0);
   els.toolDropdownHint.textContent = visibleRows
-    ? `${visibleRows} matching row(s). ${state.toolVideoStatusByRow.size ? `${state.toolVideoStatusByRow.size} video ready.` : "Video tags loading/empty."}`
+    ? `${visibleRows} matching row(s). ${state.toolVideoStatusByRow.size ? `${state.toolVideoStatusByRow.size} row(s), ${totalVideos} video version(s).` : "Video tags loading/empty."}`
     : "Search and select one tool row.";
 }
 
@@ -2825,16 +3515,17 @@ function renderToolRowChecklist(tools = state.filteredTools) {
     els.loadMoreToolRowsBtn.textContent = remaining ? `Load More (${remaining})` : "All Loaded";
   }
   const note = remaining
-    ? `<span class="muted tool-list-note">Showing ${visible.length}; ${remaining} more available. Search se quickly filter karo. ${state.toolVideoStatusByRow.size ? `${state.toolVideoStatusByRow.size} video ready.` : ""}</span>`
-    : `<span class="muted tool-list-note">Showing all ${visible.length} row(s)${total !== visible.length ? ` from ${total} match(es)` : ""}. ${state.toolVideoStatusByRow.size ? `${state.toolVideoStatusByRow.size} video ready.` : "Video tags will appear here."}</span>`;
+    ? `<span class="muted tool-list-note">Showing ${visible.length}; ${remaining} more filtered row(s). Search/filter se narrow karo. ${state.toolVideoStatusByRow.size ? `${state.toolVideoStatusByRow.size} row(s) have videos.` : ""}</span>`
+    : `<span class="muted tool-list-note">Showing all ${visible.length} filtered row(s)${total !== visible.length ? ` from ${total} match(es)` : ""}. ${state.toolVideoStatusByRow.size ? `${state.toolVideoStatusByRow.size} row(s) have videos.` : "Video tags will appear here."}</span>`;
   els.toolRowChecklist.innerHTML = `${note}${visible.map((tool) => {
     const row = toolRowNumber(tool);
     const selected = Number(els.assetRowInput?.value || 0) === row;
     const video = videoStatusForTool(tool);
+    const videoCount = Number(video?.videoCount || (video?.videoPath ? 1 : 0));
     const meta = [tool.category, tool.status, tool.priority, tool.url || tool.tool_url].filter(Boolean).join(" | ");
     const visibleMeta = [tool.category, tool.status, tool.url || tool.tool_url].filter(Boolean).join(" | ");
     const badges = [
-      video ? `<span class="tool-row-badge video-ready-badge">Video Ready</span>` : "",
+      video ? `<span class="tool-row-badge video-ready-badge">${escapeHtml(videoCount)} Video${videoCount === 1 ? "" : "s"}</span>` : "",
       video?.qualityScore ? `<span class="tool-row-badge">Q ${escapeHtml(video.qualityScore)}/100</span>` : "",
       tool.status ? `<span class="tool-row-badge">${escapeHtml(tool.status)}</span>` : ""
     ].filter(Boolean).join("");
@@ -2849,7 +3540,7 @@ function renderToolRowChecklist(tools = state.filteredTools) {
         <button class="tool-row-select" type="button" data-select-row="${escapeHtml(row)}">
           <span class="tool-row-title"><strong>Row ${escapeHtml(row)}</strong><b>${escapeHtml(toolDisplayName(tool))}</b></span>
           ${visibleMeta ? `<small class="tool-row-meta">${escapeHtml(visibleMeta)}</small>` : ""}
-          ${video ? `<small class="tool-row-video-meta">Final video: ${escapeHtml(shortDateTime(video.generatedAt || video.modifiedAt))}</small>` : ""}
+          ${video ? `<small class="tool-row-video-meta">Latest video: ${escapeHtml(shortDateTime(video.generatedAt || video.modifiedAt))}${videoCount > 1 ? ` | ${escapeHtml(videoCount)} versions saved` : ""}</small>` : ""}
         </button>
         <div class="tool-row-side">
           ${badges ? `<div class="tool-row-badges">${badges}</div>` : ""}
@@ -2897,6 +3588,7 @@ function updateSelectedTool() {
   refreshStepFlowControls();
   updateToolDropdownSummary();
   updateAutoQueueHint();
+  renderFinalReview();
   if (selectedRow && state.inputPath) {
     scheduleArtifactCheck(selectedRow);
   }
@@ -2911,19 +3603,40 @@ function renderAssetBuild(assetBuild) {
   els.assetFileCount.textContent = `${assetBuild.files?.length || 0} file(s)`;
   els.assetFolderPath.textContent = assetBuild.assetsDir || "";
   els.assetSummary.textContent = assetBuild.capture?.summary || "";
+  const quality = assetBuild.assetQuality || assetBuild.quality || {};
+  if (els.assetQualityPanel && quality.score) {
+    els.assetQualityPanel.classList.remove("is-hidden");
+    if (els.assetQualityScore) {
+      els.assetQualityScore.textContent = `${quality.score}/100`;
+      els.assetQualityScore.dataset.tone = quality.needsRecapture ? "error" : quality.score >= 85 ? "success" : "warning";
+    }
+    if (els.assetQualityList) {
+      els.assetQualityList.innerHTML = (quality.checks || []).map((check) => `
+        <span data-status="${check.ok ? "complete" : "warning"}" title="${escapeHtml(check.note || check.label)}">
+          <strong>${escapeHtml(check.ok ? "OK" : "Fix")}</strong>
+          <small>${escapeHtml(check.label)}</small>
+        </span>
+      `).join("") || '<span data-status="idle"><strong>QA</strong><small>No checks found.</small></span>';
+    }
+  } else if (els.assetQualityPanel) {
+    els.assetQualityPanel.classList.add("is-hidden");
+  }
   const mediaFiles = (assetBuild.files || []).slice(0, 16);
   els.assetFileList.innerHTML = mediaFiles.map((file) => (
     `<a href="${escapeHtml(file.url)}" target="_blank" rel="noreferrer">${escapeHtml(file.kind)}: ${escapeHtml(file.name)}</a>`
   )).join("") || '<span class="muted">No files found.</span>';
-  els.assetStepMeta.textContent = `${assetBuild.files?.length || 0} files ready`;
+  els.assetStepMeta.textContent = quality.score
+    ? `${assetBuild.files?.length || 0} files | Q ${quality.score}/100`
+    : `${assetBuild.files?.length || 0} files ready`;
   els.assetStepLink.classList.add("done");
-  setTask("Assets ready", `${assetBuild.files?.length || 0} files saved`, "success");
+  setTask("Assets ready", quality.score ? `${assetBuild.files?.length || 0} files saved | Q ${quality.score}/100` : `${assetBuild.files?.length || 0} files saved`, "success");
   setTerminalStatus("Asset build complete");
   setScriptState("Ready", "idle");
   activeStep("asset");
   setAssetBusy(false);
   setScriptBusy(false);
   setFinalBusy(false);
+  renderFinalReview();
 }
 
 function normalizeScriptEditorText(value) {
@@ -2971,13 +3684,17 @@ function renderScriptEditor(scriptBuild = {}) {
   const seed = scriptEditorSeed(scriptBuild);
   state.currentScriptBuild = scriptBuild;
   state.scriptEditorOriginal = seed;
+  state.scriptEditorDirty = false;
   if (els.scriptHookEditor) els.scriptHookEditor.value = seed.hook;
   if (els.scriptBodyEditor) els.scriptBodyEditor.value = seed.body;
   if (els.scriptCtaEditor) els.scriptCtaEditor.value = seed.cta;
   if (els.scriptCaptionEditor) els.scriptCaptionEditor.value = seed.caption;
   if (els.scriptHashtagsEditor) els.scriptHashtagsEditor.value = seed.hashtags;
   if (els.scriptEditorMeta) {
-    els.scriptEditorMeta.textContent = `${scenes.length || 0} scenes | edit, save, then render with updated script.`;
+    els.scriptEditorMeta.textContent = `${scenes.length || 0} scenes | edit once here, save, then all video steps use this script.`;
+  }
+  if (els.scriptEditorPanel) {
+    els.scriptEditorPanel.open = true;
   }
   if (els.scriptSceneEditorList) {
     els.scriptSceneEditorList.innerHTML = scenes.map((scene, index) => `
@@ -3001,6 +3718,7 @@ function renderScriptEditor(scriptBuild = {}) {
       </article>
     `).join("") || '<span class="muted">No scene script generated.</span>';
   }
+  syncAvatarScriptFromMainScript();
 }
 
 function collectScriptEditorPayload() {
@@ -3074,44 +3792,43 @@ async function saveUpdatedScript() {
   scheduleArtifactCheck(payload.row);
 }
 
+async function ensureEditedScriptSaved(reason = "next step") {
+  if (!state.scriptEditorDirty) {
+    return false;
+  }
+  if (!state.currentScriptBuild || !state.lastScriptFolder) {
+    return false;
+  }
+  setTask("Saving edited script", `Before ${reason}`, "busy");
+  appendTerminal(`Auto-saving edited script before ${reason}.`, "stdout");
+  await saveUpdatedScript();
+  return true;
+}
+
+function markMainScriptEdited() {
+  if (!state.currentScriptBuild) {
+    return;
+  }
+  state.scriptEditorDirty = true;
+  state.avatarScriptUserEdited = false;
+  syncAvatarScriptFromMainScript();
+  setScriptState("Edited - save/update", "idle");
+  setScriptBusy(false);
+  setTerminalStatus("Edited script will auto-save before avatar, voiceover, preview, or final render.");
+}
+
 function renderScriptResult(scriptBuild) {
-  const pkg = scriptBuild.scriptPackage || {};
-  const seo = scriptBuild.seo || {};
   const scenes = scriptBuild.plan?.scenes || [];
   state.lastScriptFolder = scriptBuild.scriptDir || scriptBuild.scriptPath?.replace(/[\\/][^\\/]+$/, "") || "";
+  state.lastScriptRow = Number(scriptBuild.row || els.assetRowInput.value || 0);
   state.currentScriptBuild = scriptBuild;
   els.scriptResult.classList.remove("is-hidden");
   els.scriptToolName.textContent = scriptBuild.tool?.tool_name || scriptBuild.tool?.name || "Reel script ready";
   els.scriptDuration.textContent = `${scriptBuild.totalDurationSeconds || scenes.length * 10 || 0} sec`;
   els.scriptFolderPath.textContent = scriptBuild.markdownPath || scriptBuild.scriptDir || "";
-  const hookOptions = (pkg.hook_options || seo.hook_options || [])
-    .slice(0, 5)
-    .map((hook, index) => `${index + 1}. ${hook.voiceover || hook}`)
-    .join("\n");
-  const parts = [
-    ["Script Type", scriptBuild.scriptLanguage || pkg.script_language || pkg.language || "Hinglish"],
-    ["Hook", pkg.hook || scenes[0]?.voiceover || ""],
-    ["Hook Options", hookOptions],
-    ["Body", pkg.body || scenes.slice(1, -1).map((scene) => scene.voiceover).join(" ")],
-    ["CTA", pkg.cta || scenes.at(-1)?.voiceover || ""],
-    ["Engagement CTA", pkg.engagement_cta || seo.engagement_cta || ""],
-    ["Caption", seo.instagram_caption || ""],
-    ["Hashtags", (seo.hashtags || []).join(" ")]
-  ].filter(([, value]) => value);
-  els.scriptParts.innerHTML = parts.map(([label, value]) => `
-    <article class="script-part-card">
-      <span>${escapeHtml(label)}</span>
-      <p>${escapeHtml(value)}</p>
-    </article>
-  `).join("");
+  els.scriptParts.innerHTML = "";
   els.scriptSceneCountLabel.textContent = `${scenes.length} scene(s)`;
-  els.scriptSceneList.innerHTML = scenes.map((scene) => `
-    <article class="script-scene-item">
-      <strong>Scene ${escapeHtml(scene.scene_number)} - ${escapeHtml(scene.duration)} sec</strong>
-      <span>${escapeHtml(scene.onscreen_text)}</span>
-      <p>${escapeHtml(scene.voiceover)}</p>
-    </article>
-  `).join("") || '<span class="muted">No scene script generated.</span>';
+  els.scriptSceneList.innerHTML = "";
   renderScriptEditor(scriptBuild);
   setScriptState("Script ready", "success");
   setTask("Script ready", `${scriptBuild.totalDurationSeconds || 0} sec Reel script`, "success");
@@ -3123,6 +3840,7 @@ function renderScriptResult(scriptBuild) {
   setHookBusy(false);
   setFinalState("Ready after hook", "idle");
   setFinalBusy(false);
+  renderFinalReview();
 }
 
 async function generateReelScript() {
@@ -3160,6 +3878,159 @@ async function generateReelScript() {
   scheduleArtifactCheck(row);
 }
 
+function scriptEditorDraftForAvatar() {
+  const payload = collectScriptEditorPayload();
+  const scenes = payload.editor?.scenes || [];
+  const focusSceneNumber = String(
+    state.avatarScriptPreparedDraft?.focusScene
+    || scenes.find((scene, index) => index > 0 && index < scenes.length - 1)?.scene_number
+    || "2"
+  );
+  const focusScene = scenes.find((scene) => String(scene.scene_number) === focusSceneNumber)
+    || scenes.find((scene, index) => index > 0 && index < scenes.length - 1)
+    || {};
+  const hook = payload.editor?.hook || scenes[0]?.voiceover || "";
+  const cta = payload.editor?.cta || scenes.at(-1)?.voiceover || "";
+  const focus = focusScene.voiceover || "";
+  return {
+    row: payload.row,
+    hook,
+    focus,
+    focusScene: String(focusScene.scene_number || focusSceneNumber || "2"),
+    cta,
+    middle: focus ? { [String(focusScene.scene_number || focusSceneNumber || "2")]: focus } : {}
+  };
+}
+
+function avatarDraftHasText(draft = {}) {
+  return Boolean(normalizeScriptEditorText(draft.hook || draft.focus || draft.cta || ""));
+}
+
+function syncAvatarScriptFromMainScript(force = false) {
+  if (!force && state.avatarScriptUserEdited) {
+    return;
+  }
+  const draft = scriptEditorDraftForAvatar();
+  if (!avatarDraftHasText(draft)) {
+    return;
+  }
+  state.avatarScriptDraft = { ...draft };
+  state.avatarScriptPreparedDraft = { ...draft };
+  state.avatarScriptPreparedRow = Number(draft.row || els.assetRowInput?.value || 0);
+  if (els.hookAvatarHookScriptEditor) {
+    els.hookAvatarHookScriptEditor.value = draft.hook || "";
+  }
+  if (els.hookAvatarFocusScriptEditor) {
+    els.hookAvatarFocusScriptEditor.value = draft.focus || "";
+  }
+  if (els.hookAvatarCtaScriptEditor) {
+    els.hookAvatarCtaScriptEditor.value = draft.cta || "";
+  }
+  if (els.hookAvatarScriptEditorMeta) {
+    els.hookAvatarScriptEditorMeta.textContent = `Synced from main edited script | focus Scene ${draft.focusScene || 2}`;
+  }
+  if (els.hookAvatarScriptReviewStatus) {
+    els.hookAvatarScriptReviewStatus.textContent = "Avatar script is synced from Edit Script. Generate will use this exact text.";
+  }
+}
+
+function avatarDraftFromHookArtifact(hookAvatar = {}) {
+  const middleScripts = hookAvatar.middleAvatarScripts || hookAvatar.hookAvatar?.middleAvatarScripts || {};
+  const firstMiddleEntry = Object.entries(middleScripts)[0] || [];
+  return {
+    row: Number(hookAvatar.row || els.assetRowInput?.value || 0),
+    hook: hookAvatar.hookScript || hookAvatar.hookAvatar?.hookScript || "",
+    focus: firstMiddleEntry[1] || "",
+    focusScene: firstMiddleEntry[0] || "",
+    cta: hookAvatar.ctaScript || hookAvatar.ctaAvatar?.ctaScript || "",
+    middle: middleScripts
+  };
+}
+
+function setAvatarScriptEditors(draft = {}, sourceLabel = "Prepared script") {
+  state.avatarScriptDraft = { ...draft };
+  state.avatarScriptPreparedDraft = { ...draft };
+  state.avatarScriptPreparedRow = Number(draft.row || els.assetRowInput?.value || 0);
+  state.avatarScriptUserEdited = false;
+  if (els.hookAvatarHookScriptEditor) {
+    els.hookAvatarHookScriptEditor.value = draft.hook || "";
+  }
+  if (els.hookAvatarFocusScriptEditor) {
+    els.hookAvatarFocusScriptEditor.value = draft.focus || "";
+  }
+  if (els.hookAvatarCtaScriptEditor) {
+    els.hookAvatarCtaScriptEditor.value = draft.cta || "";
+  }
+  if (els.hookAvatarScriptEditorMeta) {
+    const parts = [
+      sourceLabel,
+      draft.focusScene ? `focus Scene ${draft.focusScene}` : "",
+      "edit before Generate Avatar Pack"
+    ].filter(Boolean);
+    els.hookAvatarScriptEditorMeta.textContent = parts.join(" | ");
+  }
+  if (els.hookAvatarScriptReviewStatus) {
+    els.hookAvatarScriptReviewStatus.textContent = "Review these lines before generating in Google Vids. Edited text is used directly.";
+  }
+  if (els.hookAvatarScriptEditorPanel) {
+    els.hookAvatarScriptEditorPanel.open = true;
+  }
+}
+
+function collectAvatarScriptDraft() {
+  const row = Number(els.assetRowInput?.value || state.avatarScriptPreparedRow || 0);
+  const focusScene = state.avatarScriptPreparedDraft?.focusScene || "2";
+  const draft = {
+    row,
+    hook: normalizeScriptEditorText(els.hookAvatarHookScriptEditor?.value || ""),
+    focus: normalizeScriptEditorText(els.hookAvatarFocusScriptEditor?.value || ""),
+    focusScene,
+    cta: normalizeScriptEditorText(els.hookAvatarCtaScriptEditor?.value || "")
+  };
+  draft.middle = draft.focus ? { [focusScene]: draft.focus } : {};
+  state.avatarScriptDraft = draft;
+  return draft;
+}
+
+function avatarScriptOverridesPayload() {
+  const avatarDraft = collectAvatarScriptDraft();
+  const scriptDraft = scriptEditorDraftForAvatar();
+  const useScriptFirst = !state.avatarScriptUserEdited;
+  const focusScene = String(avatarDraft.focusScene || scriptDraft.focusScene || "2");
+  const draft = {
+    row: avatarDraft.row || scriptDraft.row,
+    hook: useScriptFirst ? (scriptDraft.hook || avatarDraft.hook) : (avatarDraft.hook || scriptDraft.hook),
+    focus: useScriptFirst ? (scriptDraft.focus || avatarDraft.focus) : (avatarDraft.focus || scriptDraft.focus),
+    focusScene,
+    cta: useScriptFirst ? (scriptDraft.cta || avatarDraft.cta) : (avatarDraft.cta || scriptDraft.cta)
+  };
+  draft.middle = draft.focus ? { [focusScene]: draft.focus } : {};
+  return {
+    avatarHookScript: draft.hook,
+    avatarCtaScript: draft.cta,
+    avatarMiddleScripts: draft.middle,
+    avatarScriptsReviewed: Boolean(draft.hook || draft.focus || draft.cta)
+  };
+}
+
+function hasReviewedAvatarScript() {
+  const payload = avatarScriptOverridesPayload();
+  const draft = {
+    hook: payload.avatarHookScript,
+    focus: Object.values(payload.avatarMiddleScripts || {})[0] || "",
+    cta: payload.avatarCtaScript
+  };
+  return Boolean(draft.hook || draft.focus || draft.cta);
+}
+
+function resetAvatarScriptEditors() {
+  if (!state.avatarScriptPreparedDraft) {
+    return;
+  }
+  state.avatarScriptUserEdited = false;
+  setAvatarScriptEditors(state.avatarScriptPreparedDraft, "Reset to prepared script");
+}
+
 function hookAvatarPayload(extra = {}) {
   const row = Number(els.assetRowInput.value || 0);
   if (!state.inputPath) {
@@ -3168,9 +4039,10 @@ function hookAvatarPayload(extra = {}) {
   if (!Number.isFinite(row) || row < 2) {
     throw new Error("Valid Excel row number select karo.");
   }
-  const primaryProfile = els.hookPrimaryProfileSelect?.value || "work/google-vids-profile";
-  const fallbackProfile = els.hookFallbackEnabled?.checked ? (els.hookFallbackProfileSelect?.value || "") : "";
-  const profiles = [primaryProfile, fallbackProfile].filter(Boolean);
+  const profiles = requireGenerationProfiles("hook");
+  const primaryProfile = profiles[0] || "";
+  const fallbackProfile = profiles[1] || "";
+  const lowCredit = lowCreditVidsEnabled();
   return {
     input: state.inputPath,
     row,
@@ -3182,19 +4054,21 @@ function hookAvatarPayload(extra = {}) {
     tone: els.hookToneSelect.value || "energetic",
     durationSeconds: Number(els.hookDurationSelect.value || 10),
     videoSize: els.hookVideoSizeSelect?.value || "portrait",
-    includeMiddleAvatar: true,
-    middleAvatarScenes: "2",
+    lowCreditVidsMode: lowCredit,
+    includeMiddleAvatar: !lowCredit,
+    middleAvatarScenes: lowCredit ? "" : "2",
     focusDurationSeconds: Number(els.hookDurationSelect.value || 10),
-    includeCtaAvatar: true,
+    includeCtaAvatar: !lowCredit,
     ctaDurationSeconds: Number(els.hookDurationSelect.value || 10),
     profile: primaryProfile,
     primaryProfile,
     fallbackProfile,
-    fallbackEnabled: Boolean(els.hookFallbackEnabled?.checked && fallbackProfile),
+    fallbackEnabled: Boolean(fallbackProfile),
     profiles,
     creditSafeMode: creditSafeEnabled(),
     scriptLanguage: els.scriptLanguageSelect.value || "Hinglish",
     assetsDir: Number(state.lastAssetRow || 0) === row ? state.lastAssetFolder : "",
+    ...avatarScriptOverridesPayload(),
     ...extra
   };
 }
@@ -3237,8 +4111,10 @@ function hookArtifactHasVideo(artifact = {}) {
 function renderHookAvatarResult(hookAvatar = {}) {
   const status = hookAvatar.status || hookAvatar.hookAvatar?.status || "prepared";
   const videoPath = hookVideoPathFromArtifact(hookAvatar);
+  const isHookOnly = hookAvatar.includeCtaAvatar === false && !(hookAvatar.middleAvatarScenes || []).length;
   state.lastHookAvatarFolder = hookAvatar.hookDir || hookAvatar.folder || "";
   state.lastHookAvatarVideo = videoPath;
+  state.lastHookAvatarRow = Number(hookAvatar.row || hookAvatar.hookAvatar?.row || els.assetRowInput.value || 0);
   els.hookResult.classList.remove("is-hidden");
   els.hookToolName.textContent = hookAvatar.tool?.tool_name || hookAvatar.tool?.name || "Avatar clips ready";
   const activeProfile = hookAvatar.activeProfile || hookAvatar.hookAvatar?.activeProfile || "";
@@ -3250,6 +4126,7 @@ function renderHookAvatarResult(hookAvatar = {}) {
   const ctaScript = hookAvatar.ctaScript || hookAvatar.ctaAvatar?.ctaScript || "";
   const middleScripts = hookAvatar.middleAvatarScripts || {};
   const middlePrompts = hookAvatar.googleVidsMiddlePrompts || {};
+  setAvatarScriptEditors(avatarDraftFromHookArtifact(hookAvatar), status === "complete" ? "Generated avatar script" : "Prepared avatar script");
   els.hookScriptText.textContent = [
     hookScript ? `HOOK: ${hookScript}` : "",
     ...Object.entries(middleScripts).map(([sceneNumber, script]) => `FOCUS S${sceneNumber}: ${script}`),
@@ -3288,10 +4165,10 @@ function renderHookAvatarResult(hookAvatar = {}) {
   const ctaVideoPath = ctaVideoPathFromArtifact(hookAvatar);
   const middleVideoPaths = middleVideoPathsFromArtifact(hookAvatar);
   const success = status === "complete" || Boolean(videoPath || ctaVideoPath || middleVideoPaths.length);
-  setHookState(success ? (middleVideoPaths.length || ctaVideoPath ? "Avatar pack ready" : "Hook video ready") : "Avatar pack prepared", "success");
-  setTask(success ? "Avatar clips ready" : "Avatar pack ready", ctaVideoPath || middleVideoPaths[0] || videoPath || hookAvatar.hookDir || "", "success");
-  setTerminalStatus(success ? "Avatar clip flow complete" : "Hook+Focus+CTA prompt pack prepared");
-  appendTerminal(`Hook+Focus+CTA avatar ${status}${avatarText ? ` | ${avatarText}` : ""}: ${hookAvatar.hookDir || ""}`, "stdout");
+  setHookState(success ? (middleVideoPaths.length || ctaVideoPath ? "Avatar pack ready" : "Hook video ready") : isHookOnly ? "Hook prompt prepared" : "Avatar pack prepared", "success");
+  setTask(success ? (isHookOnly ? "Hook avatar ready" : "Avatar clips ready") : isHookOnly ? "Hook prompt ready" : "Avatar pack ready", ctaVideoPath || middleVideoPaths[0] || videoPath || hookAvatar.hookDir || "", "success");
+  setTerminalStatus(success ? "Avatar clip flow complete" : isHookOnly ? "Hook prompt prepared" : "Hook+Focus+CTA prompt pack prepared");
+  appendTerminal(`${isHookOnly ? "Hook-only avatar" : "Hook+Focus+CTA avatar"} ${status}${avatarText ? ` | ${avatarText}` : ""}: ${hookAvatar.hookDir || ""}`, "stdout");
   loadHookProfiles({ primary: activeProfile || undefined }).catch((error) => {
     appendTerminal(error.message, "stderr");
   });
@@ -3299,13 +4176,16 @@ function renderHookAvatarResult(hookAvatar = {}) {
   setHookBusy(false);
   setFinalState("Ready to render", "idle");
   setFinalBusy(false);
+  renderFinalReview();
 }
 
 async function prepareHookAvatar() {
+  await ensureEditedScriptSaved("avatar prompt");
+  syncAvatarScriptFromMainScript();
   const payload = hookAvatarPayload();
   setHookState("Preparing", "busy");
-  setTask("Preparing avatar pack", `Row ${payload.row} | ${payload.presenter} | ${payload.avatarLabel} | ${payload.tone} | ${payload.videoSize}`, "busy");
-  setTerminalStatus("Preparing hook+focus+CTA avatar prompt pack");
+  setTask(payload.lowCreditVidsMode ? "Preparing hook prompt" : "Preparing avatar pack", `Row ${payload.row} | ${payload.presenter} | ${payload.avatarLabel} | ${payload.tone} | ${payload.videoSize}`, "busy");
+  setTerminalStatus(payload.lowCreditVidsMode ? "Preparing hook-only Google Vids prompt" : "Preparing hook+focus+CTA avatar prompt pack");
   appendTerminal(`POST /api/hook-avatar/prepare row=${payload.row} size=${payload.videoSize}`);
   activeStep("hook");
   setHookBusy(true);
@@ -3389,17 +4269,35 @@ function connectHookAvatarRun(runId) {
 }
 
 async function generateHookAvatar() {
+  await ensureEditedScriptSaved("avatar generation");
+  syncAvatarScriptFromMainScript();
+  if (!hasReviewedAvatarScript()) {
+    setTask("Prepare avatar script first", "Prepare Avatar Pack click karo, script review/edit karo, fir generate karo.", "error");
+    appendTerminal("Avatar generation blocked: review/edit avatar script before using Google Vids credits.", "stderr");
+    return { canceled: true };
+  }
   const payload = hookAvatarPayload({ prepareOnly: false });
+  const avatarClipEstimate = payload.lowCreditVidsMode ? 1 : 3;
+  if (state.lastHookAvatarVideo) {
+    const typed = window.prompt(`Avatar video already exists for this row.\n\nExisting: ${state.lastHookAvatarVideo}\n\nDuplicate/re-generate karna hai to REGEN type karo.`);
+    if (String(typed || "").trim().toUpperCase() !== "REGEN") {
+      setTask("Avatar generation skipped", "Existing avatar video reuse hoga. Duplicate create nahi kiya.", "idle");
+      appendTerminal("Skipped Google Vids avatar generation because an existing avatar video is already available.", "system");
+      return { canceled: true };
+    }
+  }
   if (!confirmCreditSpend(
-    "Generate Google Vids Avatar Pack",
-    "This can generate/export hook, focus, and CTA avatar clips. Estimate: up to 3 Google Vids clips for this selected row."
+    payload.lowCreditVidsMode ? "Generate Google Vids Hook Clip" : "Generate Google Vids Avatar Pack",
+    payload.lowCreditVidsMode
+      ? "This will generate/export only the hook avatar clip. Estimate: 1 Google Vids clip for this selected row."
+      : "This can generate/export hook, focus, and CTA avatar clips. Estimate: up to 3 Google Vids clips for this selected row."
   )) {
     return { canceled: true };
   }
   setHookState("Generating", "busy");
-  setTask("Generating avatar pack", `Google Vids | Row ${payload.row} | ${payload.videoSize} | ${payload.profiles.join(" -> ")}`, "busy");
-  setTerminalStatus("Starting Google Vids hook+focus+CTA avatar run");
-  appendTerminal(`POST /api/hook-avatar/runs row=${payload.row} size=${payload.videoSize} profiles=${payload.profiles.join(", ")}`);
+  setTask(payload.lowCreditVidsMode ? "Generating hook avatar" : "Generating avatar pack", `Google Vids | Row ${payload.row} | ${payload.videoSize} | approx ${avatarClipEstimate} clip(s) | ${payload.profiles.join(" -> ")}`, "busy");
+  setTerminalStatus(payload.lowCreditVidsMode ? "Starting Google Vids hook-only run" : "Starting Google Vids hook+focus+CTA avatar run");
+  appendTerminal(`POST /api/hook-avatar/runs row=${payload.row} size=${payload.videoSize} clips=${avatarClipEstimate} profiles=${payload.profiles.join(", ")}`);
   activeStep("hook");
   setHookBusy(true);
   const response = await fetch("/api/hook-avatar/runs", {
@@ -3570,9 +4468,21 @@ function finalReelPayload(extra = {}) {
     throw new Error("Valid Excel row number select karo.");
   }
   const tool = selectedToolForRow(row) || {};
-  const primaryProfile = els.hookPrimaryProfileSelect?.value || "work/google-vids-profile";
-  const fallbackProfile = els.hookFallbackEnabled?.checked ? (els.hookFallbackProfileSelect?.value || "") : "";
-  const profiles = [primaryProfile, fallbackProfile].filter(Boolean);
+  const profiles = selectedGenerationProfiles("hook");
+  const primaryProfile = profiles[0] || "";
+  const fallbackProfile = profiles[1] || "";
+  const sameRowAssets = Number(state.lastAssetRow || 0) === row;
+  const sameRowScript = Number(state.lastScriptRow || 0) === row;
+  const sameRowHookAvatar = Number(state.lastHookAvatarRow || 0) === row;
+  const sameRowFinal = Number(state.lastFinalReelRow || 0) === row;
+  const sameRowVidsVoiceover = Number(state.lastVidsVoiceoverRow || 0) === row;
+  const preferredVoiceoverDir = sameRowVidsVoiceover && state.lastVidsVoiceoverFolder
+    ? state.lastVidsVoiceoverFolder
+    : sameRowFinal && state.lastFinalReelFolder
+      ? `${state.lastFinalReelFolder}/voiceovers`
+      : "";
+  const hasSavedVidsVoiceover = sameRowVidsVoiceover && Boolean(state.lastVidsVoiceoverFolder || state.lastVidsVoiceoverExport);
+  const selectedVoiceProvider = els.finalVoiceProviderSelect?.value || "free";
   return {
     input: state.inputPath,
     row,
@@ -3585,20 +4495,22 @@ function finalReelPayload(extra = {}) {
     hookAvatarCharacterLabel: hookCharacterLabel(els.hookCharacterSelect?.value || "auto_by_reel"),
     avatarHostImage: state.avatarHostImage || "",
     avatarReferenceImages: state.avatarHostImage || "",
-    voiceoverProvider: els.finalVoiceProviderSelect?.value || "free",
-    assetsDir: Number(state.lastAssetRow || 0) === row ? state.lastAssetFolder : "",
-    scriptDir: state.lastScriptFolder || "",
-    hookAvatarFolder: state.lastHookAvatarFolder || "",
-    hookAvatarVideo: state.lastHookAvatarVideo || "",
-    voiceoverDir: Number(state.lastFinalReelRow || 0) === row && state.lastFinalReelFolder
-      ? `${state.lastFinalReelFolder}/voiceovers`
-      : "",
-    voiceoverSourceVideo: state.lastVidsVoiceoverExport || "",
+    voiceoverProvider: hasSavedVidsVoiceover ? "google-vids-voiceover" : selectedVoiceProvider,
+    assetsDir: sameRowAssets ? state.lastAssetFolder : "",
+    scriptDir: sameRowScript ? state.lastScriptFolder : "",
+    hookAvatarFolder: sameRowHookAvatar ? state.lastHookAvatarFolder : "",
+    hookAvatarVideo: sameRowHookAvatar ? state.lastHookAvatarVideo : "",
+    voiceoverDir: preferredVoiceoverDir,
+    vidsVoiceoverDir: preferredVoiceoverDir,
+    voiceoverSourceVideo: sameRowVidsVoiceover ? state.lastVidsVoiceoverExport || "" : "",
+    lastVidsVoiceoverExport: sameRowVidsVoiceover ? state.lastVidsVoiceoverExport || "" : "",
+    requireVidsVoiceover: hasSavedVidsVoiceover,
     profile: primaryProfile,
     primaryProfile,
     fallbackProfile,
-    fallbackEnabled: Boolean(els.hookFallbackEnabled?.checked && fallbackProfile),
+    fallbackEnabled: Boolean(fallbackProfile),
     profiles,
+    lowCreditVidsMode: lowCreditVidsEnabled(),
     creditSafeMode: creditSafeEnabled(),
     ...extra
   };
@@ -3606,30 +4518,45 @@ function finalReelPayload(extra = {}) {
 
 function renderFinalReelResult(finalReel = {}) {
   const videoPath = finalReel.videoPath || finalReel.outputPath || "";
-  state.lastFinalReelFolder = finalReel.finalDir || finalReel.folder || "";
-  state.lastFinalReelVideo = videoPath;
-  state.lastFinalReelRow = Number(finalReel.row || els.assetRowInput.value || 0);
+  const isPreview = Boolean(finalReel.preview);
+  const folderPath = finalReel.finalDir || finalReel.folder || "";
+  if (isPreview) {
+    state.lastPreviewReelFolder = folderPath;
+    state.lastPreviewReelVideo = videoPath;
+    state.lastPreviewReelRow = Number(finalReel.row || els.assetRowInput.value || 0);
+  } else {
+    state.lastFinalReelFolder = folderPath;
+    state.lastFinalReelVideo = videoPath;
+    state.lastFinalReelRow = Number(finalReel.row || els.assetRowInput.value || 0);
+  }
   state.lastVidsVoiceoverExport = finalReel.vidsVoiceover?.exportedPath
     || finalReel.voiceoverSourceVideo
     || finalReel.mp4Path
     || state.lastVidsVoiceoverExport
     || "";
+  state.lastVidsVoiceoverFolder = finalReel.voiceoverDir
+    || finalReel.vidsVoiceover?.extracted?.voiceoverDir
+    || state.lastVidsVoiceoverFolder
+    || "";
+  state.lastVidsVoiceoverRow = Number(finalReel.row || els.assetRowInput.value || state.lastVidsVoiceoverRow || 0);
   els.finalResult?.classList.remove("is-hidden");
   if (els.finalToolName) {
     els.finalToolName.textContent = finalReel.tool?.tool_name || finalReel.tool?.name || "Final reel ready";
   }
   if (els.finalStatusText) {
     const score = Number(finalReel.qualityScore || 0);
-    els.finalStatusText.textContent = score ? `Quality ${score}/100` : (finalReel.status || "Ready");
+    els.finalStatusText.textContent = isPreview
+      ? (score ? `Preview ${score}/100` : "Preview ready")
+      : score ? `Quality ${score}/100` : (finalReel.status || "Ready");
   }
   if (els.finalFolderPath) {
-    els.finalFolderPath.textContent = state.lastFinalReelFolder || "";
+    els.finalFolderPath.textContent = folderPath || "";
   }
   if (els.finalSummary) {
     const decision = finalReel.decisions
       ? [finalReel.decisions.hook, finalReel.decisions.body, finalReel.decisions.cta].filter(Boolean).join(" ")
       : "";
-    els.finalSummary.textContent = finalReel.summary || decision || "Final reel rendered. Human review before posting.";
+    els.finalSummary.textContent = finalReel.summary || decision || (isPreview ? "Quick preview rendered. Review before full render." : "Final reel rendered. Human review before posting.");
   }
   if (videoPath && els.finalVideoPreview) {
     els.finalVideoPreview.src = finalVideoUrl(videoPath);
@@ -3668,12 +4595,13 @@ function renderFinalReelResult(finalReel = {}) {
       `<a href="${escapeHtml(file.url)}" target="_blank" rel="noreferrer">${escapeHtml(file.kind)}: ${escapeHtml(file.name)}</a>`
     )).join("") || '<span class="muted">Final files will appear here.</span>';
   }
-  setFinalState(videoPath ? "Final ready" : "Prepared", "success");
-  setTask(videoPath ? "Final reel ready" : "Final reel prepared", videoPath || state.lastFinalReelFolder || "", "success");
-  setTerminalStatus(videoPath ? "Final MP4 ready" : "Final render prepared");
-  appendTerminal(`Final reel ${finalReel.status || "ready"}: ${videoPath || state.lastFinalReelFolder}`, "stdout");
+  setFinalState(videoPath ? (isPreview ? "Preview ready" : "Final ready") : "Prepared", "success");
+  setTask(videoPath ? (isPreview ? "Preview ready" : "Final reel ready") : "Final reel prepared", videoPath || folderPath || "", "success");
+  setTerminalStatus(videoPath ? (isPreview ? "Preview MP4 ready" : "Final MP4 ready") : "Final render prepared");
+  appendTerminal(`${isPreview ? "Preview" : "Final reel"} ${finalReel.status || "ready"}: ${videoPath || folderPath}`, "stdout");
   activeStep("final");
   setFinalBusy(false);
+  renderFinalReview(finalReel);
 }
 
 async function toggleVoiceoverPlayback() {
@@ -3775,8 +4703,17 @@ function connectFinalReelRun(runId) {
   });
 }
 
-async function renderFinalReel() {
-  const payload = finalReelPayload();
+async function renderFinalReel(options = {}) {
+  const isPreview = Boolean(options.preview);
+  await ensureEditedScriptSaved(isPreview ? "quick preview" : "final render");
+  const payload = finalReelPayload(isPreview
+    ? {
+      preview: true,
+      previewSeconds: options.previewSeconds || 15,
+      previewScenes: options.previewScenes || 2,
+      voiceoverProvider: "local"
+    }
+    : {});
   if (creditSafeEnabled() && ["openai", "elevenlabs"].includes(payload.voiceoverProvider || "")) {
     payload.voiceoverProvider = "free";
     if (els.finalVoiceProviderSelect) {
@@ -3790,11 +4727,12 @@ async function renderFinalReel() {
     );
     if (!ok) return;
   }
-  setFinalState("Rendering", "busy");
-  setTask("Rendering final reel", `Row ${payload.row} | ${payload.voiceoverProvider}`, "busy");
-  setTerminalStatus("Starting final reel render");
-  appendTerminal(`POST /api/final-reel/runs row=${payload.row} voice=${payload.voiceoverProvider}`);
-  renderFinalPipeline([{ id: "start", label: "Final Reel", status: "running", detail: "Starting render." }]);
+  state.finalBusyMode = isPreview ? "preview" : "render";
+  setFinalState(isPreview ? "Previewing" : "Rendering", "busy");
+  setTask(isPreview ? "Rendering quick preview" : "Rendering final reel", `Row ${payload.row} | ${payload.voiceoverProvider}`, "busy");
+  setTerminalStatus(isPreview ? "Starting preview render" : "Starting final reel render");
+  appendTerminal(`POST /api/final-reel/runs row=${payload.row} ${isPreview ? "preview=15s" : `voice=${payload.voiceoverProvider}`}`);
+  renderFinalPipeline([{ id: "start", label: isPreview ? "Quick Preview" : "Final Reel", status: "running", detail: isPreview ? "Rendering 15 sec local preview." : "Starting render." }]);
   activeStep("final");
   setFinalBusy(true);
   const response = await fetch("/api/final-reel/runs", {
@@ -3811,6 +4749,7 @@ async function renderFinalReel() {
 }
 
 async function generateVidsVoiceover() {
+  await ensureEditedScriptSaved("Google Vids voiceover");
   const payload = finalReelPayload({
     fromScene: 2,
     remainingFromScene: 2,
@@ -3843,12 +4782,13 @@ async function generateVidsVoiceover() {
 }
 
 async function openLatestFinalFolder() {
-  if (!state.lastFinalReelFolder) return;
-  appendTerminal(`POST /api/open ${state.lastFinalReelFolder}`);
+  const targetFolder = state.lastFinalReelFolder || state.lastPreviewReelFolder;
+  if (!targetFolder) return;
+  appendTerminal(`POST /api/open ${targetFolder}`);
   const response = await fetch("/api/open", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ path: state.lastFinalReelFolder })
+    body: JSON.stringify({ path: targetFolder })
   });
   const data = await response.json();
   if (!response.ok || data.ok === false) {
@@ -4009,6 +4949,7 @@ function buildAutoQueueBody() {
   const explicitRows = parseAutoRows(els.autoRowsInput?.value || "").slice(0, count);
   const startRow = els.autoStartSelectedRow?.checked ? selectedRow : 2;
   const safe = creditSafeEnabled();
+  const lowCredit = lowCreditVidsEnabled();
   const useVidsHook = Boolean(els.autoUseVidsHook?.checked) && !safe;
   const defaults = state.dashboardDefaults || {};
   const ai = defaults.ai || {};
@@ -4026,6 +4967,7 @@ function buildAutoQueueBody() {
     rows: explicitRows.length ? explicitRows : "",
     mode: useVidsHook ? "google-hook" : "local",
     creditSafeMode: safe,
+    lowCreditVidsMode: lowCredit,
     maxScenes: Math.floor(finiteClamp(els.scriptSceneCount?.value, 5, 3, 6)),
     scriptLanguage: els.scriptLanguageSelect?.value || "Hinglish",
     freeVideoProviders: "capcut,pika,runway,canva,did,shotstack",
@@ -4041,6 +4983,8 @@ function buildAutoQueueBody() {
     useAvatar: true,
     avatar: els.hookCharacterSelect?.value || "auto_by_reel",
     avatarScenes: useVidsHook ? "1" : "",
+    includeMiddleAvatar: !lowCredit,
+    includeCtaAvatar: !lowCredit,
     useIngredients: true,
     ingredients: "auto",
     ingredientScenes: "3,4,5",
@@ -4408,9 +5352,23 @@ els.toolSearchInput.addEventListener("input", () => {
   state.toolRowRenderLimit = TOOL_ROW_RENDER_BATCH;
   const matches = filterTools(els.toolSearchInput.value);
   renderToolOptions(matches);
-  els.toolOptionCount.textContent = `${matches.length} match${matches.length === 1 ? "" : "es"}`;
   setTerminalStatus(`${matches.length} tool match${matches.length === 1 ? "" : "es"}`);
 });
+
+for (const filterInput of [
+  els.toolReadyOnlyFilter,
+  els.toolNoVideoFilter,
+  els.toolP0Filter
+].filter(Boolean)) {
+  filterInput.addEventListener("change", () => {
+    state.toolFilters = currentToolFilters();
+    state.toolRowRenderLimit = TOOL_ROW_RENDER_BATCH;
+    const matches = filterTools(els.toolSearchInput?.value || "");
+    renderToolOptions(matches);
+    updateSelectedTool();
+    setTerminalStatus(`Tool filters: ${matches.length} row(s) visible`);
+  });
+}
 
 els.assetRowInput.addEventListener("input", () => {
   updateSelectedTool();
@@ -4433,7 +5391,7 @@ els.useFemaleAvatarPhotoBtn?.addEventListener("click", () => {
   if (els.hookPresenterSelect) {
     els.hookPresenterSelect.value = "female";
   }
-  setAvatarHostImage(DEFAULT_AVATAR_PHOTOS.female, "Default female avatar");
+  setAvatarHostImage(avatarPhotoForPresenter("female"), "Default AltFTool female avatar");
   setHookState("Female avatar selected", "idle");
   setTerminalStatus("Avatar photo: default female");
 });
@@ -4442,7 +5400,7 @@ els.useMaleAvatarPhotoBtn?.addEventListener("click", () => {
   if (els.hookPresenterSelect) {
     els.hookPresenterSelect.value = "male";
   }
-  setAvatarHostImage(DEFAULT_AVATAR_PHOTOS.male, "Default male avatar");
+  setAvatarHostImage(avatarPhotoForPresenter("male"), "Default AltFTool male avatar");
   setHookState("Male avatar selected", "idle");
   setTerminalStatus("Avatar photo: default male");
 });
@@ -4452,6 +5410,27 @@ els.clearAvatarPhotoBtn?.addEventListener("click", () => {
   setHookState("Avatar photo cleared", "idle");
   setTerminalStatus("Avatar photo cleared");
 });
+
+els.resetHookAvatarScriptBtn?.addEventListener("click", () => {
+  resetAvatarScriptEditors();
+  setHookState("Avatar script reset", "idle");
+  setTerminalStatus("Avatar script reset to prepared draft");
+});
+
+for (const editor of [
+  els.hookAvatarHookScriptEditor,
+  els.hookAvatarFocusScriptEditor,
+  els.hookAvatarCtaScriptEditor
+].filter(Boolean)) {
+  editor.addEventListener("input", () => {
+    state.avatarScriptUserEdited = true;
+    collectAvatarScriptDraft();
+    if (els.hookAvatarScriptReviewStatus) {
+      els.hookAvatarScriptReviewStatus.textContent = "Edited avatar script ready. Generate will use this text.";
+    }
+    setHookState("Avatar script edited", "idle");
+  });
+}
 
 els.hookAvatarPhotoInput?.addEventListener("change", async () => {
   const file = els.hookAvatarPhotoInput.files?.[0];
@@ -4477,6 +5456,7 @@ els.finalVoiceProviderSelect?.addEventListener("change", () => {
   setFinalState(`${els.finalVoiceProviderSelect.value} voice`, "idle");
   setTerminalStatus(`Final voice provider: ${els.finalVoiceProviderSelect.value}`);
   renderCreditGuard();
+  renderFinalReview();
 });
 
 const globalProfileControls = new Set([
@@ -4494,6 +5474,7 @@ for (const control of [
   els.hookToneSelect,
   els.hookDurationSelect,
   els.hookVideoSizeSelect,
+  els.lowCreditVidsMode,
   els.hookPrimaryProfileSelect,
   els.hookFallbackProfileSelect,
   els.hookFallbackEnabled,
@@ -4522,6 +5503,7 @@ for (const control of [
     setHookBusy(false);
     setScriptVideoState("Ready", "idle");
     setScriptVideoBusy(false);
+    renderFinalReview();
     setTerminalStatus(`Hook setup: ${els.hookPresenterSelect.value}, ${hookCharacterLabel(els.hookCharacterSelect?.value)}, ${els.hookToneSelect.value}, ${els.hookDurationSelect.value}s, ${els.hookVideoSizeSelect?.value || "portrait"}`);
     if (!globalProfileControls.has(control)) {
       renderHookProfileStatus();
@@ -4542,6 +5524,7 @@ els.hookFallbackEnabled?.addEventListener("change", () => {
   }
   renderHookProfileStatus();
   renderProfileManager();
+  renderFinalReview();
 });
 
 els.customScriptFallbackEnabled?.addEventListener("change", () => {
@@ -4604,6 +5587,17 @@ els.profileRefreshBtn?.addEventListener("click", async () => {
   }
 });
 
+els.openProfileRegistryBtn?.addEventListener("click", async () => {
+  try {
+    await openProfileRegistryExcel();
+  } catch (error) {
+    setProfileState("Excel open failed", "error");
+    setTask("Profile Excel failed", error.message, "error");
+    setTerminalStatus("Profile Excel failed");
+    appendTerminal(error.message, "stderr");
+  }
+});
+
 els.profileAddBtn?.addEventListener("click", async () => {
   try {
     await addHookProfile();
@@ -4648,6 +5642,10 @@ els.profileManagerList?.addEventListener("click", async (event) => {
   if (!profile) return;
   try {
     if (action === "primary") {
+      const selectedProfile = profileByPath(profile);
+      if (!selectedProfile || !isHookProfileSelectable(selectedProfile)) {
+        throw new Error("Ye profile selectable nahi hai. Disabled/limit-used profile ke bajay doosra profile choose karo.");
+      }
       els.hookPrimaryProfileSelect.value = profile;
       renderHookProfileOptions({ primary: profile, fallback: els.hookFallbackProfileSelect?.value || "" });
       syncGlobalProfiles("hook");
@@ -4656,6 +5654,13 @@ els.profileManagerList?.addEventListener("click", async (event) => {
       return;
     }
     if (action === "fallback") {
+      const selectedProfile = profileByPath(profile);
+      if (!selectedProfile || !isHookProfileSelectable(selectedProfile)) {
+        throw new Error("Ye fallback selectable nahi hai. Disabled/limit-used profile ke bajay doosra profile choose karo.");
+      }
+      if (profile === els.hookPrimaryProfileSelect?.value) {
+        throw new Error("Fallback primary profile se alag hona chahiye.");
+      }
       if (els.hookFallbackEnabled) {
         els.hookFallbackEnabled.checked = true;
       }
@@ -4670,6 +5675,10 @@ els.profileManagerList?.addEventListener("click", async (event) => {
     }
     if (action === "login") {
       await loginHookProfile(profile);
+      return;
+    }
+    if (action === "toggle") {
+      await toggleHookProfile(profile, button.dataset.enabled === "true");
       return;
     }
     if (action === "rename") {
@@ -4708,6 +5717,26 @@ els.useExistingHookBtn?.addEventListener("click", () => {
     state.lastHookAvatarVideo || state.lastHookAvatarFolder || "Existing avatar selected",
     "success"
   );
+});
+
+els.loadResumeArtifactBtn?.addEventListener("click", async () => {
+  try {
+    await loadSelectedResumeArtifact();
+  } catch (error) {
+    setTask("Saved version load failed", error.message, "error");
+    setTerminalStatus("Resume load failed");
+    appendTerminal(error.message, "stderr");
+  }
+});
+
+els.openResumeArtifactBtn?.addEventListener("click", async () => {
+  try {
+    await openSelectedResumeArtifact();
+  } catch (error) {
+    setTask("Saved folder open failed", error.message, "error");
+    setTerminalStatus("Resume folder open failed");
+    appendTerminal(error.message, "stderr");
+  }
 });
 
 els.jumpToAvatarStepBtn?.addEventListener("click", () => {
@@ -4832,6 +5861,18 @@ els.saveScriptBtn?.addEventListener("click", async () => {
   }
 });
 
+for (const editor of [
+  els.scriptHookEditor,
+  els.scriptBodyEditor,
+  els.scriptCtaEditor,
+  els.scriptCaptionEditor,
+  els.scriptHashtagsEditor
+].filter(Boolean)) {
+  editor.addEventListener("input", markMainScriptEdited);
+}
+
+els.scriptSceneEditorList?.addEventListener("input", markMainScriptEdited);
+
 els.prepareHookAvatarBtn.addEventListener("click", async () => {
   try {
     await prepareHookAvatar();
@@ -4888,6 +5929,19 @@ els.voiceoverAudioPreview?.addEventListener("pause", () => {
 els.voiceoverAudioPreview?.addEventListener("ended", () => {
   if (els.playVoiceoverBtn) els.playVoiceoverBtn.textContent = "Play Voiceover";
   setTerminalStatus("Voiceover preview ended");
+});
+
+els.previewFinalReelBtn?.addEventListener("click", async () => {
+  try {
+    await renderFinalReel({ preview: true, previewSeconds: 15, previewScenes: 2 });
+  } catch (error) {
+    setFinalState("Preview failed", "error");
+    setTask("Preview failed", error.message, "error");
+    setTerminalStatus("Preview render failed");
+    appendTerminal(error.message, "stderr");
+    els.finalResult?.classList.remove("is-hidden");
+    setFinalBusy(false);
+  }
 });
 
 els.renderFinalReelBtn?.addEventListener("click", async () => {
@@ -5027,6 +6081,7 @@ els.autoProfileList?.addEventListener("change", (event) => {
   }
   renderAutoProfileChecklist();
   updateAutoQueueHint();
+  renderFinalReview();
 });
 
 for (const autoInput of [
@@ -5035,7 +6090,8 @@ for (const autoInput of [
   els.autoStartSelectedRow,
   els.autoUseVidsHook,
   els.autoUpdateWorkbook,
-  els.creditSafeMode
+  els.creditSafeMode,
+  els.lowCreditVidsMode
 ].filter(Boolean)) {
   autoInput.addEventListener("input", updateAutoQueueHint);
   autoInput.addEventListener("change", () => {
@@ -5061,6 +6117,7 @@ for (const flowInput of [
     state.stepFlowSteps = stepFlowPlan().map((step) => ({ ...step, status: "pending" }));
     refreshStepFlowControls();
     renderStepFlowTimeline();
+    renderCampaignCreditEstimate();
     setTerminalStatus(`Step flow selected: ${stepFlowPlan().map((step) => step.label).join(", ") || "none"}`);
   });
 }

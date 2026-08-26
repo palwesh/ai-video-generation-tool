@@ -17,7 +17,8 @@ Output per tool:
 - `generated/` archive folder with final MP4s, reports, props, export logs, and render assets
 - `vids-clips/` cache folder for reusable Google Vids/avatar scene clips and optional timeline exports
 - `vids-generated-scenes/` scene folders for Google Vids prompts and generated clip organization
-- screenshots, fictional demo input files, a desktop demo recording, and a short mobile scroll recording when capture is enabled
+- `outputs/work-tracker/tool-work-tracker.xlsx` as the master Excel tracker for idea name, tool link, hook, body, CTA, final script, captions, hashtags, SEO keywords, assets, avatar clips, final videos, Google Vids profile usage, and quality reports
+- screenshots, fictional demo input files, an input-filled demo screenshot, a desktop demo recording, and a short mobile scroll recording when capture is enabled
 
 ## Branding
 
@@ -64,6 +65,8 @@ With your Excel file path:
 ```
 
 The setup script installs/checks Node.js 20+, dependencies, Git, Chrome, Playwright Chromium, FFmpeg when available, creates `.env`, saves optional Excel/Drive defaults, and starts the dashboard. `run-windows.bat` reuses that setup for normal daily use. Full guide: `docs/windows-setup.md`.
+
+For same Wi-Fi team usage, use one Windows machine as the main server. Other users can open that server's LAN URL only after LAN Share Mode is enabled with `0.0.0.0` binding and a PIN/password. All assets, videos, Excel updates, Google Vids downloads, and final reels are saved on the server machine. Read the multi-user rules in `docs/windows-setup.md`.
 
 For a simple Windows-first checklist, read `WINDOWS-RUN-GUIDE.md`.
 
@@ -147,6 +150,21 @@ npm run prep:free:capture -- --input "/Users/palsahu/workplace/projects/n learn/
 
 The prepared workbook includes columns for local asset files, asset brief, reel script files, Google Vids status, Drive upload status, Google Vids link, final MP4 path, final video link, final video folder link, run folder link, generated scene folders, and QA status.
 
+## Work Tracker Excel
+
+The dashboard `Open Tracker Excel` and `Download Tracker` buttons regenerate the tracker before opening/downloading, so the workbook stays current after each script, avatar, asset, or video run.
+
+```bash
+npm run workbook:tracker
+```
+
+The tracker is saved at `outputs/work-tracker/tool-work-tracker.xlsx`. Main sheets:
+
+- `Work Tracker`: one row per tool idea with tool link, source description, script language, hook/body/CTA, final script, captions, hashtags, SEO keywords, asset folder, avatar clips, final video link, Vids profiles, and quality status.
+- `Post Copy`: ready-to-use Instagram caption, hashtags, hook, SEO keywords, and tool link.
+- `Video Versions`: all saved reels per tool. You can create many videos for the same tool; old MP4s stay in their timestamp folders and the latest version is highlighted separately.
+- `Generated Scripts`, `Generated Assets`, `Hook Avatars`, `Video Runs`, `Video Files`, `Quality Reports`, and `Profiles Limits`: detailed audit sheets for everything generated locally.
+
 ## Google Drive Sync
 
 Use Google Drive Desktop for the free Drive workflow. Paste your synced Drive folder in the dashboard `Drive sync folder` field, or pass it from the command line:
@@ -179,6 +197,36 @@ The agent creates a backup first under `outputs/runs/.../source-workbook-backups
 ## One-Video Agent
 
 Use this for one complete tool reel from your Excel file. It selects one row, captures the actual tool page first, creates a short 30-60 second Hook-Body-CTA Reel plan, writes the prepared workbook, and opens/fills Google Vids when requested.
+
+## Local Runner Agent
+
+Use this as the easiest command wrapper for running the tool without remembering long commands.
+
+Start the dashboard:
+
+```bash
+npm run agent -- --dashboard
+```
+
+Create one fully local/free Reel from the selected/default Excel:
+
+```bash
+npm run agent -- --one --row 2 --mode local
+```
+
+Run multiple rows one by one:
+
+```bash
+npm run agent -- --queue --rows 2,3,4 --mode local --continue-on-error
+```
+
+Use Google Vids only for the hook/avatar clip:
+
+```bash
+npm run agent -- --one --row 2 --mode google-hook --profiles work/shejal.sahu-anslation.com-profile
+```
+
+Common options: `--input`, `--row`, `--rows`, `--start-row`, `--limit`, `--mode prep|local|google-hook|google`, `--scenes`, `--avatar female|male|auto`, `--video-size portrait|landscape|square`, `--profiles`, `--drive-sync-dir`, and `--dry-run`.
 
 Google Vids scene clips, then local merge:
 
@@ -220,6 +268,14 @@ http://127.0.0.1:4317/docs.html
 
 Use the top `Docs` button from Basic mode. The docs reader supports selected doc, all docs one page, search, refresh, and clickable sections without taking space inside the workflow screen.
 
+Focused Google Vids flow page:
+
+```text
+http://127.0.0.1:4317/vids-flow.html
+```
+
+Use this page when you want the separate Vids hook/avatar flow: load Excel row, build assets, generate script, prepare/generate Google Vids avatar clips, then quick preview or final local render.
+
 Basic mode is the recommended one-video workflow:
 
 - `Excel file`: choose an `.xlsx`, `.xls`, or `.csv`, or paste the saved workbook path. The last selected path is remembered.
@@ -243,6 +299,8 @@ Dashboard production controls:
 - `Avatar Pack`: prepares or generates a hook avatar clip, optional mid-reel focus avatar clip, and final CTA avatar clip. The Basic button is `Generate Avatar Pack`.
 - `Hook Vids + Local`: uses Google Vids/avatar clips for the hook, optional focus break, and CTA when available, downloads/caches them, then merges the final MP4 locally with real tool screenshots and demo recordings.
 - Voiceover-matched visuals: body scenes choose the best captured screenshot/recording based on the scene voiceover, so workflow, result, before-after, share, and safety lines show the right asset instead of random screenshots.
+- Full-screen proof visuals: newly captured readable screenshots and demo recordings use a 1080x1920-friendly viewport and render near full screen in the Reel so the actual tool page stays visible.
+- Input demo proof: capture now saves `desktop-demo-inputs.png` after fictional values are inserted into visible input fields, and workflow scenes prefer that asset so viewers understand what to type/use.
 - `Vids clip cache`: every tool folder has `vids-clips/`; local MP4 uses cached Google Vids/avatar clips first when they exist.
 - `Vids Clips`: Google Vids generates each selected scene as a separate clip, downloads it into `vids-generated-scenes/scene-XX/`, caches it as `vids-clips/scene-XX.mp4`, then local rendering merges the final Reel.
 - `All Vids Clips`: same scene-by-scene download flow for every scene; use only when quota is available.
@@ -253,11 +311,12 @@ Dashboard production controls:
 - `Profiles & Limits`: separate tab for every Google Vids profile with detected identity, login state, primary/fallback badges, AI/video quota bars, avatar quota bars, profile folder, and quick actions.
 - `Add Profile`: creates another isolated profile such as `work/google-vids-profile-3` and selects it without opening Google Vids.
 - `Add + Login`: creates another isolated profile and immediately opens Google Vids login for that account.
+- `Profile Excel`: `work/google-vids-profiles.xlsx` is auto-created and refreshed with profile name, expected email/login ID, detected email, profile path, enabled/disabled state, priority, status, quota usage, and notes. Do not store passwords in this file.
 - `Docs`: reads setup docs directly inside the dashboard with a selected-doc mode, an `All docs one page` mode, searchable text, match count, highlighted matches, and a section list.
 - `Open Vids Cache`: opens the selected tool's `vids-clips/` folder after a run, so reusable Google Vids/avatar clips can be saved or checked quickly.
 - `Open Generated`: opens the selected tool's `generated/` archive after a run, so final videos, reports, and export logs are together.
 
-Multiple Google profiles are supported. Each profile is a separate local Chrome/Playwright browser profile under `work/`. Use only accounts you control and follow Google Vids quotas/terms. After logging into a new account, click `Refresh` in Google Vids config so the detected email/name appears in the profile dropdown. If a profile shows `LIMIT USED`, select another profile or run `Local MP4` mode until that account has quota again.
+Multiple Google profiles are supported. Each profile is a separate local Chrome/Playwright browser profile under `work/`. Use only accounts you control and follow Google Vids quotas/terms. After logging into a new account, click `Refresh` in Google Vids config so the detected email/name appears in the profile dropdown. If a profile shows `LIMIT USED`, select another profile or run `Local MP4` mode until that account has quota again. The dashboard and CLI runner both read the profile registry when choosing fallback order, skipping disabled and limit-used profiles.
 
 In Google Vids mode, keep `Use tool screenshots` on for professional tool promo videos. The default `Screenshot scenes` value is `3,4,5`, so the actual tool UI is attempted as reference for demo, workflow, output, and before/after proof instead of unrelated synthetic footage. If the current Google Vids UI opens only Drive/Photos and does not expose a local file chooser, the operator falls back to a safer URL-based prompt and logs the reason in `ingredientUploads`.
 
@@ -401,6 +460,12 @@ Use only the second email:
 npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --scene-count 6 --max-scenes 6 --vids-profiles work/google-vids-profile-2
 ```
 
+For the newer runner shortcut, skip `--profiles` to use the enabled priority order from `work/google-vids-profiles.xlsx`:
+
+```bash
+npm run agent -- --one --row 2 --mode google-hook
+```
+
 By default, fallback profiles start a new Vids file. If you have shared the same Vids file with the second account and want fallback profiles to reuse the same URL, add `--reuse-url-on-fallback`.
 
 Render a full local 30-60 second vertical Reel from an already prepared tool folder:
@@ -489,6 +554,8 @@ Use your own image references for avatar clips:
 ```bash
 npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --local-only --creator-images "/path/me-front.jpg,/path/me-side.jpg,/path/me-close.jpg"
 ```
+
+Default AltFTool female and male host images are saved in `public/avatar/` and are used automatically when no custom avatar image is selected. The dashboard buttons `Female` and `Male` switch between these saved defaults, and Google Vids hook/focus/CTA prompts reference the selected image so the presenter style stays consistent.
 
 This creates `avatar-references/` and `avatar-generation/` prompt packs. If HeyGen API keys and a voice ID are configured, automated avatar clip generation can be run with:
 

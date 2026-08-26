@@ -37,6 +37,85 @@ After setup is complete, use this command every time you want to start the dashb
 
 This reuses saved `.env` settings, Google Vids profile folders, installed dependencies, and generated output folders.
 
+## Same Wi-Fi / Multi-User Windows Server
+
+Use one Windows laptop or desktop as the main server. Other users on the same Wi-Fi should open the dashboard from their browser, but all automation and saved files stay on the main server machine.
+
+Current code status:
+
+- The dashboard currently starts on `127.0.0.1`, which means only the same Windows machine can open it.
+- For direct same-Wi-Fi browser access, the server must support LAN binding such as `0.0.0.0` plus a PIN/password gate.
+- Do not expose the dashboard to a public network without authentication.
+
+How the LAN flow should work after LAN Share Mode is enabled:
+
+1. Start the dashboard on the Windows server in LAN mode.
+2. Find the Windows server Wi-Fi IP:
+
+```powershell
+ipconfig
+```
+
+Look for the active Wi-Fi adapter's IPv4 address, for example:
+
+```text
+192.168.1.25
+```
+
+3. Same Wi-Fi users open:
+
+```text
+http://192.168.1.25:4317
+```
+
+4. Every user should enter the shared PIN/password before using the tool.
+
+Where files are saved:
+
+- Excel uploads/copies: Windows server project folder
+- screenshots/assets: Windows server `outputs\`
+- Google Vids downloads: Windows server `outputs\`
+- final reels: Windows server tool timestamp folder
+- tracker workbook: Windows server `outputs\work-tracker\tool-work-tracker.xlsx`
+
+Client laptops only display the browser UI. They receive files only when they click a download link.
+
+## Multi-User Conflict Rules
+
+Multiple users can view/select rows at the same time, but heavy jobs should be queued.
+
+Recommended rules:
+
+- Allow many users to open the UI and review scripts/assets.
+- Run `Build Assets`, `Generate Avatar`, `Generate Vids Voiceover`, and `Render Final Reel` through one queue.
+- Keep Google Vids profile automation one-at-a-time per profile.
+- Do not run two Google Vids generations on the same profile at the same time.
+- Do not run many Remotion final renders in parallel on a normal laptop.
+- Use separate output folders per job. The app already uses tool name plus timestamp folders for generated work.
+
+Best stable setup:
+
+```text
+1 Windows server
+1 dashboard URL on LAN
+1 PIN/password
+1 shared job queue
+2-4 Google Vids profiles as fallback
+1 active job per Google profile
+1-2 local renders at a time, depending on RAM/CPU
+```
+
+Recommended Windows machine:
+
+- 16 GB RAM minimum, 32 GB better
+- SSD storage
+- Chrome installed
+- Node.js 20+
+- Good Wi-Fi or wired LAN
+- Keep the laptop plugged in while rendering
+
+If speed matters, use `Quick Preview` first, then run full `Render Final Reel` only for approved videos.
+
 ## With Your Excel Path
 
 ```powershell
@@ -117,7 +196,35 @@ For another account:
 npm run vids:login -- --profile work/google-vids-profile-2
 ```
 
-Use only accounts you control and follow Google Vids limits.
+The dashboard also maintains `work\google-vids-profiles.xlsx` with profile name, expected email/login ID, enabled/disabled, priority, status, and quota usage. Use only accounts you control and follow Google Vids limits. Do not put Google passwords in this Excel file.
+
+## Runner Agent
+
+The easy wrapper command works on Windows too:
+
+```powershell
+npm run agent -- --dashboard
+npm run agent -- --one --input "C:\Users\YOUR_NAME\Documents\Book1.xlsx" --row 2 --mode local
+npm run agent -- --queue --input "C:\Users\YOUR_NAME\Documents\Book1.xlsx" --rows 2,3,4 --mode local --continue-on-error
+```
+
+## Work Tracker Excel
+
+To refresh the master tracker manually:
+
+```powershell
+npm run workbook:tracker
+```
+
+The file is saved here:
+
+```text
+outputs\work-tracker\tool-work-tracker.xlsx
+```
+
+The dashboard buttons `Open Tracker Excel` and `Download Tracker` regenerate this workbook first, then open/download it. It maintains tool idea, tool link, hook/body/CTA, final script, captions, hashtags, SEO keywords, assets, avatar clips, final MP4s, Google Vids profiles, and quality reports.
+
+You can create many videos for the same tool. Each render gets a new timestamp folder, old MP4s stay saved, and the `Video Versions` sheet lists every version.
 
 ## Free Local Video
 
@@ -126,6 +233,8 @@ No Google Vids quota:
 ```powershell
 npm run agent:one-video -- --input "C:\Users\YOUR_NAME\Documents\Book1.xlsx" --row 2 --limit 1 --local-only
 ```
+
+In the dashboard, keep `Credit Safe` ON for this fully local path. When you do want Google Vids, turn `Credit Safe` OFF but keep `Low-credit Vids` ON to generate only the hook avatar clip and finish the body/CTA locally from real tool demo assets.
 
 ## Google Vids Scene Clips
 

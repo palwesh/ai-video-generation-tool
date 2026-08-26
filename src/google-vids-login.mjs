@@ -8,6 +8,7 @@ const { chromium } = await import("playwright");
 const args = parseArgs(process.argv.slice(2));
 const profileDir = args.profile || "work/google-vids-profile";
 const waitMs = args["wait-ms"] ? Number(args["wait-ms"]) : null;
+const expectedEmail = String(args.email || args["expected-email"] || "").trim();
 const launchOptions = {
   headless: false,
   viewport: { width: 1365, height: 768 }
@@ -16,6 +17,9 @@ await applyChromeLaunchOptions(launchOptions, { channelFallback: false });
 
 console.log("Opening Google Vids with a persistent browser profile.");
 console.log(`Profile: ${profileDir}`);
+if (expectedEmail) {
+  console.log(`Expected email/login ID: ${expectedEmail}`);
+}
 console.log("Login with the Google account you want to use for Vids generations.");
 if (waitMs) {
   console.log(`This browser will stay open for ${Math.round(waitMs / 1000)} seconds.`);

@@ -63,6 +63,7 @@ export async function writePostCopy(runDir, row, scenePlan) {
 
 export async function writeAssetBrief(runDir, row, capture = {}) {
   const files = Array.isArray(capture.files) ? capture.files : [];
+  const guide = capture.toolUseGuide || {};
   const lines = [
     `# Asset Brief - ${row.tool_name || row.topic || "AI Reel"}`,
     "",
@@ -78,6 +79,36 @@ export async function writeAssetBrief(runDir, row, capture = {}) {
     "- Use only fictional/demo data.",
     "- Prefer captured screenshots and screen recordings for demo/workflow/output scenes.",
     "- Avoid fake UI or unsupported feature claims.",
+    "- The reel body should clearly explain what the tool does and how to use it.",
+    "",
+    "## Tool Use Focus",
+    "",
+    guide.primaryUseCase ? `- Use case: ${guide.primaryUseCase}` : `- Use case: ${row.description || "Show the real workflow on the tool page."}`,
+    guide.pageTitle ? `- Page/title: ${guide.pageTitle}` : "",
+    guide.primaryAction ? `- Primary action: ${guide.primaryAction}` : "",
+    guide.outputPreview ? `- Output/result preview: ${guide.outputPreview}` : "",
+    "",
+    "## How To Use Flow",
+    "",
+    ...((guide.demoSteps || []).length
+      ? guide.demoSteps.map((step, index) => `${index + 1}. ${step}`)
+      : [
+        `1. Open ${row.tool_url || "the real tool link"}.`,
+        "2. Show the page/use-case clearly.",
+        "3. Fill fictional/demo input or upload demo files.",
+        "4. Click the visible primary action.",
+        "5. Review the output/result before using it."
+      ]),
+    "",
+    "## Visual Priority",
+    "",
+    ...((guide.visualPriority || []).length
+      ? guide.visualPriority.map((step) => `- ${step}`)
+      : [
+        "- Make the tool screen the main visual in demo scenes.",
+        "- Zoom into inputs, buttons, and result areas.",
+        "- Keep all demo data fictional."
+      ]),
     "",
     "## Captured Files",
     "",
@@ -111,6 +142,16 @@ export async function writeReelScriptPackage(runDir, scriptPackage = {}) {
     "## Body",
     "",
     scriptPackage.body || "",
+    "",
+    "## Tool Use Focus",
+    "",
+    scriptPackage.tool_use_focus?.primary_use_case ? `Use case: ${scriptPackage.tool_use_focus.primary_use_case}` : "Use case: Real tool workflow.",
+    scriptPackage.tool_use_focus?.primary_action ? `Primary action: ${scriptPackage.tool_use_focus.primary_action}` : "",
+    scriptPackage.tool_use_focus?.output_preview ? `Output: ${scriptPackage.tool_use_focus.output_preview}` : "",
+    "",
+    ...((scriptPackage.tool_use_focus?.demo_steps || []).length
+      ? scriptPackage.tool_use_focus.demo_steps.map((step, index) => `${index + 1}. ${step}`)
+      : ["1. Open the tool page.", "2. Add fictional input.", "3. Click the visible action.", "4. Review the result."]),
     "",
     "## CTA",
     "",

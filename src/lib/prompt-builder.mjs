@@ -55,6 +55,8 @@ For any demo/workflow/output scene:
 - Show realistic interaction with the actual tool.
 - Use fictional/demo data only.
 - If screenshots or recordings are available, treat them as proof/reference for the real UI and make them the main visual.
+- The body must teach what the tool does and how to use it: open the page, show the input/upload area, fill demo data, click the visible primary action, then hold the result/output screen for review.
+- Screenshots and screen recordings should dominate demo scenes; avatar or stock visuals should only support the explanation.
 
 For the final scene:
 - End with final human review, a professional safety reminder, and a natural CTA such as save/share/follow.
@@ -135,6 +137,7 @@ ${reelConfig.sceneCount}
 
 Script Goal:
 Prepare a high-retention Instagram Reel script between ${reelConfig.minDurationSeconds} and ${reelConfig.maxDurationSeconds} seconds that promotes this tool without sounding like a boring ad. Prioritize a scroll-stopping hook, real demo proof, useful workflow, before/after value, human review, and a save/comment/share CTA.
+The body should clearly explain what the tool is, who should use it, and the exact use-flow visible in the captured screenshots/video.
 
 Hook Direction:
 Generate a fresh hook angle for this row. Good styles include:

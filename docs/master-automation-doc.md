@@ -1,6 +1,24 @@
 # AI Reel Creator by Prathak - Master Automation Doc
 
-Last updated: 2026-08-22
+Last updated: 2026-08-25
+
+## Latest Quality Control Update
+
+The Basic workflow now adds safer production controls before any reel is generated:
+
+1. `Tool idea name` has quick filters for ready tools, tools with no saved video yet, and P0 rows. Ready tools are shown first by default so you do not waste time on unfinished tool pages.
+2. Saved video status is refreshed after the workbook loads, so rows with completed reels show a video-ready tag and folder link in the tool list.
+3. Campaign Run shows a credit estimate before queue start. `Credit Safe` mode shows local/free processing and blocks Google Vids generation unless you unlock it.
+4. The Final Reel step has a pre-render review checklist for row, assets, script, avatar, voice, profile, and final QA.
+5. Final local rendering can run in `Credit Safe` mode without requiring a ready Google Vids profile. Google Vids profiles are required only for avatar/voiceover generation.
+6. Google Vids profile selection now allows added but login-needed profiles. Disabled and limit-used profiles stay blocked; if a login-needed profile is selected, Google Vids may ask you to sign in before generation continues.
+7. `Low-credit Vids` is ON by default. When Vids is unlocked, it spends only on the hook avatar clip and completes the rest with local real-demo editing.
+
+Recommended daily flow:
+
+```text
+Load Excel -> choose ready tool -> check old work -> Build Assets -> Generate/Edit Script -> Prepare/Generate Avatar -> Render Final Reel -> review final MP4
+```
 
 ## Latest Auto Queue, Avatar Pack, And Separate Docs Reader Update
 
@@ -19,15 +37,23 @@ Where to find it:
 
 The Docs page can read one selected doc or all docs in one page. It also includes search, match count, refresh, and a clickable section list.
 
-Basic mode now focuses on the manual quality flow: load Excel, search tool names, open the `Tool idea name` dropdown, click a tool name, then build assets, generate/edit script, prepare avatar prompts, and render/review the final reel step by step. `Credit Safe` stays ON by default so Google Vids generation cannot start accidentally.
+Basic mode now focuses on the manual quality flow: load Excel, search tool names, open the `Tool idea name` dropdown, click a tool name, then build assets, generate/edit script, prepare avatar prompts, and render/review the final reel step by step. `Credit Safe` stays ON by default so Google Vids generation cannot start accidentally. `Low-credit Vids` also stays ON by default; when you unlock Google Vids, it generates only the hook avatar clip and lets the local renderer use real demo assets for the body and CTA.
 
 The Google Vids avatar flow is now an `Avatar Pack`:
 
 ```text
 Scene 1: hook avatar clip
 Scene 2: optional mid-reel focus avatar clip
-Last scene: CTA avatar clip
+Last scene: optional CTA avatar clip
 Body scenes: real tool screenshots / screen recordings / local voiceover
+```
+
+Low-credit mode:
+
+```text
+Google Vids: Scene 1 hook avatar only
+Local render: real tool demo body + CTA/end card + captions + voiceover
+Best use: Instagram Reels where one strong human hook is enough and quota should be saved
 ```
 
 Generated avatar clip names:
@@ -46,7 +72,9 @@ vids-clips/scene-02.mp4
 vids-clips/scene-05.mp4 or vids-clips/scene-06.mp4, depending on selected duration
 ```
 
-During final render, any cached avatar/focus clip keeps its own Google Vids audio. The local voiceover is skipped for that scene to avoid double voice. The remaining body scenes continue to use real tool screenshots/recordings with captions and voiceover.
+During final render, any cached avatar/focus/CTA clip keeps its own Google Vids audio. The local voiceover is skipped for that scene to avoid double voice. The remaining body scenes continue to use real tool screenshots/recordings with captions and voiceover.
+
+All avatar/focus/CTA clips render full-screen in the final 9:16 Reel and do not receive extra local captions, because Google Vids avatar clips can already include captions/audio. Tool demo scenes keep the captured AltFTool screenshots and recordings as the main full-screen visual, so the real UI stays readable instead of becoming a tiny background. For readable screenshots, local captions use a smaller one-word lower strip and URL text is shortened in the caption layer.
 
 Body scene visuals now follow the voiceover meaning:
 
@@ -57,6 +85,8 @@ before / after / proof -> before-after captured screens
 mobile / share / caption -> mobile scroll or share-context screen
 privacy / safe / review -> safety/result screen
 ```
+
+Asset capture also writes a `toolUseGuide` into the asset manifest. Script and render steps use this guide so body scenes explain the real use-flow: open the AltFTool link, show what the tool does, fill or upload fictional demo input, click the visible primary action, and hold the result/output screen for review.
 
 Every rendered scene keeps AltFTool visible through the top brand strip, page frame, caption/footer, or final brand card.
 
@@ -85,6 +115,70 @@ Windows commands:
 ```
 
 `setup-windows.bat` is for first-time setup or dependency repair. `run-windows.bat` is for normal daily dashboard use. The scripts save port, Excel path, and Drive sync folder into `.env` when provided.
+
+## Latest Vids Flow Version Page
+
+The app now has a separate focused Google Vids flow page:
+
+```text
+http://127.0.0.1:4317/vids-flow.html
+```
+
+This page is similar to the `Open Version 1` link, but it is for the newer Google Vids workflow. It keeps the main Basic dashboard clean while giving a direct step-by-step path for:
+
+1. Load default Excel and tool idea names.
+2. Select one tool row.
+3. Build real tool assets.
+4. Generate the reel script.
+5. Prepare Google Vids hook/avatar prompts safely.
+6. Generate Google Vids avatar clips only after Credit Safe is turned off and `VIDS` is typed.
+7. Quick preview or final local render.
+
+Default mode is safe: Credit Safe is ON and Low-credit Vids is ON, so prompt preparation and preview can happen before any Google Vids credits are used.
+
+## Latest Windows LAN / Multi-User Deployment Note
+
+For team usage, use one Windows laptop or desktop as the main server and let same-Wi-Fi users open the dashboard in their own browsers. The browser runs on each user's laptop, but automation runs on the server machine.
+
+Important current status:
+
+```text
+Current dashboard binding: 127.0.0.1
+Current access: local machine only
+Required for LAN sharing: 0.0.0.0 host binding plus PIN/password
+```
+
+Storage behavior:
+
+```text
+Excel uploads/copies      -> server project folder
+screenshots/assets        -> server outputs folder
+Google Vids downloads     -> server outputs folder
+final reels               -> server timestamped tool folder
+tracker workbook          -> server outputs/work-tracker
+client laptop             -> browser UI only, unless user downloads a file
+```
+
+Multi-user operating rules:
+
+1. Multiple users can view the dashboard, select rows, and review scripts.
+2. Heavy jobs should run through a shared queue.
+3. Google Vids automation should lock one profile per active job.
+4. If a Google Vids profile is busy, login-needed, or limit-used, use the next fallback profile.
+5. Final render should normally run one at a time on a laptop, or at most two at a time on a stronger desktop.
+6. Use Quick Preview first, then full Render Final Reel only after review.
+7. Do not expose the dashboard to public internet without authentication.
+
+Recommended server:
+
+```text
+Windows 10/11
+Node.js 20+
+Google Chrome
+16 GB RAM minimum, 32 GB better
+SSD storage
+Stable Wi-Fi or wired LAN
+```
 
 ## Latest Pipeline Update - 30 to 60 Second Reels
 
@@ -361,7 +455,7 @@ partial-google-vids-export-scenes-01-03.mp4
 
 Default Google Vids mode creates one Vids file per scene, exports each scene MP4, stores it in `vids-generated-scenes/scene-XX/`, and caches it as `vids-clips/scene-XX.mp4`. Local rendering then merges the final Reel. The old full-timeline export path is available with `--vids-timeline-export`.
 
-Avatar Pack hybrid mode creates Scene 1 hook, optional Scene 2 focus, and the last CTA in Google Vids, exports each as a short avatar clip, caches them in `vids-clips/`, and then renders the final Reel locally with real tool screenshots and demo recordings:
+Avatar Pack hybrid mode creates Scene 1 hook, optional Scene 2 focus, and the last CTA in Google Vids, exports each as a short avatar clip, caches them in `vids-clips/`, and then renders the final Reel locally with real tool screenshots and demo recordings. The dashboard's default `Low-credit Vids` mode uses only Scene 1 hook generation, so one reel normally needs one Google Vids clip instead of a full hook/focus/CTA pack:
 
 ```bash
 npm run agent:one-video -- --input "/Users/palsahu/workplace/projects/n learn/Book1.xlsx" --row 2 --limit 1 --generate --hook-vids-first --vids-scenes 1 --scene-count 6 --max-scenes 6
@@ -1346,6 +1440,49 @@ Best next upgrades:
 9. Improve quality scoring with deeper blank-frame detection, caption contrast checks, and audio loudness checks.
 10. Add automatic scene splitting from cached full Google Vids exports when ffmpeg is installed.
 ```
+
+## Bulk Script Improvement Prompt
+
+Use this prompt for the next Excel sheet when you want all tool scripts improved into human, understandable 30-50 second viral Hinglish promo scripts:
+
+```text
+Mere paas ek Excel sheet hai jisme multiple tools ki details hain. Is sheet ke sabhi tools ke liye existing script ko improve/rewrite karo.
+
+Excel file path:
+{Excel_File_Path}
+
+Base website:
+https://www.altftool.com/
+
+Goal:
+Har tool ke liye Instagram Reel / YouTube Shorts ke liye 30 se 50 seconds ka human, understandable, viral-style Hinglish promotional script banana hai.
+
+Rules:
+- Original Excel file overwrite mat karna; new improved Excel output file banao.
+- Har row ko usi row ke Tool Name / Idea Name, Tool URL / ROUTES, Short Description, Category, Target Market aur existing script ke basis par process karo.
+- Agar existing script wrong/mismatched lage, structured row fields ko source of truth maan kar new script banao.
+- Script boring ad jaisi nahi honi chahiye; user scroll roke, tool samjhe, save/share/comment kare.
+- AltFTool ka mention har script, caption, and CTA me hona chahiye.
+- Real use-case explain karo: open tool, input/demo data, run/action, result/review.
+- Fake UI, fake feature, ya real personal data use mat karo.
+
+Add columns:
+Improved Script Type, Improved Duration Seconds, Improved Hook, Improved Body, Improved CTA, Improved Scene Breakdown, Improved Reel Script 30-50s, Improved On Screen Text, Improved Instagram Caption, Improved Hashtags, Improved AI Video Prompt, Improved Tool Use Flow, Improvement Notes.
+
+Script format:
+Hinglish, 30-50 seconds, Hook 0-5s, Body 5-30/40s, CTA last 5-10s. Scene breakdown 10-second scenes me do. Caption me tool name, benefit, AltFTool link, save/comment CTA, and 10-15 hashtags include karo.
+
+Validation:
+total rows processed, empty script count, duration range check, AltFTool mention check, and first 3 sample scripts show karo.
+```
+
+Local command:
+
+```bash
+node scripts/improve-altf400-scripts.mjs "{Excel_File_Path}" "outputs/script-improvements/improved-scripts-latest.xlsx"
+```
+
+The loader now prefers `Improved Reel Script 30-50s` over old `View Script` when importing an improved workbook.
 
 ## Recommended Way To Work
 

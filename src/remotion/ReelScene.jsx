@@ -28,6 +28,14 @@ function splitWords(value) {
   return cleanText(value).split(" ").filter(Boolean);
 }
 
+function captionReadableText(value) {
+  return cleanText(value)
+    .replace(/https?:\/\/[^\s]+/gi, "AltFTool link")
+    .replace(/\bwww\.[^\s]+/gi, "AltFTool link")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function toolInitials(toolName) {
   const words = cleanText(toolName, "Tool")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
@@ -107,6 +115,17 @@ function mediaSource(media) {
     return media;
   }
   return media?.src || media?.publicPath || "";
+}
+
+function isAvatarClipMedia(media) {
+  const marker = [
+    mediaSource(media),
+    media?.kind,
+    media?.badge,
+    media?.label,
+    media?.note
+  ].filter(Boolean).join(" ").toLowerCase();
+  return /\b(avatar|hook|cta|focus|presenter|creator|host|talking[- ]?head)\b/.test(marker);
 }
 
 function cachedVidsMedia(assets, sceneIndex, totalScenes = 6) {
@@ -193,6 +212,130 @@ function afterDemoAsset(assets = {}) {
   return firstAvailable(assets.demoFocusAfter, assets.demoAfter, assets.toolReadable, assets.desktopFull, assets.desktop, assets.landing);
 }
 
+function inputDemoAsset(assets = {}) {
+  return firstAvailable(assets.demoInputs, assets.demoFocusBefore, assets.demoBefore, assets.toolReadable, assets.desktop, assets.landing);
+}
+
+function mediaItem(source, meta = {}) {
+  const src = mediaSource(source);
+  if (!src) {
+    return null;
+  }
+  if (source && typeof source === "object") {
+    return { ...source, ...meta, src };
+  }
+  return { src, ...meta };
+}
+
+function uniqueMediaItems(items) {
+  const seen = new Set();
+  return items.filter(Boolean).filter((item) => {
+    const source = mediaSource(item);
+    if (!source || seen.has(source)) {
+      return false;
+    }
+    seen.add(source);
+    return true;
+  });
+}
+
+function demoMediaSequence(assets = {}, scene = {}, sceneIndex = 0, totalScenes = 6, primaryMedia = "") {
+  const text = sceneNarrationText(scene);
+  const introShots = [
+    mediaItem(assets.landing, { demoTitle: "TOOL NAME PAGE", badge: "ALT F TOOL OPEN" }),
+    mediaItem(assets.toolReadable, { demoTitle: "FULL PAGE VIEW", badge: "TOOL PAGE VISIBLE" }),
+    mediaItem(assets.desktopFull, { demoTitle: "FULL PAGE VIEW", badge: "COMPLETE PAGE" })
+  ];
+  const inputShots = [
+    mediaItem(assets.demoInputs, { demoTitle: "REAL INPUT DEMO", badge: "INPUT VALUES FILLED", objectPosition: "50% 48%" }),
+    mediaItem(assets.demoBefore, { demoTitle: "INPUT AREA", badge: "BEFORE RUN" }),
+    mediaItem(assets.demoFocusBefore, { demoTitle: "INPUT CLOSE-UP", badge: "INPUT FOCUS" })
+  ];
+  const actionShots = [
+    mediaItem(assets.demoVideo, { demoTitle: "SCREEN RECORD", badge: "LIVE TOOL FLOW" }),
+    mediaItem(assets.mobileScroll, { demoTitle: "MOBILE SCROLL", badge: "PHONE VIEW" })
+  ];
+  const resultShots = [
+    mediaItem(assets.demoAfter, { demoTitle: "RESULT SCREEN", badge: "OUTPUT REVIEW", objectPosition: "50% 48%" }),
+    mediaItem(assets.demoFocusAfter, { demoTitle: "RESULT CLOSE-UP", badge: "RESULT FOCUS", objectPosition: "50% 48%" })
+  ];
+  const primaryShot = mediaItem(primaryMedia, { demoTitle: "ACTUAL TOOL DEMO", badge: mediaPurposeLabel(scene, sceneIndex, totalScenes) });
+
+  if (sceneIndex === 1) {
+    return uniqueMediaItems([
+      ...introShots,
+      ...inputShots,
+      ...actionShots,
+      ...resultShots,
+      primaryShot
+    ]).slice(0, 5);
+  }
+
+  if (/(result|output|summary|checklist|warning|next step|review-ready|ready|after)/.test(text)) {
+    return uniqueMediaItems([
+      ...resultShots,
+      ...actionShots,
+      ...inputShots,
+      ...introShots,
+      primaryShot
+    ]).slice(0, 5);
+  }
+
+  if (/(input|fill|upload|click|run|workflow|step|demo|use case|use-case|tool page|actual tool|kaise|how to use)/.test(text)) {
+    return uniqueMediaItems([
+      ...inputShots,
+      ...actionShots,
+      ...resultShots,
+      ...introShots,
+      primaryShot
+    ]).slice(0, 5);
+  }
+
+  if (/(mobile|phone|scroll|instagram|caption|share|post|publish)/.test(text)) {
+    return uniqueMediaItems([
+      ...actionShots,
+      mediaItem(assets.mobile, { demoTitle: "MOBILE VIEW", badge: "PHONE SCREEN" }),
+      ...resultShots,
+      ...inputShots,
+      primaryShot
+    ]).slice(0, 5);
+  }
+
+  return uniqueMediaItems([
+    primaryShot,
+    ...introShots,
+    ...inputShots,
+    ...actionShots,
+    ...resultShots
+  ]).slice(0, 5);
+}
+
+function activeDemoShot({ assets, scene, sceneIndex, totalScenes, toolMedia, frame, fps, sceneDurationFrames }) {
+  const sequence = demoMediaSequence(assets, scene, sceneIndex, totalScenes, toolMedia);
+  if (!sequence.length) {
+    return {
+      media: toolMedia,
+      slotFrame: frame,
+      slotIndex: 0,
+      sequence
+    };
+  }
+
+  const sceneFrames = Math.max(1, Number(sceneDurationFrames || fps * 10));
+  const minFrames = Math.max(1, Math.round(fps * 2));
+  const maxFrames = Math.max(minFrames, Math.round(fps * 4));
+  const slotFrames = Math.max(minFrames, Math.min(maxFrames, Math.ceil(sceneFrames / sequence.length)));
+  const slotIndex = Math.min(sequence.length - 1, Math.floor(frame / slotFrames));
+
+  return {
+    media: sequence[slotIndex],
+    slotFrame: Math.max(0, frame - slotIndex * slotFrames),
+    slotIndex,
+    slotFrames,
+    sequence
+  };
+}
+
 function toolMediaForScene(assets, scene = {}, sceneIndex = 0, totalScenes = 6) {
   const text = sceneNarrationText(scene);
   if (sceneIndex === 0) {
@@ -208,7 +351,7 @@ function toolMediaForScene(assets, scene = {}, sceneIndex = 0, totalScenes = 6) 
     return firstAvailable(assets.mobileScroll, assets.mobile, afterDemoAsset(assets), assets.demoVideo, assets.toolReadable, assets.desktop);
   }
   if (/(before|manual|messy|problem|risk|mistake)/.test(text) && !/(after|result|output)/.test(text)) {
-    return firstAvailable(beforeDemoAsset(assets), assets.demoVideo, assets.mobile);
+    return firstAvailable(inputDemoAsset(assets), assets.demoVideo, assets.mobile);
   }
   if (shouldUseBeforeAfterScene(assets, scene, sceneIndex, totalScenes)) {
     return firstAvailable(afterDemoAsset(assets), beforeDemoAsset(assets), assets.demoVideo);
@@ -217,9 +360,9 @@ function toolMediaForScene(assets, scene = {}, sceneIndex = 0, totalScenes = 6) 
     return firstAvailable(afterDemoAsset(assets), assets.demoVideo, assets.mobileScroll, assets.toolReadable, assets.desktop);
   }
   if (/(input|fill|click|run|workflow|step|demo|use case|use-case|tool page|actual tool)/.test(text)) {
-    return firstAvailable(assets.demoVideo, assets.toolReadable, assets.mobileScroll, beforeDemoAsset(assets), assets.mobile, afterDemoAsset(assets));
+    return firstAvailable(assets.demoInputs, assets.demoVideo, assets.toolReadable, assets.mobileScroll, beforeDemoAsset(assets), assets.mobile, afterDemoAsset(assets));
   }
-  return firstAvailable(assets.demoVideo, assets.toolReadable, assets.mobileScroll, afterDemoAsset(assets), assets.mobile, assets.desktop, beforeDemoAsset(assets));
+  return firstAvailable(assets.demoVideo, assets.demoInputs, assets.toolReadable, assets.mobileScroll, afterDemoAsset(assets), assets.mobile, assets.desktop, beforeDemoAsset(assets));
 }
 
 function firstStrongLine(scene, toolName, sceneIndex) {
@@ -277,31 +420,55 @@ function captionWordWindow(words, activeIndex, windowSize) {
   }));
 }
 
-function demoLayoutForVariant(variant, portraitLike) {
+function normalizeCaptionWord(value = "") {
+  return cleanText(value).replace(/[^\p{L}\p{N}]+/gu, "").toLowerCase();
+}
+
+function isCaptionPowerWord(word = "") {
+  const clean = normalizeCaptionWord(word);
+  return /^(altftool|altf|tool|free|save|share|try|link|caption|result|output|warning|risk|review|demo|input|run|click|fast|quick|easy|simple|smart|ai|secret|mistake|stop|wait|देखो|रुको|save|comment)$/i.test(clean)
+    || clean.length >= 9;
+}
+
+function demoLayoutForVariant(variant, portraitLike, readableScreen = false) {
   const base = {
-    cardInset: portraitLike ? "96px 38px 320px" : "154px 28px 350px",
-    cardRadius: portraitLike ? 34 : 28,
-    cardBorder: "5px solid rgba(255,255,255,0.9)",
-    cardShadow: "0 36px 110px rgba(0,0,0,0.34)",
-    top: { left: 48, right: 48, top: 48 },
-    chipsTop: portraitLike ? 1360 : 1276,
-    chipsLeft: 58,
-    chipsRight: 58,
+    cardInset: portraitLike ? "58px 16px 236px" : "76px 14px 248px",
+    cardRadius: portraitLike ? 26 : 22,
+    cardBorder: "3px solid rgba(255,255,255,0.84)",
+    cardShadow: "0 30px 100px rgba(0,0,0,0.36)",
+    top: { left: 28, right: 28, top: 28 },
+    chipsTop: portraitLike ? 1438 : 1410,
+    chipsLeft: 32,
+    chipsRight: 32,
     rotate: "0deg",
     backgroundAngle: 150
   };
 
+  if (readableScreen) {
+    return {
+      ...base,
+      cardInset: "0px",
+      cardRadius: 0,
+      cardBorder: "0 solid transparent",
+      cardShadow: "none",
+      top: { left: 12, right: 12, top: 12 },
+      chipsTop: 0,
+      chipsLeft: 0,
+      chipsRight: 0,
+      rotate: "0deg",
+      backgroundAngle: 156
+    };
+  }
+
   if (variant === 1) {
     return {
       ...base,
-      cardInset: portraitLike ? "122px 72px 340px" : "164px 34px 360px",
-      cardRadius: 32,
-      cardBorder: "5px solid rgba(255,255,255,0.9)",
-      cardShadow: "0 38px 120px rgba(0,0,0,0.38)",
-      top: { left: 56, right: 210, top: 54 },
-      chipsTop: portraitLike ? 1378 : 1306,
-      chipsLeft: 80,
-      chipsRight: 80,
+      cardInset: portraitLike ? "72px 22px 238px" : "86px 14px 250px",
+      cardRadius: 24,
+      top: { left: 30, right: 168, top: 32 },
+      chipsTop: portraitLike ? 1432 : 1406,
+      chipsLeft: 34,
+      chipsRight: 34,
       backgroundAngle: 34
     };
   }
@@ -309,14 +476,12 @@ function demoLayoutForVariant(variant, portraitLike) {
   if (variant === 2) {
     return {
       ...base,
-      cardInset: portraitLike ? "82px 30px 345px" : "146px 34px 365px",
-      cardRadius: portraitLike ? 36 : 24,
-      cardBorder: "4px solid rgba(255,255,255,0.78)",
-      cardShadow: "0 42px 130px rgba(0,0,0,0.34)",
-      top: { left: 210, right: 48, top: 54 },
-      chipsTop: portraitLike ? 1350 : 1284,
-      chipsLeft: 52,
-      chipsRight: 150,
+      cardInset: portraitLike ? "46px 12px 244px" : "74px 12px 258px",
+      cardRadius: portraitLike ? 28 : 20,
+      top: { left: 160, right: 28, top: 32 },
+      chipsTop: portraitLike ? 1440 : 1416,
+      chipsLeft: 32,
+      chipsRight: 96,
       backgroundAngle: 214
     };
   }
@@ -324,12 +489,12 @@ function demoLayoutForVariant(variant, portraitLike) {
   if (variant === 3) {
     return {
       ...base,
-      cardInset: portraitLike ? "112px 52px 300px" : "150px 28px 330px",
-      cardRadius: portraitLike ? 30 : 0,
-      top: { left: 48, right: 48, top: 64 },
-      chipsTop: portraitLike ? 1402 : 1326,
-      chipsLeft: 132,
-      chipsRight: 52,
+      cardInset: portraitLike ? "66px 16px 224px" : "82px 10px 238px",
+      cardRadius: portraitLike ? 22 : 0,
+      top: { left: 28, right: 28, top: 38 },
+      chipsTop: portraitLike ? 1450 : 1422,
+      chipsLeft: 88,
+      chipsRight: 30,
       rotate: portraitLike ? "-0.8deg" : "0deg",
       backgroundAngle: 118
     };
@@ -537,6 +702,36 @@ function ToolLogoMark({ toolName, assets, accent, frame, size = 164 }) {
           {toolInitials(toolName)}
         </div>
       )}
+    </div>
+  );
+}
+
+function MiniBrandLogo({ assets, accent, compact = false }) {
+  const source = toolLogoSource(assets);
+  return (
+    <div
+      style={{
+        flex: "0 0 auto",
+        width: compact ? 86 : 112,
+        height: compact ? 39 : 50,
+        borderRadius: compact ? 12 : 15,
+        backgroundColor: "#050a14",
+        border: `${compact ? 2 : 3}px solid ${accent}`,
+        boxShadow: `0 10px 28px ${accent}33`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "hidden"
+      }}
+    >
+      <Img
+        src={remotionImageSource(source)}
+        style={{
+          width: "86%",
+          height: "76%",
+          objectFit: "contain"
+        }}
+      />
     </div>
   );
 }
@@ -859,12 +1054,12 @@ function HostFrame({
   );
 }
 
-function ReelCaption({ text, frame, fps, accent, compact = false, sceneDurationFrames = 300, sceneIndex = 1 }) {
+function ReelCaption({ text, frame, fps, accent, compact = false, demoReadable = false, sceneDurationFrames = 300, sceneIndex = 1 }) {
   const words = splitWords(text);
   if (!words.length) {
     return null;
   }
-  const windowSize = compact ? 4 : 5;
+  const windowSize = demoReadable ? 1 : compact ? 3 : 4;
   const wordHoldFrames = Math.max(4, sceneDurationFrames / Math.max(1, words.length));
   const activeIndex = Math.min(words.length - 1, Math.floor(frame / wordHoldFrames));
   const visibleWords = captionWordWindow(words, activeIndex, windowSize);
@@ -880,24 +1075,29 @@ function ReelCaption({ text, frame, fps, accent, compact = false, sceneDurationF
     extrapolateRight: "clamp",
     easing: Easing.bezier(0.16, 1, 0.3, 1)
   });
-  const shine = interpolate(frame % 64, [0, 32, 64], [0.08, 0.32, 0.08], {
+  const lineVariant = sceneIndex % 3;
+  const captionZone = demoReadable
+    ? { left: 150, right: 150, top: "84%", bottom: "3%" }
+    : compact
+    ? { left: 88, right: 88, top: "59%", bottom: "21%" }
+    : lineVariant === 2
+      ? { left: 72, right: 92, top: "58%", bottom: "20%" }
+      : { left: 64, right: 64, top: "60%", bottom: "20%" };
+  const longestWord = visibleWords.reduce((max, item) => Math.max(max, item.word.length), 0);
+  const baseFontSize = demoReadable
+    ? longestWord > 13 ? 28 : 33
+    : longestWord > 13 ? (compact ? 48 : 58) : (compact ? 54 : 66);
+  const activeScale = interpolate(pop, [0, 1], [0.9, demoReadable ? 1.1 : 1.22], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp"
   });
-  const lineVariant = sceneIndex % 3;
-  const captionBottom = compact ? 185 : lineVariant === 1 ? 146 : 168;
-  const captionWidth = compact ? { left: 104, right: 104 } : lineVariant === 2 ? { left: 86, right: 118 } : { left: 64, right: 64 };
-  const longestWord = visibleWords.reduce((max, item) => Math.max(max, item.word.length), 0);
-  const baseFontSize = compact ? 46 : 58;
-  const fontSize = longestWord > 13 ? baseFontSize - 6 : baseFontSize;
+  const captionColors = ["#ffffff", "#FFD700", "#67e8f9", "#ffffff", "#fde68a"];
 
   return (
     <div
       style={{
         position: "absolute",
-        ...captionWidth,
-        bottom: captionBottom,
-        minHeight: compact ? 112 : 136,
+        ...captionZone,
         display: "grid",
         alignItems: "center",
         justifyItems: "center",
@@ -909,54 +1109,64 @@ function ReelCaption({ text, frame, fps, accent, compact = false, sceneDurationF
         style={{
           position: "relative",
           width: "100%",
-          minHeight: compact ? 112 : 136,
-          padding: compact ? "24px 28px 22px" : "30px 38px 28px",
-          borderRadius: 24,
-          backgroundColor: "rgba(7, 12, 22, 0.94)",
-          border: "4px solid rgba(255,255,255,0.86)",
-          boxShadow: `0 18px 0 rgba(0,0,0,0.22), 0 32px 90px rgba(0,0,0,0.42), inset 0 0 0 3px ${accent}77`,
-          overflow: "hidden",
           display: "flex",
           alignItems: "center",
-          justifyContent: "center"
+          justifyContent: "center",
+          overflow: "visible"
         }}
       >
         <div
           style={{
-            position: "absolute",
-            inset: 0,
-            background: `linear-gradient(110deg, rgba(255,255,255,0) 0%, rgba(255,255,255,${shine}) 42%, rgba(255,255,255,0) 72%)`,
-            translate: `${interpolate(frame % 64, [0, 64], [-520, 520], {
-              extrapolateLeft: "clamp",
-              extrapolateRight: "clamp"
-            })}px 0px`
-          }}
-        />
-        <div
-          style={{
             position: "relative",
             zIndex: 1,
-            fontSize,
-            lineHeight: 1.06,
+            fontSize: baseFontSize,
+            lineHeight: 1.02,
             fontWeight: 980,
             textAlign: "center",
             textWrap: "balance",
-            textShadow: "0 4px 0 #000000, 0 0 18px rgba(0,0,0,0.72)"
+            textTransform: "uppercase",
+            letterSpacing: 0,
+            textShadow: demoReadable
+              ? "0 2px 0 #000000, 0 0 8px rgba(0,0,0,0.66), 0 5px 14px rgba(0,0,0,0.48)"
+              : "0 5px 0 #000000, 0 0 22px rgba(0,0,0,0.86), 0 10px 34px rgba(0,0,0,0.78)"
           }}
         >
           {visibleWords.map((item, index) => {
+            const isLong = item.word.length > 10;
+            const powerWord = isCaptionPowerWord(item.word);
+            const rhythmScale = index % 3 === 1 ? 1.04 : index % 3 === 2 ? 0.88 : 0.96;
+            const sizeEm = item.active
+              ? powerWord ? 1.34 : 1.22
+              : powerWord
+                ? 1.12
+                : isLong
+                  ? 0.76
+                  : index % 3 === 2
+                    ? 0.82
+                    : 0.92;
+            const color = item.active
+              ? "#FFD700"
+              : powerWord
+                ? ((item.sourceIndex + sceneIndex) % 2 === 0 ? "#67e8f9" : "#fde68a")
+                : captionColors[(item.sourceIndex + sceneIndex) % captionColors.length];
+            const strokeWidth = demoReadable
+              ? item.active ? 1.4 : powerWord ? 1 : 0.7
+              : item.active ? 2.7 : powerWord ? 2 : 1.35;
             return (
               <React.Fragment key={`${item.word}-${item.sourceIndex}`}>
                 <span
                   style={{
                     display: "inline-block",
-                    color: item.active ? "#FFD700" : "#ffffff",
-                    scale: item.active ? interpolate(pop, [0, 1], [0.92, 1.12], {
-                      extrapolateLeft: "clamp",
-                      extrapolateRight: "clamp"
-                    }) : 1,
-                    opacity: item.active ? 1 : 0.82,
-                    WebkitTextStroke: item.active ? "1.5px #111827" : "0.5px #111827"
+                    color,
+                    fontSize: `${sizeEm}em`,
+                    scale: item.active ? activeScale : rhythmScale,
+                    opacity: item.active ? 1 : powerWord ? 0.94 : 0.78,
+                    margin: demoReadable ? "0 3px" : powerWord ? "0 7px" : "0 4px",
+                    WebkitTextStroke: `${strokeWidth}px #050a14`,
+                    transformOrigin: "50% 62%",
+                    filter: demoReadable
+                      ? item.active ? `drop-shadow(0 0 7px ${accent}55)` : powerWord ? `drop-shadow(0 0 5px ${accent}44)` : "drop-shadow(0 4px 8px rgba(0,0,0,0.36))"
+                      : item.active ? `drop-shadow(0 0 20px ${accent}88)` : powerWord ? `drop-shadow(0 0 14px ${accent}55)` : "drop-shadow(0 8px 16px rgba(0,0,0,0.52))"
                   }}
                 >
                   {item.word}
@@ -966,31 +1176,6 @@ function ReelCaption({ text, frame, fps, accent, compact = false, sceneDurationF
             );
           })}
         </div>
-        <div
-          style={{
-            position: "absolute",
-            left: 22,
-            bottom: 16,
-            width: `${Math.max(9, ((activeIndex + 1) / words.length) * 100)}%`,
-            maxWidth: "calc(100% - 44px)",
-            height: 7,
-            borderRadius: 999,
-            backgroundColor: "#FFD700",
-            opacity: 0.92
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            right: 22,
-            top: 17,
-            width: 48,
-            height: 48,
-            borderRadius: 999,
-            border: "5px solid rgba(255,255,255,0.92)",
-            boxShadow: `0 0 0 9px ${accent}55`
-          }}
-        />
       </div>
     </div>
   );
@@ -1070,6 +1255,11 @@ function CursorCallout({ frame, accent, variant = "demo" }) {
 function isMobileLikeMedia(media) {
   const source = mediaSource(media).toLowerCase();
   return /mobile|phone|vertical|portrait|scroll/.test(source);
+}
+
+function isReadableScreenMedia(media) {
+  const source = mediaSource(media).toLowerCase();
+  return /(tool-readable|desktop-landing|desktop-demo|desktop-top|desktop-full-page|mobile-top|mobile-scroll|screenshot|screen-record)/.test(source);
 }
 
 function AltFToolOpenOverlay({ sceneIndex, toolName, toolUrl, assets, frame, fps, accent }) {
@@ -1185,41 +1375,60 @@ function AltFToolOpenOverlay({ sceneIndex, toolName, toolUrl, assets, frame, fps
   );
 }
 
-function FullscreenDemoMedia({ media, scene, sceneIndex, totalScenes, toolName, toolUrl, assets, frame, fps, accent }) {
+function FullscreenDemoMedia({ media, scene, sceneIndex, totalScenes, toolName, toolUrl, assets, frame, fps, accent, sequenceInfo }) {
   const source = mediaSource(media);
+  const mediaMeta = media && typeof media === "object" ? media : {};
   const portraitLike = isMobileLikeMedia(media);
   const text = sceneNarrationText(scene);
   const variant = visualVariantFor(toolName, sceneIndex, totalScenes);
-  const layout = demoLayoutForVariant(variant, portraitLike);
   const lowerSource = source.toLowerCase();
-  const readableScreen = /(tool-readable|desktop-landing|desktop-demo|desktop-top|desktop-full-page|mobile-top|mobile-scroll)/.test(lowerSource);
-  const mediaFit = lowerSource.includes("mobile") && !lowerSource.includes("scroll") ? "cover" : "contain";
-  const objectPosition = /(result|output|after|review|summary|warning)/.test(text)
-    ? "50% 42%"
-    : /(input|fill|upload|click|run|button|workflow)/.test(text)
-      ? "50% 50%"
+  const readableScreen = isReadableScreenMedia(media);
+  const layout = demoLayoutForVariant(variant, portraitLike, readableScreen);
+  const mediaFit = mediaMeta.objectFit || (readableScreen ? "contain" : lowerSource.includes("mobile") && !lowerSource.includes("scroll") ? "cover" : "contain");
+  const objectPosition = mediaMeta.objectPosition || (readableScreen
+    ? /(result|output|after|review|summary|warning)/.test(text)
+      ? "50% 48%"
+      : /(input|fill|upload|click|run|button|workflow)/.test(text)
+        ? "50% 46%"
+        : "50% 44%"
+    : /(result|output|after|review|summary|warning)/.test(text)
+      ? "50% 42%"
+      : /(input|fill|upload|click|run|button|workflow)/.test(text)
+        ? "50% 50%"
       : sceneIndex === 1
         ? "50% 18%"
-        : "50% 46%";
+        : "50% 46%");
   const zoomStart = readableScreen ? 1 : portraitLike ? 1.01 : 1.04;
-  const zoomEnd = readableScreen ? 1.045 : portraitLike ? 1.06 : 1.1;
+  const zoomEnd = readableScreen ? 1 : portraitLike ? 1.06 : 1.1;
   const zoom = interpolate(frame, [0, Math.round(fps * 10)], [zoomStart, zoomEnd], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: Easing.bezier(0.16, 1, 0.3, 1)
   });
-  const yPan = interpolate(frame, [0, Math.round(fps * 10)], portraitLike ? [0, -24] : variant === 3 ? [8, -22] : [24, -34], {
+  const yPan = interpolate(frame, [0, Math.round(fps * 10)], readableScreen ? [0, 0] : portraitLike ? [0, -24] : variant === 3 ? [8, -22] : [24, -34], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: Easing.bezier(0.33, 0, 0.2, 1)
   });
   const xPanPoints = variant === 1 ? [-24, 10] : variant === 2 ? [18, -22] : sceneIndex % 2 ? [-16, 16] : [14, -14];
-  const xPan = interpolate(frame, [0, Math.round(fps * 10)], xPanPoints, {
+  const xPan = interpolate(frame, [0, Math.round(fps * 10)], readableScreen ? [0, 0] : xPanPoints, {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: Easing.bezier(0.33, 0, 0.2, 1)
   });
-  const badge = mediaPurposeLabel(scene, sceneIndex, totalScenes);
+  const useGuideShot = /(how to use|kaise|use karo|use karna|input|fill|upload|click|run|workflow|step|demo)/i.test(text);
+  const inputFilledShot = /desktop-demo-inputs|input/.test(lowerSource);
+  const outputShot = /(result|output|after|review|summary|warning)/i.test(text);
+  const demoTitle = mediaMeta.demoTitle || (inputFilledShot ? "REAL INPUT DEMO" : useGuideShot ? "HOW TO USE DEMO" : "ACTUAL TOOL DEMO");
+  const badge = mediaMeta.badge || (inputFilledShot
+    ? "INPUT VALUES FILLED"
+    : useGuideShot
+      ? "OPEN -> INPUT -> RUN -> REVIEW"
+      : outputShot
+        ? "RESULT REVIEW"
+        : mediaPurposeLabel(scene, sceneIndex, totalScenes));
+  const shotCount = sequenceInfo?.sequence?.length || 0;
+  const shotLabel = shotCount > 1 ? `SHOT ${Number(sequenceInfo.slotIndex || 0) + 1}/${shotCount}` : "";
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#020617", overflow: "hidden" }}>
@@ -1270,34 +1479,37 @@ function FullscreenDemoMedia({ media, scene, sceneIndex, totalScenes, toolName, 
         style={{
           position: "absolute",
           ...layout.top,
-          minHeight: 82,
+          minHeight: readableScreen ? 50 : 82,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 18,
-          padding: "16px 20px",
-          borderRadius: 24,
-          backgroundColor: "rgba(255,255,255,0.94)",
-          border: "3px solid rgba(255,255,255,0.9)",
-          boxShadow: "0 20px 70px rgba(0,0,0,0.28)"
+          gap: readableScreen ? 12 : 18,
+          padding: readableScreen ? "8px 11px" : "16px 20px",
+          borderRadius: readableScreen ? 14 : 24,
+          backgroundColor: readableScreen ? "rgba(255,255,255,0.82)" : "rgba(255,255,255,0.94)",
+          border: readableScreen ? "1px solid rgba(255,255,255,0.68)" : "3px solid rgba(255,255,255,0.9)",
+          boxShadow: readableScreen ? "0 10px 34px rgba(0,0,0,0.18)" : "0 20px 70px rgba(0,0,0,0.28)"
         }}
       >
-        <div style={{ minWidth: 0 }}>
-          <div style={{ color: accent, fontSize: 22, lineHeight: 1, fontWeight: 980 }}>
-            ACTUAL TOOL DEMO
-          </div>
-          <div style={{ marginTop: 7, color: Palette.ink, fontSize: 31, lineHeight: 1, fontWeight: 940, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {brandedToolDisplay(toolName, 44)}
+        <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: readableScreen ? 10 : 14 }}>
+          <MiniBrandLogo assets={assets} accent={accent} compact={readableScreen} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: accent, fontSize: readableScreen ? 14 : 22, lineHeight: 1, fontWeight: 980 }}>
+              {demoTitle}
+            </div>
+            <div style={{ marginTop: readableScreen ? 4 : 7, color: Palette.ink, fontSize: readableScreen ? 21 : 31, lineHeight: 1, fontWeight: 940, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {brandedToolDisplay(toolName, readableScreen ? 52 : 44)}
+            </div>
           </div>
         </div>
         <div
           style={{
             flex: "0 0 auto",
-            padding: "13px 17px",
+            padding: readableScreen ? "8px 11px" : "13px 17px",
             borderRadius: 999,
             backgroundColor: "#111827",
             color: "#FFD700",
-            fontSize: 20,
+            fontSize: readableScreen ? 15 : 20,
             fontWeight: 960,
             lineHeight: 1
           }}
@@ -1306,31 +1518,32 @@ function FullscreenDemoMedia({ media, scene, sceneIndex, totalScenes, toolName, 
         </div>
       </div>
 
-      <div
-        style={{
-          position: "absolute",
-          left: layout.chipsLeft,
-          right: layout.chipsRight,
-          top: layout.chipsTop,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12
-        }}
-      >
-        {[badge, "Fictional demo data", compactDomain(toolUrl)].filter(Boolean).map((label, index) => (
+      {!readableScreen ? (
+        <div
+          style={{
+            position: "absolute",
+            left: layout.chipsLeft,
+            right: layout.chipsRight,
+            top: layout.chipsTop,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12
+          }}
+        >
+          {[badge, shotLabel || "Fictional demo data", compactDomain(toolUrl)].filter(Boolean).map((label, index) => (
           <div
             key={`${label}-${index}`}
             style={{
               minWidth: 0,
               flex: index === 0 ? "1.2 1 0" : "1 1 0",
-              padding: "15px 16px",
+              padding: readableScreen ? "11px 14px" : "15px 16px",
               borderRadius: 999,
               backgroundColor: index === 0 ? accent : "rgba(255,255,255,0.92)",
               color: index === 0 ? "#ffffff" : Palette.ink,
               border: index === 0 ? "0 solid transparent" : "3px solid rgba(255,255,255,0.76)",
-              boxShadow: "0 16px 48px rgba(0,0,0,0.22)",
-              fontSize: 21,
+              boxShadow: readableScreen ? "0 10px 34px rgba(0,0,0,0.2)" : "0 16px 48px rgba(0,0,0,0.22)",
+              fontSize: readableScreen ? 18 : 21,
               lineHeight: 1,
               fontWeight: 930,
               textAlign: "center",
@@ -1341,8 +1554,9 @@ function FullscreenDemoMedia({ media, scene, sceneIndex, totalScenes, toolName, 
           >
             {label}
           </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : null}
       <AltFToolOpenOverlay
         sceneIndex={sceneIndex}
         toolName={toolName}
@@ -1390,7 +1604,7 @@ function HookScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, 
           position: "absolute",
           left: 74,
           top: 162,
-          width: 535,
+          width: 485,
           translate: `0px ${titleIn}px`
         }}
       >
@@ -1422,14 +1636,14 @@ function HookScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, 
         </div>
         <div
           style={{
-            marginTop: 24,
-            color: Palette.slate,
-            fontSize: 36,
-            lineHeight: 1.16,
-            fontWeight: 760
-          }}
-        >
-          {supportingLine(scene, 105)}
+          marginTop: 24,
+          color: Palette.slate,
+          fontSize: 32,
+          lineHeight: 1.16,
+          fontWeight: 760
+        }}
+      >
+          {supportingLine(scene, 88)}
         </div>
       </div>
 
@@ -1551,10 +1765,63 @@ function HookVideoLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl,
         <div>{String(scene.scene_number || sceneIndex + 1).padStart(2, "0")} / {String(totalScenes).padStart(2, "0")}</div>
       </div>
 
-      <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent="#FFD700" />
-      <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: "rgba(255,255,255,0.82)", fontSize: 22, fontWeight: 700 }}>
-        {clampText(toolUrl || "altftool.com", 74)}
+    </AbsoluteFill>
+  );
+}
+
+function AvatarVideoLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, generatedClip, frame, fps, accent, sceneDurationFrames, fade }) {
+  const labelIn = interpolate(frame, [0, 24], [-34, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.16, 1, 0.3, 1)
+  });
+  const badge = cleanText(generatedClip?.badge, "AI AVATAR VIDEO");
+
+  return (
+    <AbsoluteFill style={{ opacity: fade, overflow: "hidden", backgroundColor: "#020617" }}>
+      <div style={{ ...fullBleed }}>
+        <MediaLayer
+          media={{ ...generatedClip, muted: false, loop: false, objectFit: "cover" }}
+          fit="cover"
+          fps={fps}
+          style={{ ...fullBleed }}
+          objectPosition="50% 42%"
+        />
       </div>
+      <div style={{ ...fullBleed, background: "linear-gradient(180deg, rgba(2,6,23,0.18) 0%, rgba(2,6,23,0.04) 44%, rgba(2,6,23,0.82) 100%)" }} />
+      <div style={{ ...fullBleed, boxShadow: `inset 0 0 0 16px ${accent}` , opacity: 0.72 }} />
+
+      <div
+        style={{
+          position: "absolute",
+          left: 54,
+          right: 54,
+          top: 48,
+          minHeight: 74,
+          padding: "13px 16px",
+          borderRadius: 999,
+          backgroundColor: "rgba(255,255,255,0.94)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
+          boxShadow: "0 20px 72px rgba(0,0,0,0.28)",
+          translate: `0px ${labelIn}px`
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div style={{ color: accent, fontSize: 18, lineHeight: 1, fontWeight: 980, textTransform: "uppercase" }}>
+            {clampText(badge, 28)}
+          </div>
+          <div style={{ marginTop: 6, color: Palette.ink, fontSize: 28, lineHeight: 1, fontWeight: 950, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {brandedToolDisplay(toolName, 42)}
+          </div>
+        </div>
+        <div style={{ flex: "0 0 auto", color: Palette.ink, fontSize: 21, lineHeight: 1, fontWeight: 900 }}>
+          {String(scene.scene_number || sceneIndex + 1).padStart(2, "0")} / {String(totalScenes).padStart(2, "0")}
+        </div>
+      </div>
+
     </AbsoluteFill>
   );
 }
@@ -1613,28 +1880,8 @@ function CtaAvatarLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl,
             </div>
           </div>
 
-          <ReelCaption
-            text={scene.voiceover || `Try ${brandedToolDisplay(toolName, 36)}. Link caption me hai.`}
-            frame={frame}
-            fps={fps}
-            accent="#FFD700"
-            compact
-            sceneDurationFrames={sceneDurationFrames}
-            sceneIndex={sceneIndex}
-          />
-          <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent="#FFD700" />
         </>
       ) : null}
-
-      <EndBrandCard
-        toolName={toolName}
-        toolUrl={toolUrl}
-        assets={assets}
-        frame={frame}
-        fps={fps}
-        accent={accent}
-        sceneDurationFrames={sceneDurationFrames}
-      />
     </AbsoluteFill>
   );
 }
@@ -1729,53 +1976,88 @@ function IntroScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
 
 function DemoScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, toolMedia, generatedClip, frame, fps, accent, sceneDurationFrames, fade }) {
   const isWorkflow = sceneIndex > 2;
+  const activeShot = activeDemoShot({
+    assets,
+    scene,
+    sceneIndex,
+    totalScenes,
+    toolMedia,
+    frame,
+    fps,
+    sceneDurationFrames
+  });
+  const activeMedia = activeShot.media || toolMedia;
+  const readableDemoMedia = isReadableScreenMedia(activeMedia);
+  const demoCaptionText = readableDemoMedia ? captionReadableText(scene.voiceover) : scene.voiceover;
   const presenterIn = interpolate(frame, [20, 48], [120, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: Easing.bezier(0.16, 1, 0.3, 1)
   });
+  const hostStyle = readableDemoMedia
+    ? {
+      right: 28,
+      top: 1218,
+      width: 162,
+      height: 220,
+      translate: `${presenterIn}px 0px`
+    }
+    : {
+      right: 42,
+      top: 1110,
+      width: 220,
+      height: 300,
+      translate: `${presenterIn}px 0px`
+    };
 
   return (
     <AbsoluteFill style={{ opacity: fade, overflow: "hidden" }}>
       <FullscreenDemoMedia
-        media={toolMedia}
+        media={activeMedia}
         scene={scene}
         sceneIndex={sceneIndex}
         totalScenes={totalScenes}
         toolName={toolName}
         toolUrl={toolUrl}
         assets={assets}
-        frame={frame}
+        frame={activeShot.slotFrame}
         fps={fps}
         accent={accent}
+        sequenceInfo={activeShot}
       />
-      <CursorCallout frame={frame} accent={accent} variant={isWorkflow ? "workflow" : "demo"} />
+      <CursorCallout frame={activeShot.slotFrame} accent={accent} variant={isWorkflow ? "workflow" : "demo"} />
 
-      {generatedClip || assets.avatarHost ? (
+      {assets.avatarHost && !generatedClip ? (
         <HostFrame
           avatarHost={assets.avatarHost}
-          generatedClip={generatedClip}
           fps={fps}
           accent={accent}
-          label={generatedClip ? "Avatar clip" : "Host note"}
+          label="Host note"
           sublabel="explaining steps"
           presenterStyle={assets.hookAvatarStyle || "female"}
-          style={{
-            right: 42,
-            top: 1110,
-            width: 220,
-            height: 300,
-            translate: `${presenterIn}px 0px`
-          }}
+          style={hostStyle}
           objectPosition="54% 42%"
         />
       ) : null}
 
-      <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} sceneDurationFrames={sceneDurationFrames} sceneIndex={sceneIndex} />
-      <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent="#FFD700" />
-      <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: "rgba(255,255,255,0.78)", fontSize: 22, fontWeight: 700 }}>
-        {clampText(toolUrl || "altftool.com", 74)}
-      </div>
+      <ReelCaption
+        text={demoCaptionText}
+        frame={frame}
+        fps={fps}
+        accent={accent}
+        compact={readableDemoMedia}
+        demoReadable={readableDemoMedia}
+        sceneDurationFrames={sceneDurationFrames}
+        sceneIndex={sceneIndex}
+      />
+      {!readableDemoMedia ? (
+        <>
+          <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent="#FFD700" />
+          <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: "rgba(255,255,255,0.78)", fontSize: 22, fontWeight: 700 }}>
+            {clampText(toolUrl || "altftool.com", 74)}
+          </div>
+        </>
+      ) : null}
     </AbsoluteFill>
   );
 }
@@ -2098,7 +2380,9 @@ export const ReelScene = ({ scene, sceneIndex, totalScenes = 6, sceneDurationSec
   const accent = accents[sceneIndex] || Palette.blue;
   const rawAssets = assets || {};
   const generatedClip = cachedVidsMedia(rawAssets, sceneIndex, totalScenes);
-  const sceneAssets = sceneIndex === 0 ? rawAssets : { ...rawAssets, avatarHost: "" };
+  const generatedClipIsAvatar = isAvatarClipMedia(generatedClip);
+  const shouldUseSavedAvatar = sceneIndex === 0 || sceneIndex === totalScenes - 1;
+  const sceneAssets = shouldUseSavedAvatar ? rawAssets : { ...rawAssets, avatarHost: "" };
   const toolMedia = toolMediaForScene(sceneAssets, scene, sceneIndex, totalScenes);
   const fade = interpolate(frame, [0, sceneDurationFrames - 18, sceneDurationFrames], [1, 1, 0.94], {
     extrapolateLeft: "clamp",
@@ -2122,12 +2406,14 @@ export const ReelScene = ({ scene, sceneIndex, totalScenes = 6, sceneDurationSec
   };
 
   let body;
-  if (sceneIndex === 0 && generatedClip) {
+  if (sceneIndex === 0 && generatedClipIsAvatar) {
     body = <HookVideoLeadScene {...common} />;
   } else if (sceneIndex === 0) {
     body = <HookScene {...common} />;
-  } else if (sceneIndex === totalScenes - 1 && generatedClip) {
+  } else if (sceneIndex === totalScenes - 1 && generatedClipIsAvatar) {
     body = <CtaAvatarLeadScene {...common} />;
+  } else if (generatedClipIsAvatar) {
+    body = <AvatarVideoLeadScene {...common} />;
   } else if (sceneIndex === totalScenes - 1) {
     body = <CtaScene {...common} />;
   } else if (shouldUseBeforeAfterScene(rawAssets, scene, sceneIndex, totalScenes)) {

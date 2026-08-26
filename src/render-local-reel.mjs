@@ -22,12 +22,14 @@ const outputRoot = path.resolve(args.output || args.out || path.join(
 ));
 const publicAssetRoot = path.resolve("public", "tool-reel-assets");
 const audioEnabled = !args["no-audio"];
+const requireVidsVoiceover = Boolean(args["require-vids-voiceover"] || args["vids-voiceover-only"]);
 const sayVoice = args.voice || process.env.TRF_SAY_VOICE || "";
 const sayRate = String(args["voice-rate"] || process.env.TRF_SAY_RATE || 205);
 const spokenField = args["spoken-field"] || process.env.TRF_SPOKEN_FIELD || "voiceover_audio";
 const hookAvatarStyle = String(args["hook-avatar"] || args["hook-avatar-style"] || process.env.TRF_HOOK_AVATAR_STYLE || "female")
   .trim()
   .toLowerCase();
+const previewMode = Boolean(args.preview || args["preview-only"]);
 const customVoiceoverDir = args["voiceover-dir"]
   ? path.resolve(args["voiceover-dir"])
   : path.join(toolDir || process.cwd(), "voiceovers");
@@ -51,6 +53,15 @@ function safeFileName(value) {
     .toLowerCase() || "tool-reel";
 }
 
+function numberOr(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function clampNumber(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
 function hasAsset(value) {
   if (Array.isArray(value)) {
     return value.some(hasAsset);
@@ -59,6 +70,13 @@ function hasAsset(value) {
     return Object.values(value).some(hasAsset);
   }
   return Boolean(String(value || "").trim());
+}
+
+function assetPath(value) {
+  if (value && typeof value === "object") {
+    return value.path || value.absolutePath || value.relativePath || "";
+  }
+  return String(value || "");
 }
 
 function resolveLocalCommand(command) {
@@ -176,7 +194,7 @@ function buildQualityReport({ props, assets, audioAssets, outputPath, sizeBytes,
       : "Make the first line more specific: pain, promise, and tool outcome in one sentence."
   );
 
-  const realToolProof = Boolean(props.toolUrl) && hasAsset([assets.desktop, assets.desktopFull, assets.mobile, assets.demoBefore, assets.demoAfter]);
+  const realToolProof = Boolean(props.toolUrl) && hasAsset([assets.desktop, assets.desktopFull, assets.mobile, assets.demoBefore, assets.demoInputs, assets.demoAfter]);
   addQualityCheck(
     checks,
     "real_tool_proof",
@@ -200,8 +218,21 @@ function buildQualityReport({ props, assets, audioAssets, outputPath, sizeBytes,
       : "Add at least one short desktop/mobile recording for a less static reel."
   );
 
+  const walkthroughCopy = /(open|link|input|fill|upload|click|run|generate|convert|process|result|output|review|workflow|demo)/i.test(allText);
+  const walkthroughAssets = hasAsset([assets.demoInputs, assets.demoVideo, assets.demoAfter]);
+  addQualityCheck(
+    checks,
+    "tool_use_walkthrough",
+    "Video explains what the tool does and how to use it",
+    walkthroughCopy && walkthroughAssets,
+    10,
+    walkthroughCopy && walkthroughAssets
+      ? "Script and assets cover input/action/result workflow."
+      : "Use body scenes to show input/upload, visible action click, and result/output review."
+  );
+
   const voiceovers = Array.isArray(audioAssets.voiceovers) ? audioAssets.voiceovers : [];
-  const hasBodyVoiceoverSource = hasAsset(assets.bodyVoiceoverVideo);
+  const hasBodyVoiceoverSource = hasAsset([assets.bodyVoiceoverVideo, assets.bodyVoiceoverAudio]);
   const avatarAudioScenes = new Set((assets.vidsClipAudioScenes || [])
     .map(Number)
     .filter(Number.isFinite));
@@ -349,6 +380,34 @@ async function findBodyVoiceoverVideo(toolDir) {
     const files = await listFilesRecursive(root, 6);
     const source = files.find((filePath) => /voiceover[-_ ]?source\.(mp4|webm|mov)$/i.test(path.basename(filePath)))
       || files.find((filePath) => /google.*vids.*voiceover.*\.(mp4|webm|mov)$/i.test(path.basename(filePath)));
+    if (source) {
+      return source;
+    }
+  }
+  return null;
+}
+
+async function findBodyVoiceoverAudio(toolDir) {
+  const direct = await firstExisting([
+    path.join(toolDir, "voiceovers", "voiceover-full.m4a"),
+    path.join(toolDir, "voiceovers", "voiceover-full.mp3"),
+    path.join(toolDir, "voiceovers", "voiceover-full.wav"),
+    path.join(toolDir, "generated", "google-vids-voiceover", "voiceover-full.m4a"),
+    path.join(toolDir, "generated", "google-vids-voiceover", "voiceover-full.mp3"),
+    path.join(toolDir, "generated", "google-vids-voiceover", "voiceover-full.wav")
+  ]);
+  if (direct) {
+    return direct;
+  }
+
+  const roots = [
+    path.join(toolDir, "voiceovers"),
+    path.join(toolDir, "generated", "google-vids-voiceover"),
+    path.join(toolDir, "google-vids-voiceover")
+  ];
+  for (const root of roots) {
+    const files = await listFilesRecursive(root, 6);
+    const source = files.find((filePath) => /voiceover[-_ ]?full\.(m4a|mp3|wav|aac|ogg)$/i.test(path.basename(filePath)));
     if (source) {
       return source;
     }
@@ -575,6 +634,7 @@ async function createAudioAssets(scenes, assetDir, outputDir, durationSeconds = 
   await ensureDir(tempDir);
   const skipSceneNumbers = new Set((options.skipSceneNumbers || []).map(Number).filter(Number.isFinite));
   const suppressFallbackSceneNumbers = new Set((options.suppressFallbackSceneNumbers || []).map(Number).filter(Number.isFinite));
+  const forceFullBodyVoiceoverSceneNumbers = new Set((options.forceFullBodyVoiceoverSceneNumbers || []).map(Number).filter(Number.isFinite));
 
   let voiceoverMode = "";
   const warnings = [];
@@ -599,14 +659,28 @@ async function createAudioAssets(scenes, assetDir, outputDir, durationSeconds = 
       voiceovers.push("");
       continue;
     }
-    const customVoiceover = await firstExisting([
+    if (forceFullBodyVoiceoverSceneNumbers.has(sceneNumber)) {
+      voiceovers.push("");
+      continue;
+    }
+    const sceneToken = String(sceneNumber).padStart(2, "0");
+    const preferredVidsVoiceover = [
+      path.join(customVoiceoverDir, `scene-${sceneToken}.m4a`),
+      path.join(customVoiceoverDir, `scene-${sceneToken}.aac`),
+      path.join(customVoiceoverDir, `scene-${sceneToken}.mp3`),
+      path.join(customVoiceoverDir, `scene-${sceneToken}.wav`)
+    ];
+    const fallbackVoiceover = [
       path.join(customVoiceoverDir, `scene-${String(sceneNumber).padStart(2, "0")}.wav`),
       path.join(customVoiceoverDir, `scene-${String(sceneNumber).padStart(2, "0")}.mp3`),
       path.join(customVoiceoverDir, `scene-${String(sceneNumber).padStart(2, "0")}.m4a`),
       path.join(customVoiceoverDir, `voiceover-scene-${sceneNumber}.wav`),
       path.join(customVoiceoverDir, `voiceover-scene-${sceneNumber}.mp3`),
       path.join(customVoiceoverDir, `voiceover-scene-${sceneNumber}.m4a`)
-    ]);
+    ];
+    const customVoiceover = await firstExisting(suppressFallbackSceneNumbers.has(sceneNumber)
+      ? preferredVidsVoiceover
+      : [...preferredVidsVoiceover, ...fallbackVoiceover]);
     if (customVoiceover) {
       voiceovers.push(await copyAsset(customVoiceover, assetDir, `voiceover-scene-${sceneNumber}`));
       continue;
@@ -648,6 +722,8 @@ async function createAudioAssets(scenes, assetDir, outputDir, durationSeconds = 
     voiceoverMode,
     spokenField,
     customVoiceoverDir,
+    localFallbackSuppressedScenes: Array.from(suppressFallbackSceneNumbers),
+    fullBodyVoiceoverScenes: Array.from(forceFullBodyVoiceoverSceneNumbers),
     voiceovers,
     music,
     warnings
@@ -710,12 +786,24 @@ await ensureDir(outputRoot);
 
 const scenePlan = await readJson(path.join(toolDir, "scene-plan.json"));
 const manifest = await readJson(path.join(toolDir, "manifest.json")).catch(() => ({}));
-const captureFiles = manifest.capture?.files || [];
+const captureFiles = (manifest.capture?.files || []).map(assetPath).filter(Boolean);
 const slug = path.basename(toolDir);
 const assetDir = path.join(publicAssetRoot, `${slug}-${Date.now()}`);
 await ensureDir(assetDir);
-const sceneDurationSeconds = Number(scenePlan.metadata?.scene_duration_seconds || scenePlan.scenes?.[0]?.duration || 10) || 10;
-const totalDurationSeconds = Number(scenePlan.metadata?.total_duration_seconds || (scenePlan.scenes?.length || 0) * sceneDurationSeconds) || 60;
+const originalScenes = Array.isArray(scenePlan.scenes) ? scenePlan.scenes : [];
+const originalSceneDurationSeconds = Number(scenePlan.metadata?.scene_duration_seconds || originalScenes[0]?.duration || 10) || 10;
+const previewSeconds = clampNumber(numberOr(args["preview-seconds"], 15), 6, 30);
+const previewSceneCount = Math.max(1, Math.min(
+  originalScenes.length || 1,
+  Math.round(clampNumber(numberOr(args["preview-scenes"], 2), 1, 3))
+));
+const renderScenes = previewMode ? originalScenes.slice(0, previewSceneCount) : originalScenes;
+const sceneDurationSeconds = previewMode
+  ? Math.max(3, Math.round((previewSeconds / Math.max(1, renderScenes.length)) * 10) / 10)
+  : originalSceneDurationSeconds;
+const totalDurationSeconds = previewMode
+  ? Math.round(sceneDurationSeconds * Math.max(1, renderScenes.length) * 10) / 10
+  : Number(scenePlan.metadata?.total_duration_seconds || (originalScenes.length || 0) * sceneDurationSeconds) || 60;
 
 const desktopTop = captureFiles.find((file) => file.endsWith("desktop-top.png"));
 const desktopFull = captureFiles.find((file) => file.endsWith("desktop-full-page.png"));
@@ -723,6 +811,7 @@ const desktopLanding = captureFiles.find((file) => file.endsWith("desktop-landin
 const toolReadable = captureFiles.find((file) => file.endsWith("tool-readable.png"));
 const mobileTop = captureFiles.find((file) => file.endsWith("mobile-top.png"));
 const desktopDemoBefore = captureFiles.find((file) => file.endsWith("desktop-demo-before.png"));
+const desktopDemoInputs = captureFiles.find((file) => file.endsWith("desktop-demo-inputs.png"));
 const desktopDemoAfter = captureFiles.find((file) => file.endsWith("desktop-demo-after.png"));
 const desktopDemoVideo = captureFiles.find((file) => file.endsWith("desktop-demo.webm"));
 const mobileScrollVideo = captureFiles.find((file) => file.endsWith("mobile-scroll.webm"));
@@ -743,13 +832,15 @@ const assets = {
   desktopFull: await copyAsset(desktopFull, assetDir, "desktop-full-page"),
   mobile: await copyAsset(mobileTop, assetDir, "mobile-top"),
   demoBefore: await copyAsset(desktopDemoBefore, assetDir, "desktop-demo-before"),
+  demoInputs: await copyAsset(desktopDemoInputs, assetDir, "desktop-demo-inputs"),
   demoAfter: await copyAsset(desktopDemoAfter, assetDir, "desktop-demo-after"),
   demoVideo: await copyAsset(desktopDemoVideo, assetDir, "desktop-demo"),
   mobileScroll: await copyAsset(mobileScrollVideo, assetDir, "mobile-scroll"),
   avatarHost: await copyAsset(avatarHostImage, assetDir, "avatar-host"),
-  hookAvatarStyle: ["female", "male", "auto"].includes(hookAvatarStyle) ? hookAvatarStyle : "female"
+  hookAvatarStyle: ["female", "male", "auto"].includes(hookAvatarStyle) ? hookAvatarStyle : "female",
+  toolUseGuide: manifest.capture?.toolUseGuide || manifest.capture?.tool_use_guide || {}
 };
-const vidsCacheAssets = await copyCachedVidsAssets(toolDir, assetDir, scenePlan.scenes.length);
+const vidsCacheAssets = await copyCachedVidsAssets(toolDir, assetDir, renderScenes.length);
 assets.vidsClips = vidsCacheAssets.sceneClips;
 assets.vidsClipAudioScenes = vidsCacheAssets.copiedFiles
   .filter((clip) => /avatar|hook|cta|focus/i.test(`${clip.file || ""} ${clip.note || ""} ${clip.sourcePath || ""}`))
@@ -764,23 +855,43 @@ assets.vidsClipCache = {
 };
 const bodyVoiceoverVideoSource = await findBodyVoiceoverVideo(toolDir);
 assets.bodyVoiceoverVideo = await copyAsset(bodyVoiceoverVideoSource, assetDir, "body-voiceover-source");
-const bodySceneNumbers = (scenePlan.scenes || []).slice(1).map((_, index) => index + 2);
-const audioAssets = await createAudioAssets(scenePlan.scenes, assetDir, outputRoot, totalDurationSeconds, {
+const bodyVoiceoverAudioSource = bodyVoiceoverVideoSource ? "" : await findBodyVoiceoverAudio(toolDir);
+assets.bodyVoiceoverAudio = await copyAsset(bodyVoiceoverAudioSource, assetDir, "body-voiceover-full");
+const bodySceneNumbers = renderScenes.slice(1).map((_, index) => index + 2);
+const hasBodyVidsVoiceoverSource = Boolean(bodyVoiceoverVideoSource || bodyVoiceoverAudioSource);
+if (requireVidsVoiceover && !hasBodyVidsVoiceoverSource) {
+  throw new Error("Google Vids voiceover is required for the screenshot/demo body scenes, but no saved voiceover-source or voiceover-full file was found. Run Step 6 Generate Vids Voiceover first.");
+}
+const audioAssets = await createAudioAssets(renderScenes, assetDir, outputRoot, totalDurationSeconds, {
   skipSceneNumbers: assets.vidsClipAudioScenes,
-  suppressFallbackSceneNumbers: bodyVoiceoverVideoSource ? bodySceneNumbers : []
+  suppressFallbackSceneNumbers: hasBodyVidsVoiceoverSource ? bodySceneNumbers : [],
+  forceFullBodyVoiceoverSceneNumbers: hasBodyVidsVoiceoverSource ? bodySceneNumbers : []
 });
+audioAssets.priority = hasBodyVidsVoiceoverSource
+  ? "google-vids-voiceover-first"
+  : "scene-audio-then-local-fallback";
+audioAssets.requireVidsVoiceover = requireVidsVoiceover;
+audioAssets.bodyVoiceoverMode = bodyVoiceoverVideoSource
+  ? "google-vids-full-video-source"
+  : bodyVoiceoverAudioSource
+    ? "google-vids-full-audio-source"
+    : "";
+audioAssets.bodyVoiceoverSourcePath = bodyVoiceoverVideoSource || "";
+audioAssets.bodyVoiceoverAudioSourcePath = bodyVoiceoverAudioSource || "";
+audioAssets.bodyVoiceoverVideo = assets.bodyVoiceoverVideo || "";
+audioAssets.bodyVoiceoverAudio = assets.bodyVoiceoverAudio || "";
 assets.voiceovers = audioAssets.voiceovers;
 assets.music = audioAssets.music;
 
 const props = {
   toolName: manifest.tool?.tool_name || scenePlan.topic || slug,
   toolUrl: manifest.tool?.tool_url || "",
-  scenes: scenePlan.scenes,
+  scenes: renderScenes,
   sceneDurationSeconds,
   assets
 };
 const propsPath = path.join(outputRoot, "remotion-props.json");
-const outputPath = path.join(outputRoot, args.filename || `${safeFileName(props.toolName)}-local-reel.mp4`);
+const outputPath = path.join(outputRoot, args.filename || (previewMode ? "preview_reel.mp4" : `${safeFileName(props.toolName)}-local-reel.mp4`));
 const reportPath = path.join(outputRoot, "local-reel-report.json");
 const qualityReportPath = path.join(outputRoot, "reel-quality-report.json");
 await writeJson(propsPath, props);
@@ -795,6 +906,9 @@ const report = {
   assets,
   audio: audioAssets,
   hookAvatarStyle: assets.hookAvatarStyle,
+  preview: previewMode,
+  requestedPreviewSeconds: previewMode ? previewSeconds : 0,
+  renderedSceneCount: renderScenes.length,
   sceneDurationSeconds,
   totalDurationSeconds,
   renderedAt: new Date().toISOString()
@@ -804,14 +918,17 @@ async function mirrorLocalRenderOutputs(report) {
   const archiveDir = await ensureGeneratedArchive(toolDir);
   const entries = [];
   const directories = [];
+  const renderCategory = previewMode ? "local-preview" : "local-render";
 
   const videoEntry = await mirrorGeneratedFile({
     toolDir,
     sourcePath: outputPath,
-    category: "local-render",
+    category: renderCategory,
     fileName: path.basename(outputPath),
-    label: "Final local MP4",
-    note: "Final local Remotion video render."
+    label: previewMode ? "Quick preview MP4" : "Final local MP4",
+    note: previewMode
+      ? "Short local Remotion preview for review before full render."
+      : "Final local Remotion video render."
   });
   if (videoEntry) {
     entries.push(videoEntry);
@@ -831,7 +948,7 @@ async function mirrorLocalRenderOutputs(report) {
   const ctaEntry = await mirrorGeneratedFile({
     toolDir,
     sourcePath: ctaClipSource,
-    category: "local-render",
+    category: renderCategory,
     fileName: "cta_avatar.mp4",
     label: "CTA avatar source clip",
     note: "Reusable CTA avatar clip used by the fullscreen final-scene render."
@@ -843,7 +960,7 @@ async function mirrorLocalRenderOutputs(report) {
   const propsEntry = await mirrorGeneratedFile({
     toolDir,
     sourcePath: propsPath,
-    category: "local-render",
+    category: renderCategory,
     fileName: "remotion-props.json",
     label: "Remotion props",
     note: "Render input props used to create the final video."
@@ -855,7 +972,7 @@ async function mirrorLocalRenderOutputs(report) {
   const assetsEntry = await mirrorGeneratedDirectory({
     toolDir,
     sourceDir: assetDir,
-    category: "local-render",
+    category: renderCategory,
     folderName: "assets",
     label: "Render assets",
     note: "Public assets copied for Remotion, including generated voiceover/music files."
@@ -867,7 +984,7 @@ async function mirrorLocalRenderOutputs(report) {
   const audioTempEntry = await mirrorGeneratedDirectory({
     toolDir,
     sourceDir: path.join(outputRoot, "audio-temp"),
-    category: "local-render",
+    category: renderCategory,
     folderName: "audio-temp",
     label: "Voiceover temp audio",
     note: "Temporary voiceover source files generated before WAV conversion."
@@ -884,6 +1001,9 @@ async function mirrorLocalRenderOutputs(report) {
     directories
   };
   report.toolFolderOutputPath = videoEntry?.destinationPath || "";
+  if (previewMode) {
+    report.toolFolderPreviewPath = videoEntry?.destinationPath || "";
+  }
   report.ctaAvatarSourcePath = ctaClipSource || "";
   report.ctaAvatarArchivePath = ctaEntry?.destinationPath || "";
   return report.generatedArchive;
@@ -913,7 +1033,7 @@ try {
   const qualityEntry = await mirrorGeneratedFile({
     toolDir,
     sourcePath: qualityReportPath,
-    category: "local-render",
+    category: previewMode ? "local-preview" : "local-render",
     fileName: "reel-quality-report.json",
     label: "Reel quality report",
     note: "Automated production checklist for avatar hook, real demo proof, voiceover, captions, CTA, and duration."
@@ -925,7 +1045,7 @@ try {
   const reportEntry = await mirrorGeneratedFile({
     toolDir,
     sourcePath: reportPath,
-    category: "local-render",
+    category: previewMode ? "local-preview" : "local-render",
     fileName: "local-reel-report.json",
     label: "Local render report",
     note: "Final render report with paths and render status."
@@ -936,13 +1056,13 @@ try {
     await mirrorGeneratedFile({
       toolDir,
       sourcePath: reportPath,
-      category: "local-render",
+      category: previewMode ? "local-preview" : "local-render",
       fileName: "local-reel-report.json",
       label: "Local render report",
       note: "Final render report with paths and render status."
     });
   }
-  console.log(`Local MP4: ${outputPath}`);
+  console.log(`${previewMode ? "Local preview MP4" : "Local MP4"}: ${outputPath}`);
   if (report.toolFolderOutputPath) {
     console.log(`Tool folder MP4: ${report.toolFolderOutputPath}`);
   }

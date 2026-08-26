@@ -10,8 +10,15 @@ function compact(value, maxLength = 480) {
   return `${text.slice(0, maxLength - 3).trim()}...`;
 }
 
+function assetPath(value) {
+  if (value && typeof value === "object") {
+    return value.path || value.relativePath || value.url || value.name || "";
+  }
+  return String(value || "");
+}
+
 function assetLabel(file) {
-  return String(file || "").split(/[\\/]/).pop() || "reference asset";
+  return assetPath(file).split(/[\\/]/).pop() || "reference asset";
 }
 
 function assetLines(captureFiles, limit = 4) {
@@ -19,6 +26,49 @@ function assetLines(captureFiles, limit = 4) {
   return files.length
     ? files.map((file) => `- Attached reference: ${assetLabel(file)}`).join("\n")
     : "- Use the provided tool URL as the visual reference.";
+}
+
+function uniqueFiles(files = []) {
+  const seen = new Set();
+  return files
+    .map((file) => assetPath(file).trim())
+    .filter(Boolean)
+    .filter((file) => {
+      const key = file.toLowerCase();
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+}
+
+function avatarReferenceFilesFromManifest(manifest = {}) {
+  const direct = Array.isArray(manifest.avatarReferences)
+    ? manifest.avatarReferences
+    : String(manifest.avatarReferences || "").split(",");
+  const nested = [
+    manifest.avatarHostImage,
+    manifest.hookAvatar?.avatarHostImage,
+    manifest.hookAvatar?.referenceImage,
+    manifest.hookAvatar?.referenceImages,
+    manifest.ctaAvatar?.avatarHostImage,
+    manifest.ctaAvatar?.referenceImage,
+    manifest.ctaAvatar?.referenceImages
+  ];
+  return uniqueFiles([...direct, ...nested.flatMap((item) => Array.isArray(item) ? item : String(item || "").split(","))]);
+}
+
+function avatarSceneUsesPresenter(scene = {}, sceneNumber, sceneCount) {
+  const text = [
+    scene.visual,
+    scene.video_prompt,
+    scene.voiceover,
+    scene.onscreen_text
+  ].filter(Boolean).join(" ");
+  return Number(sceneNumber) === 1
+    || Number(sceneNumber) === Number(sceneCount)
+    || /avatar|presenter|creator|face[- ]?to[- ]?camera|talking[- ]?head|human focus|focus break/i.test(text);
 }
 
 function videoSizeInfo(value = "") {
@@ -77,7 +127,7 @@ function referenceIntentLines(referenceFiles = [], toolUrl = "") {
   const screenRefs = files.filter((file) => !avatarRefs.includes(file));
   const lines = [];
   if (avatarRefs.length) {
-    lines.push(`Avatar/reference face image(s): ${avatarRefs.map(assetLabel).join(", ")}. Use only as a presenter style/face reference if the tool supports image references; keep natural face motion.`);
+    lines.push(`Avatar/reference face image(s): ${avatarRefs.map(assetLabel).join(", ")}. Use these as the recurring AltFTool presenter face/style reference when the tool supports image references; keep natural face motion and consistent identity across hook, focus, and CTA clips.`);
   }
   if (screenRefs.length) {
     lines.push(`Real tool screen reference(s): ${screenRefs.slice(0, 4).map(assetLabel).join(", ")}. Put these as the readable laptop/phone screen content when showing the tool.`);
@@ -97,9 +147,14 @@ export function buildGoogleVidsMasterPrompt(scenePlan, manifest = {}) {
   const description = tool.description || "";
   const category = tool.category || "";
   const captureFiles = manifest.capture?.files || [];
+  const avatarReferenceFiles = avatarReferenceFilesFromManifest(manifest);
+  const toolUseGuide = manifest.capture?.toolUseGuide || manifest.capture?.tool_use_guide || {};
   const sceneCount = scenePlan.scenes.length || 6;
   const totalDuration = scenePlan.scenes.reduce((sum, scene) => sum + Number(scene.duration || 10), 0) || sceneCount * 10;
   const size = videoSizeFrom(scenePlan, manifest);
+  const useFlow = Array.isArray(toolUseGuide.demoSteps) && toolUseGuide.demoSteps.length
+    ? toolUseGuide.demoSteps.join(" -> ")
+    : "";
 
   const sceneLines = scenePlan.scenes.map((scene) => (
     `Scene ${scene.scene_number} (${scene.duration}s):\n` +
@@ -115,8 +170,10 @@ export function buildGoogleVidsMasterPrompt(scenePlan, manifest = {}) {
     `Language: Hinglish, natural Indian creator delivery, simple words, no robotic phrasing.`,
     "Style: realistic modern SaaS/UGC, fast cuts, human presenter/avatar moments, laptop and phone shots, visible cursor highlights, clean mobile-readable captions.",
     "Talent/audio direction: keep one consistent professional UGC creator/avatar across avatar scenes; speak directly to camera, start lines immediately, clear Hinglish voiceover, subtle upbeat background music only if available.",
+    avatarReferenceFiles.length ? `Presenter reference: use ${avatarReferenceFiles.map(assetLabel).join(", ")} as the recurring AltFTool avatar/host look when image references are supported.` : "",
     "Editing direction: hook in first 2 seconds, proof-focused zooms, no generic filler, captions after the hook should follow the spoken words with bold white/yellow text and black outline.",
     `Tool URL to demonstrate accurately: ${toolUrl}`,
+    useFlow ? `Real tool use-flow to teach in body scenes: ${useFlow}` : "Body scenes must teach the real use-flow: open page, input/upload demo data, click the visible action, review output.",
     description ? `Tool description: ${description}` : "",
     category ? `Category/context: ${category}` : "",
     "",
@@ -131,7 +188,7 @@ export function buildGoogleVidsMasterPrompt(scenePlan, manifest = {}) {
     "- CTA should say the tool link is in the caption, ask viewers to save/share/follow, and include a quick human-review safety reminder.",
     "",
     "Use these reference assets if the UI allows uploads:",
-    assetLines(captureFiles),
+    assetLines(uniqueFiles([...avatarReferenceFiles, ...captureFiles])),
     "",
     "Exact scene plan:",
     sceneLines.join("\n")
@@ -150,33 +207,52 @@ export function buildGoogleVidsClipPrompt(scenePlan, sceneNumber, manifest = {},
   const captureFiles = manifest.capture?.files || [];
   const sceneCount = Number(scenePlan.metadata?.reel_scene_count || scenePlan.metadata?.scene_count || scenePlan.scenes.length || 6) || 6;
   const size = videoSizeFrom(scenePlan, manifest, options);
-  const referenceFiles = Array.isArray(options.referenceFiles) ? options.referenceFiles : captureFiles;
-  const referenceLines = referenceIntentLines(referenceFiles, toolUrl);
   const isHookScene = Number(sceneNumber) === 1;
   const isLastScene = Number(sceneNumber) === sceneCount;
+  const isAvatarScene = avatarSceneUsesPresenter(scene, sceneNumber, sceneCount);
+  const avatarReferenceFiles = avatarReferenceFilesFromManifest(manifest);
+  const suppliedReferenceFiles = Array.isArray(options.referenceFiles) ? options.referenceFiles : captureFiles;
+  const referenceFiles = uniqueFiles([
+    ...(isAvatarScene ? avatarReferenceFiles : []),
+    ...suppliedReferenceFiles
+  ]);
+  const referenceLines = referenceIntentLines(referenceFiles, toolUrl);
+  const toolUseGuide = manifest.capture?.toolUseGuide || manifest.capture?.tool_use_guide || {};
+  const toolUseDirection = Array.isArray(toolUseGuide.demoSteps) && toolUseGuide.demoSteps.length
+    ? `Real use-flow to show or mention: ${toolUseGuide.demoSteps.join(" -> ")}.`
+    : "";
   const isProofScene = /demo|workflow|output|proof|before|after|result/i.test(sceneIntent(scene.scene_number, sceneCount));
+  const avatarReferenceDirection = isAvatarScene && avatarReferenceFiles.length
+    ? `Presenter identity: use ${avatarReferenceFiles.map(assetLabel).join(", ")} as the AltFTool host/avatar reference if image reference upload is available. If upload is not available, keep the same selected Google Vids avatar gender, outfit style, natural Indian SaaS presenter look, and consistent face-to-camera behavior.`
+    : "";
+  const avatarFullscreenDirection = isAvatarScene
+    ? "Avatar framing: make the presenter/avatar a full-screen 9:16 portrait talking-head or waist-up clip, not a small overlay, not picture-in-picture, not a tiny person beside a huge UI. Keep face, hands, and upper body inside safe margins because this exact clip will be used full-screen in the final reel."
+    : "";
   const hookDirection = isHookScene
     ? [
       "This is ONLY the first 10-second hook clip that will be merged with real tool screenshots and demo footage later.",
       "Open with the first hook line immediately in the first 2 seconds; no greeting, no slow intro.",
-      "Use a realistic creator/avatar speaking directly to camera in Hinglish, with a laptop showing the real AltFTool page briefly as proof.",
+      "Use a realistic creator/avatar speaking directly to camera in Hinglish. The avatar must fill the vertical frame; show the real AltFTool page only briefly as contextual proof.",
       "Do not generate a full tutorial, full workflow, fake results, or unrelated stock footage. Keep it as a punchy hook/presenter clip."
     ].join(" ")
     : "";
   const ctaDirection = isLastScene
-    ? "This is the final CTA clip. The presenter should clearly say to try the AltFTool link in the caption, save the reel, and review output before sharing."
+    ? "This is the final CTA clip. Use a full-screen portrait presenter/avatar who clearly says to try the AltFTool link in the caption, save the reel, and review output before sharing."
     : "";
   const proofDirection = isProofScene
-    ? "This scene must prioritize real tool proof: readable screen, visible cursor/click highlight, fictional/demo data, and a clear result or next step."
+    ? "This scene must prioritize real tool proof: readable screen filling most of the vertical frame, visible cursor/click highlight, fictional/demo data, and a clear result or next step."
     : "Keep the scene tied to the tool value, not generic stock footage.";
 
   return trimBlock([
     `${size.promptLead} for ${size.platform} promoting ${toolName}.`,
     size.strictLine,
     `Scene ${scene.scene_number}/${sceneCount} intent: ${sceneIntent(scene.scene_number, sceneCount)}.`,
+    avatarReferenceDirection,
+    avatarFullscreenDirection,
     hookDirection,
     ctaDirection,
     proofDirection,
+    toolUseDirection,
     `Visual: ${compact(scene.visual || scene.video_prompt, 520)}`,
     referenceLines.join(" "),
     `Voiceover: ${compact(scene.voiceover, 260)}`,

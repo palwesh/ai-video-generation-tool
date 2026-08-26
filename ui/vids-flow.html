@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Vids Flow - AI Reel Creator by Prathak</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/home.css">
+  </head>
+  <body>
+    <main class="fresh-shell vids-flow-shell">
+      <header class="fresh-topbar" aria-label="Vids Flow">
+        <a class="fresh-brand" href="/">
+          <span class="fresh-brand-icon">
+            <img src="/assets/altf-logo.png" alt="AltF Tool logo">
+          </span>
+          <span>
+            <strong>AI Reel Creator</strong>
+            <small>Vids Flow</small>
+          </span>
+        </a>
+        <div id="vfTaskNotice" class="task-notice" data-tone="idle" aria-live="polite">
+          <span class="task-dot"></span>
+          <div>
+            <strong id="vfTaskName">Flow ready</strong>
+            <small id="vfTaskDetail">Select row, then run steps one by one</small>
+          </div>
+        </div>
+        <nav class="fresh-actions" aria-label="Flow navigation">
+          <a class="icon-link" href="/">
+            <span class="mini-icon">V2</span>
+            <span>Basic</span>
+          </a>
+          <a class="icon-link" href="/docs.html">
+            <span class="mini-icon">?</span>
+            <span>Docs</span>
+          </a>
+          <a class="icon-link" href="/advanced.html">
+            <span class="mini-icon">V1</span>
+            <span>Old Tool</span>
+          </a>
+        </nav>
+      </header>
+
+      <section class="vids-flow-workspace" aria-label="Google Vids flow version">
+        <aside class="vids-flow-sidebar" aria-label="Flow steps">
+          <div class="sidebar-head">
+            <span class="mini-icon">VF</span>
+            <div>
+              <strong>Flow Version</strong>
+              <small>Vids hook -> local reel</small>
+            </div>
+          </div>
+          <nav id="vfStepList" class="step-list">
+            <a class="step-link active" href="#vfExcel" data-step="excel">
+              <span>01</span>
+              <strong>Excel + Tool</strong>
+              <small>Load row</small>
+            </a>
+            <a class="step-link" href="#vfAssets" data-step="assets">
+              <span>02</span>
+              <strong>Assets</strong>
+              <small>Real demo</small>
+            </a>
+            <a class="step-link" href="#vfScript" data-step="script">
+              <span>03</span>
+              <strong>Script</strong>
+              <small>Hook body CTA</small>
+            </a>
+            <a class="step-link" href="#vfAvatar" data-step="avatar">
+              <span>04</span>
+              <strong>Vids Avatar</strong>
+              <small>Prompt or generate</small>
+            </a>
+            <a class="step-link" href="#vfRender" data-step="render">
+              <span>05</span>
+              <strong>Final Render</strong>
+              <small>Preview or MP4</small>
+            </a>
+          </nav>
+          <a class="version-link" href="/advanced.html">Open Version 1</a>
+          <a class="version-link" href="/">Open Basic V2</a>
+        </aside>
+
+        <section class="vids-flow-main" aria-label="Vids automation controls">
+          <section id="vfExcel" class="workflow-section vids-flow-hero">
+            <div class="import-head">
+              <div>
+                <p class="eyebrow">Google Flow Version</p>
+                <h1>Vids Hook + Local Reel Flow</h1>
+                <p>Focused flow for AltFTool reels: load row, build real assets, prepare Vids hook/CTA, then render locally.</p>
+              </div>
+              <span id="vfState" class="state-pill">Ready</span>
+            </div>
+
+            <div class="vids-flow-grid">
+              <label class="field-label vids-flow-input" for="vfInputPath">
+                <span>Excel path</span>
+                <input id="vfInputPath" type="text" placeholder="Default Excel path">
+              </label>
+              <button id="vfLoadDefaultBtn" class="secondary-action" type="button">Load Default</button>
+              <button id="vfLoadIdeasBtn" class="primary-action" type="button">Load Tool Ideas</button>
+            </div>
+
+            <div class="vids-flow-grid compact">
+              <label class="field-label" for="vfToolSelect">
+                <span>Tool idea name</span>
+                <select id="vfToolSelect">
+                  <option value="">Load Excel first</option>
+                </select>
+              </label>
+              <label class="field-label mini-field" for="vfRowInput">
+                <span>Row</span>
+                <input id="vfRowInput" type="number" min="2" value="2">
+              </label>
+              <label class="auto-check-row">
+                <input id="vfReadyOnly" type="checkbox">
+                <span>Ready tools only</span>
+              </label>
+            </div>
+
+            <div id="vfToolMeta" class="vids-flow-meta">No tool selected yet.</div>
+          </section>
+
+          <section id="vfAssets" class="workflow-section">
+            <div class="section-line-head">
+              <div>
+                <p class="eyebrow">Step 2</p>
+                <h2>Build Real Assets</h2>
+                <p>Open actual tool URL, capture landing, inputs, result screenshots and recordings.</p>
+              </div>
+              <span id="vfAssetState" class="state-pill">Pending</span>
+            </div>
+            <div class="vids-flow-actions">
+              <button id="vfBuildAssetsBtn" class="primary-action" type="button">Build Assets</button>
+              <button id="vfOpenAssetsBtn" class="secondary-action" type="button" disabled>Open Assets</button>
+            </div>
+            <div id="vfAssetResult" class="vids-flow-result is-muted">Asset result will appear here.</div>
+          </section>
+
+          <section id="vfScript" class="workflow-section">
+            <div class="section-line-head">
+              <div>
+                <p class="eyebrow">Step 3</p>
+                <h2>Generate Reel Script</h2>
+                <p>30-60 second Hook, Body, CTA script with AltFTool mention and real demo flow.</p>
+              </div>
+              <span id="vfScriptState" class="state-pill">Pending</span>
+            </div>
+            <div class="vids-flow-grid compact">
+              <label class="field-label" for="vfLanguage">
+                <span>Script type</span>
+                <select id="vfLanguage">
+                  <option value="Hinglish" selected>Hinglish</option>
+                  <option value="Hindi">Hindi</option>
+                  <option value="English">English</option>
+                </select>
+              </label>
+              <label class="field-label" for="vfSceneCount">
+                <span>Duration</span>
+                <select id="vfSceneCount">
+                  <option value="3">30 sec</option>
+                  <option value="4">40 sec</option>
+                  <option value="5" selected>50 sec</option>
+                  <option value="6">60 sec</option>
+                </select>
+              </label>
+              <button id="vfGenerateScriptBtn" class="primary-action" type="button">Generate Script</button>
+              <button id="vfOpenScriptBtn" class="secondary-action" type="button" disabled>Open Script</button>
+            </div>
+            <div id="vfScriptResult" class="vids-flow-result is-muted">Script result will appear here.</div>
+          </section>
+
+          <section id="vfAvatar" class="workflow-section">
+            <div class="section-line-head">
+              <div>
+                <p class="eyebrow">Step 4</p>
+                <h2>Google Vids Avatar</h2>
+                <p>Prepare prompt safely, then generate hook-only or hook/focus/CTA clips when credits are intentionally unlocked.</p>
+              </div>
+              <span id="vfAvatarState" class="state-pill">Credit Safe</span>
+            </div>
+
+            <div class="vids-flow-grid profile-grid">
+              <label class="field-label" for="vfPresenter">
+                <span>Presenter</span>
+                <select id="vfPresenter">
+                  <option value="female" selected>Female creator</option>
+                  <option value="male">Male creator</option>
+                  <option value="auto">Auto</option>
+                </select>
+              </label>
+              <label class="field-label" for="vfTone">
+                <span>Tone</span>
+                <select id="vfTone">
+                  <option value="energetic" selected>Energetic</option>
+                  <option value="professional">Professional</option>
+                  <option value="friendly">Friendly</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </label>
+              <label class="field-label" for="vfVideoSize">
+                <span>Vids size</span>
+                <select id="vfVideoSize">
+                  <option value="portrait" selected>Vertical 9:16</option>
+                  <option value="landscape">Landscape 16:9</option>
+                  <option value="square">Square 1:1</option>
+                </select>
+              </label>
+              <label class="field-label" for="vfPrimaryProfile">
+                <span>Primary profile</span>
+                <select id="vfPrimaryProfile">
+                  <option value="">Profiles loading</option>
+                </select>
+              </label>
+              <label class="field-label" for="vfFallbackProfile">
+                <span>Fallback profile</span>
+                <select id="vfFallbackProfile">
+                  <option value="">No fallback</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="tool-credit-toolbar vids-flow-credit">
+              <label class="auto-check-row credit-safe-row">
+                <input id="vfCreditSafe" type="checkbox" checked>
+                <span>Credit Safe</span>
+              </label>
+              <label class="auto-check-row low-credit-row">
+                <input id="vfLowCredit" type="checkbox" checked>
+                <span>Low-credit Vids</span>
+              </label>
+              <div id="vfCreditNotice" class="credit-guard-notice" data-tone="safe">
+                <strong>Credit Safe ON</strong>
+                <span>Prepare prompts only. Google Vids generation is locked.</span>
+              </div>
+            </div>
+
+            <details id="vfAvatarScriptPanel" class="script-editor-panel avatar-script-editor-panel">
+              <summary>
+                <span>
+                  <strong>Review / Edit Avatar Script</strong>
+                  <small id="vfAvatarScriptMeta">Prepare prompt first, edit, then generate.</small>
+                </span>
+                <span class="state-pill" data-tone="idle">Before credits</span>
+              </summary>
+              <div class="script-editor-body">
+                <div class="script-editor-grid">
+                  <label class="field-label" for="vfAvatarHookScript">
+                    <span>Hook avatar line</span>
+                    <textarea id="vfAvatarHookScript" rows="3" placeholder="Hook avatar line..."></textarea>
+                  </label>
+                  <label class="field-label" for="vfAvatarFocusScript">
+                    <span>Mid focus line</span>
+                    <textarea id="vfAvatarFocusScript" rows="3" placeholder="Optional focus avatar line..."></textarea>
+                  </label>
+                  <label class="field-label" for="vfAvatarCtaScript">
+                    <span>CTA avatar line</span>
+                    <textarea id="vfAvatarCtaScript" rows="3" placeholder="Final CTA avatar line..."></textarea>
+                  </label>
+                </div>
+                <div class="script-editor-actions">
+                  <span id="vfAvatarScriptStatus">These exact edited lines will be sent to Google Vids.</span>
+                  <button id="vfResetAvatarScriptBtn" class="secondary-action" type="button">Reset Prepared Script</button>
+                </div>
+              </div>
+            </details>
+
+            <div class="vids-flow-actions">
+              <button id="vfPrepareAvatarBtn" class="secondary-action" type="button">Prepare Vids Prompt</button>
+              <button id="vfGenerateAvatarBtn" class="primary-action" type="button" disabled>Generate in Google Vids</button>
+              <button id="vfOpenAvatarBtn" class="secondary-action" type="button" disabled>Open Avatar Folder</button>
+            </div>
+            <div id="vfAvatarResult" class="vids-flow-result is-muted">Avatar prompt/video result will appear here.</div>
+            <video id="vfHookPreview" class="vids-flow-video is-hidden" controls playsinline></video>
+          </section>
+
+          <section id="vfRender" class="workflow-section">
+            <div class="section-line-head">
+              <div>
+                <p class="eyebrow">Step 5</p>
+                <h2>Preview + Final Reel</h2>
+                <p>Merge full-screen avatar clips, real tool demo assets, voiceover, captions and AltFTool branding.</p>
+              </div>
+              <span id="vfRenderState" class="state-pill">Pending</span>
+            </div>
+
+            <div class="vids-flow-actions">
+              <button id="vfQuickPreviewBtn" class="secondary-action" type="button">Quick Preview</button>
+              <button id="vfRenderFinalBtn" class="primary-action" type="button">Render Final Reel</button>
+              <button id="vfOpenFinalBtn" class="secondary-action" type="button" disabled>Open Final Folder</button>
+            </div>
+
+            <div class="vids-flow-auto">
+              <div>
+                <strong>Run selected flow</strong>
+                <small>Runs selected steps in order and stops on first failed step.</small>
+              </div>
+              <label class="auto-check-row"><input id="vfAutoAssets" type="checkbox" checked><span>Assets</span></label>
+              <label class="auto-check-row"><input id="vfAutoScript" type="checkbox" checked><span>Script</span></label>
+              <label class="auto-check-row"><input id="vfAutoPrepare" type="checkbox" checked><span>Prepare prompt</span></label>
+              <label class="auto-check-row"><input id="vfAutoGenerate" type="checkbox"><span>Generate Vids</span></label>
+              <label class="auto-check-row"><input id="vfAutoPreview" type="checkbox" checked><span>Preview</span></label>
+              <label class="auto-check-row"><input id="vfAutoFinal" type="checkbox"><span>Final render</span></label>
+              <button id="vfRunFlowBtn" class="primary-action" type="button">Run Flow</button>
+            </div>
+
+            <div id="vfTimeline" class="vids-flow-timeline">
+              <span data-status="idle">Waiting for flow start.</span>
+            </div>
+            <div id="vfFinalResult" class="vids-flow-result is-muted">Final render result will appear here.</div>
+            <video id="vfFinalPreview" class="vids-flow-video is-hidden" controls playsinline></video>
+          </section>
+        </section>
+
+        <aside class="terminal-pane vids-flow-terminal" aria-label="Flow terminal">
+          <div class="terminal-head">
+            <div>
+              <span>LIVE DEBUG</span>
+              <strong>Vids Flow Terminal</strong>
+            </div>
+            <button id="vfClearTerminalBtn" class="secondary-action" type="button">Clear</button>
+          </div>
+          <div id="vfTerminalStatus" class="terminal-status">Idle</div>
+          <pre id="vfTerminal" class="terminal-log">Ready. Load Excel and select a tool row.</pre>
+        </aside>
+      </section>
+    </main>
+    <script src="/vids-flow.js" type="module"></script>
+  </body>
+</html>

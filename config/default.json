@@ -25,7 +25,9 @@
   "avatarGeneration": {
     "provider": "manual",
     "providers": "heygen,did,runway,veo,pika",
-    "referenceImages": "",
+    "referenceImages": "public/avatar/altftool-female-host-custom.png,public/avatar/altftool-male-host-main.png",
+    "defaultFemaleImage": "public/avatar/altftool-female-host-custom.png",
+    "defaultMaleImage": "public/avatar/altftool-male-host-main.png",
     "scenes": "1,2,6",
     "heygenVoiceId": "",
     "note": "Use manual to prepare prompts. Use heygen only when HEYGEN_API_KEY and HEYGEN_VOICE_ID are configured."
@@ -46,6 +48,7 @@
     "recordWebm": true
   },
   "googleVids": {
+    "profileRegistry": "work/google-vids-profiles.xlsx",
     "defaultProfiles": [
       "work/hr-anslation.com",
       "work/shejal.sahu-anslation.com-profile",
