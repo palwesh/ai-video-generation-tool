@@ -31,6 +31,8 @@ import {
   buildViralSeoData,
   normalizeViralLanguage,
   selectViralHook,
+  scoreViralHook,
+  viralToolTemplate,
   viralOnscreenTextForRole,
   viralVoiceoverForRole
 } from "./lib/viral-script.mjs";
@@ -2425,6 +2427,8 @@ function scriptMarkdown(result) {
   const pkg = result.scriptPackage || {};
   const seo = result.seo || {};
   const hookOptions = pkg.hook_options || seo.hook_options || [];
+  const hookQuality = pkg.hook_quality || hookOptions[0]?.hook_score || {};
+  const template = pkg.tool_type_template || viralToolTemplate(result.tool || {});
   return [
     `# ${result.tool?.tool_name || "Tool"} Reel Script`,
     "",
@@ -2439,10 +2443,29 @@ function scriptMarkdown(result) {
     "",
     pkg.hook || "",
     "",
+    "## Hook Quality",
+    "",
+    hookQuality.score
+      ? `Score: ${hookQuality.score}/100 (${hookQuality.status || "review"})`
+      : "Score: Not calculated",
+    hookQuality.word_count ? `Words: ${hookQuality.word_count}` : "",
+    hookQuality.clarity ? `Clarity: ${hookQuality.clarity}/100` : "",
+    hookQuality.curiosity ? `Curiosity: ${hookQuality.curiosity}/100` : "",
+    hookQuality.relatable ? `Relatable: ${hookQuality.relatable}/100` : "",
+    hookQuality.tool_relevance ? `Tool relevance: ${hookQuality.tool_relevance}/100` : "",
+    ...((hookQuality.warnings || []).length ? hookQuality.warnings.map((warning) => `- ${warning}`) : []),
+    "",
+    "## Tool Type Template",
+    "",
+    `Type: ${template.label || template.type || "Micro tool"}`,
+    template.hook_focus ? `Hook focus: ${template.hook_focus}` : "",
+    template.body_focus ? `Body focus: ${template.body_focus}` : "",
+    template.cta_focus ? `CTA focus: ${template.cta_focus}` : "",
+    "",
     "## Hook Options",
     "",
     ...(hookOptions.length
-      ? hookOptions.map((hook, index) => `${index + 1}. ${hook.voiceover} (${hook.framework})`)
+      ? hookOptions.map((hook, index) => `${index + 1}. ${hook.voiceover} (${hook.framework}${hook.hook_score?.score ? ` | ${hook.hook_score.score}/100` : ""})`)
       : ["No alternate hooks generated."]),
     "",
     "## Body",
@@ -2536,9 +2559,14 @@ async function generateReelScript(body) {
   validateScenePlan(optimizedPlan, { sceneCount });
 
   const generatedAt = new Date().toISOString();
+  const selectedHook = selectViralHook(scriptTool);
+  const hookOptions = [
+    selectedHook,
+    ...buildViralHookOptions(scriptTool).filter((option) => option.framework !== selectedHook?.framework)
+  ].filter(Boolean).slice(0, 8);
   const scriptPackage = {
     ...optimizedPlan.metadata.script_package,
-    hook_options: optimizedPlan.metadata.script_package?.hook_options || buildViralHookOptions(scriptTool).slice(0, 5),
+    hook_options: optimizedPlan.metadata.script_package?.hook_options || hookOptions,
     source_existing_script_used: Boolean(scriptTool.script),
     source_description_used: Boolean(scriptTool.description),
     script_language: scriptLanguage,
@@ -2660,6 +2688,21 @@ function applyScriptEditorUpdate(existing = {}, editor = {}) {
   const hook = normalizeEditorScriptText(editor.hook || nextScenes[0]?.voiceover || "");
   const body = normalizeEditorScriptText(editor.body || fallbackBody);
   const cta = normalizeEditorScriptText(editor.cta || nextScenes.at(-1)?.voiceover || "");
+  const editedHook = {
+    framework: "edited_hook",
+    onscreen_text: nextScenes[0]?.onscreen_text || updated.scriptPackage?.hook_options?.[0]?.onscreen_text || "Watch this",
+    voiceover: hook
+  };
+  editedHook.hook_score = scoreViralHook(editedHook, updated.tool || {});
+  const existingHookOptions = Array.isArray(updated.scriptPackage?.hook_options)
+    ? updated.scriptPackage.hook_options
+    : Array.isArray(updated.plan?.metadata?.script_package?.hook_options)
+      ? updated.plan.metadata.script_package.hook_options
+      : [];
+  const hookOptions = [
+    editedHook,
+    ...existingHookOptions.filter((option) => option.framework !== "edited_hook" && normalizeEditorScriptText(option.voiceover) !== hook)
+  ].slice(0, 8);
   if (nextScenes.length) {
     nextScenes[0].voiceover = hook || nextScenes[0].voiceover;
     nextScenes[nextScenes.length - 1].voiceover = cta || nextScenes[nextScenes.length - 1].voiceover;
@@ -2668,10 +2711,14 @@ function applyScriptEditorUpdate(existing = {}, editor = {}) {
   const scriptPackage = {
     ...(updated.scriptPackage || updated.plan?.metadata?.script_package || {}),
     hook,
+    hook_options: hookOptions,
+    hook_variants: hookOptions.slice(0, 3),
+    hook_quality: editedHook.hook_score,
     body,
     cta,
     final_script: nextScenes.map((scene) => `Scene ${scene.scene_number}: ${scene.voiceover}`).join("\n"),
     script_language: updated.scriptLanguage || updated.scriptPackage?.script_language || updated.plan?.metadata?.language || "Hinglish",
+    tool_type_template: updated.scriptPackage?.tool_type_template || updated.plan?.metadata?.script_package?.tool_type_template || viralToolTemplate(updated.tool || {}),
     updated_by_dashboard: true,
     updated_at: new Date().toISOString()
   };
@@ -2793,6 +2840,47 @@ function scriptChunks(value = "", count = 1) {
   return chunks;
 }
 
+function simpleScriptHash(value = "") {
+  return String(value || "").split("").reduce((total, char) => (
+    ((total << 5) - total + char.charCodeAt(0)) >>> 0
+  ), 0);
+}
+
+function customHookOptions(title, scriptText, language = "Hinglish") {
+  const topic = shortScriptPhrase(title, "this topic", 6, 52);
+  const sentences = splitScriptSentences(scriptText);
+  const firstPoint = limitScriptWords(sentences[0] || `${topic} ko simple tarike se samajhna hai`, 12)
+    .replace(/[.!?।]+$/g, "");
+  if (language === "English") {
+    return [
+      `POV: ${topic} matters, but the steps still feel unclear. Watch this simple breakdown.`,
+      `Before you scroll, here is the simple version of ${topic} most people overcomplicate.`,
+      `If ${topic} has ever felt confusing, this short breakdown will make it clear.`,
+      `Most people miss the main point in ${topic}. This video shows it in plain English.`,
+      `Here is the part of ${topic} I wish someone explained earlier: ${firstPoint}.`,
+      `Give me 30 seconds; I will make ${topic} easier to understand and remember.`
+    ];
+  }
+  if (language === "Hindi") {
+    return [
+      `POV: ${topic} important hai, par steps abhi unclear lag rahe hain. Ye simple breakdown dekho.`,
+      `Scroll karne se pehle ${topic} ka simple version dekh lo, jise log overcomplicate kar dete hain.`,
+      `Agar ${topic} kabhi confusing laga hai, ye short breakdown clear kar dega.`,
+      `Most log ${topic} ka main point miss kar dete hain. Ye video simple language me samjhata hai.`,
+      `${topic} ka wo part jo pehle kisi ne clearly nahi bataya: ${firstPoint}.`,
+      `Mujhe 30 seconds do; ${topic} easy aur याद रहने वाला bana deta hoon.`
+    ];
+  }
+  return [
+    `POV: ${topic} important hai, par steps abhi unclear lag rahe hain. Ye simple breakdown dekho.`,
+    `Scroll karne se pehle ${topic} ka simple version dekh lo, jise log overcomplicate kar dete hain.`,
+    `Agar ${topic} kabhi confusing laga hai, ye short breakdown clear kar dega.`,
+    `Most log ${topic} ka main point miss kar dete hain. Ye video simple language me samjhata hai.`,
+    `${topic} ka wo part jo pehle kisi ne clearly nahi bataya: ${firstPoint}.`,
+    `Mujhe 30 seconds do; ${topic} easy aur yaad rehne wala bana deta hoon.`
+  ];
+}
+
 function customScriptHook(title, scriptText, language = "Hinglish") {
   const sentences = splitScriptSentences(scriptText);
   const firstSentence = sentences[0] || scriptTextClean(scriptText, "");
@@ -2806,13 +2894,9 @@ function customScriptHook(title, scriptText, language = "Hinglish") {
   if (/^(stop|wait|ruk|dekho|agar|ye|this|don't|before|secret|mistake|warning)\b/i.test(clipped)) {
     return clipped;
   }
-  if (language === "English") {
-    return limitScriptWords(`Stop scrolling. If this topic matters to you, watch this simple ${title} breakdown till the end.`, 22);
-  }
-  if (language === "Hindi") {
-    return limitScriptWords(`Stop scrolling. Agar ${title} aapke काम ka है, ye short video end tak देखना.`, 22);
-  }
-  return limitScriptWords(`Stop scrolling. Agar ${title} tumhare kaam ka hai, ye short video end tak dekhna.`, 22);
+  const options = customHookOptions(title, scriptText, language);
+  const selected = options[Math.abs(simpleScriptHash(`${title} ${scriptText}`)) % options.length] || options[0];
+  return limitScriptWords(selected, 24);
 }
 
 function customScriptCta(title, scriptText, language = "Hinglish") {
@@ -2880,6 +2964,38 @@ function buildCustomScriptPlan(body = {}) {
     : language === "Hindi"
       ? `${title} simple तरीके से`
       : `${title} simple way me`;
+  const pseudoRow = {
+    tool_name: title,
+    topic: title,
+    description: rawScript,
+    script: rawScript,
+    language,
+    script_language: language
+  };
+  const customHookVariants = customHookOptions(title, rawScript, language)
+    .slice(0, 6)
+    .map((voiceover, index) => {
+      const hookOption = {
+        framework: ["pov_relatable", "before_after_preview", "clarity_hook", "mistake_avoidance", "explainer_hook", "time_value"][index] || `custom_hook_${index + 1}`,
+        variant_label: ["POV Hook", "Before/After Hook", "Problem Hook", "Mistake Hook", "Clarity Hook", "Value Hook"][index] || "Hook Variant",
+        onscreen_text: customOnscreenText(voiceover, "Watch this"),
+        voiceover: limitScriptWords(voiceover, 24)
+      };
+      hookOption.hook_score = scoreViralHook(hookOption, pseudoRow);
+      return hookOption;
+    })
+    .sort((a, b) => (b.hook_score?.score || 0) - (a.hook_score?.score || 0));
+  const selectedCustomHook = {
+    framework: "selected_custom_hook",
+    variant_label: "Selected Hook",
+    onscreen_text: customOnscreenText(hook, "Watch this"),
+    voiceover: hook
+  };
+  selectedCustomHook.hook_score = scoreViralHook(selectedCustomHook, pseudoRow);
+  const hookOptions = [
+    selectedCustomHook,
+    ...customHookVariants.filter((option) => normalizeEditorScriptText(option.voiceover) !== normalizeEditorScriptText(hook))
+  ].slice(0, 8);
 
   const scenes = Array.from({ length: sceneCount }, (_, index) => {
     const sceneNumber = index + 1;
@@ -2934,6 +3050,10 @@ function buildCustomScriptPlan(body = {}) {
       presenter,
       script_package: {
         hook,
+        hook_options: hookOptions,
+        hook_variants: hookOptions.slice(0, 3),
+        hook_quality: selectedCustomHook.hook_score,
+        tool_type_template: viralToolTemplate(pseudoRow),
         body: middleChunks.join(" "),
         cta,
         final_script: scenes.map((scene) => `Scene ${scene.scene_number}: ${scene.voiceover}`).join("\n"),
@@ -5072,6 +5192,7 @@ function normalizeFinalRenderConfig(body = {}) {
     useVidsVoiceoverFirst: raw.useVidsVoiceoverFirst !== false,
     requireVidsVoiceover: Boolean(raw.requireVidsVoiceover || body.requireVidsVoiceover),
     captionMode: normalizeRenderChoice(raw.captionMode || body.captionMode, ["body", "body-cta", "all", "off"], "body"),
+    captionStyle: normalizeRenderChoice(raw.captionStyle || body.captionStyle, ["trending-pop", "clean-saas", "minimal-bold"], "trending-pop"),
     avatarAudioMode: normalizeRenderChoice(raw.avatarAudioMode || body.avatarAudioMode, ["keep", "mute"], "keep"),
     avatarCaptionMode: normalizeRenderChoice(raw.avatarCaptionMode || body.avatarCaptionMode, ["auto", "always", "off"], "auto"),
     altfOpenCardSeconds: clamp(asFiniteNumber(raw.altfOpenCardSeconds ?? body.altfOpenCardSeconds, 4), 0, 6),
@@ -6196,6 +6317,7 @@ async function renderFinalReel(prepared, body, run) {
     "--filename", isPreview ? "preview_reel.mp4" : "final_reel.mp4",
     "--hook-avatar", presenter,
     "--caption-mode", renderConfig.captionMode,
+    "--caption-style", renderConfig.captionStyle,
     "--avatar-audio-mode", renderConfig.avatarAudioMode,
     "--avatar-caption-mode", renderConfig.avatarCaptionMode,
     "--altf-open-card-seconds", String(renderConfig.altfOpenCardSeconds),

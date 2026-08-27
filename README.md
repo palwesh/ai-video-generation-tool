@@ -286,6 +286,8 @@ Basic mode is the recommended one-video workflow:
 - `Duration`: choose 30, 40, 50, or 60 seconds. Each scene is 10 seconds.
 - `Prepare Assets`: builds script, scene plan, screenshots, recordings, prompts, provider packs, and workbook links without final rendering or Google Vids quota.
 - `Edit Script`: after generating or loading an old script, edit Hook, Body, CTA, caption, hashtags, and scene-wise text, then click `Save Update`. The dashboard rewrites `reel-script.json`, `reel-script.md`, `scenes.json`, and keeps a backup JSON in the same script folder.
+- `Hook quality`: the editor scores the hook, shows the tool-type template, and gives three selectable hook variants before you spend Google Vids credits.
+- `Caption style`: Final Reel can render `Trending word pop`, `Clean SaaS`, or `Minimal bold` captions while keeping avatar clips full-screen and tool screenshots readable.
 - `Create Quality Reel`: applies the recommended production preset, saves settings, runs one video, streams logs in the black terminal, and previews the final MP4 in the Basic page.
 - `Drive sync folder` and `Update selected Excel after run`: optional, for saving final video/folder links back into your workbook.
 

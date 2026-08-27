@@ -1125,12 +1125,15 @@ function HostFrame({
   );
 }
 
-function ReelCaption({ text, frame, fps, accent, compact = false, demoReadable = false, sceneDurationFrames = 300, sceneIndex = 1 }) {
+function ReelCaption({ text, frame, fps, accent, compact = false, demoReadable = false, sceneDurationFrames = 300, sceneIndex = 1, captionStyle = "trending-pop" }) {
   const words = splitWords(text);
   if (!words.length) {
     return null;
   }
-  const windowSize = demoReadable ? 1 : compact ? 3 : 4;
+  const styleKey = String(captionStyle || "trending-pop").toLowerCase();
+  const cleanSaas = styleKey === "clean-saas";
+  const minimalBold = styleKey === "minimal-bold";
+  const windowSize = demoReadable ? 1 : minimalBold ? 2 : cleanSaas ? 3 : compact ? 3 : 4;
   const wordHoldFrames = Math.max(4, sceneDurationFrames / Math.max(1, words.length));
   const activeIndex = Math.min(words.length - 1, Math.floor(frame / wordHoldFrames));
   const visibleWords = captionWordWindow(words, activeIndex, windowSize);
@@ -1149,6 +1152,10 @@ function ReelCaption({ text, frame, fps, accent, compact = false, demoReadable =
   const lineVariant = sceneIndex % 3;
   const captionZone = demoReadable
     ? { left: 150, right: 150, top: "84%", bottom: "3%" }
+    : minimalBold
+    ? { left: 92, right: 92, top: "62%", bottom: "21%" }
+    : cleanSaas
+    ? { left: 86, right: 86, top: "60%", bottom: "21%" }
     : compact
     ? { left: 88, right: 88, top: "59%", bottom: "21%" }
     : lineVariant === 2
@@ -1157,12 +1164,20 @@ function ReelCaption({ text, frame, fps, accent, compact = false, demoReadable =
   const longestWord = visibleWords.reduce((max, item) => Math.max(max, item.word.length), 0);
   const baseFontSize = demoReadable
     ? longestWord > 13 ? 28 : 33
-    : longestWord > 13 ? (compact ? 48 : 58) : (compact ? 54 : 66);
+    : minimalBold
+    ? (longestWord > 13 ? 42 : 50)
+    : cleanSaas
+      ? (longestWord > 13 ? 46 : 54)
+      : longestWord > 13 ? (compact ? 48 : 58) : (compact ? 54 : 66);
   const activeScale = interpolate(pop, [0, 1], [0.9, demoReadable ? 1.1 : 1.22], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp"
   });
-  const captionColors = ["#ffffff", "#FFD700", "#67e8f9", "#ffffff", "#fde68a"];
+  const captionColors = minimalBold
+    ? ["#ffffff", "#ffffff", "#FFD700"]
+    : cleanSaas
+      ? ["#ffffff", "#dbeafe", "#67e8f9", "#ffffff"]
+      : ["#ffffff", "#FFD700", "#67e8f9", "#ffffff", "#fde68a"];
 
   return (
     <div
@@ -1199,30 +1214,34 @@ function ReelCaption({ text, frame, fps, accent, compact = false, demoReadable =
             letterSpacing: 0,
             textShadow: demoReadable
               ? "0 2px 0 #000000, 0 0 8px rgba(0,0,0,0.66), 0 5px 14px rgba(0,0,0,0.48)"
-              : "0 5px 0 #000000, 0 0 22px rgba(0,0,0,0.86), 0 10px 34px rgba(0,0,0,0.78)"
+              : minimalBold
+                ? "0 3px 0 #000000, 0 0 14px rgba(0,0,0,0.72), 0 8px 22px rgba(0,0,0,0.58)"
+                : cleanSaas
+                  ? "0 3px 0 #000000, 0 0 15px rgba(0,0,0,0.74), 0 8px 24px rgba(0,0,0,0.62)"
+                  : "0 5px 0 #000000, 0 0 22px rgba(0,0,0,0.86), 0 10px 34px rgba(0,0,0,0.78)"
           }}
         >
           {visibleWords.map((item, index) => {
             const isLong = item.word.length > 10;
             const powerWord = isCaptionPowerWord(item.word);
-            const rhythmScale = index % 3 === 1 ? 1.04 : index % 3 === 2 ? 0.88 : 0.96;
+            const rhythmScale = minimalBold ? 1 : cleanSaas ? (index % 2 === 0 ? 1 : 0.94) : index % 3 === 1 ? 1.04 : index % 3 === 2 ? 0.88 : 0.96;
             const sizeEm = item.active
-              ? powerWord ? 1.34 : 1.22
+              ? minimalBold ? 1.08 : cleanSaas ? (powerWord ? 1.16 : 1.08) : powerWord ? 1.34 : 1.22
               : powerWord
-                ? 1.12
+                ? minimalBold ? 1.02 : cleanSaas ? 1.04 : 1.12
                 : isLong
-                  ? 0.76
+                  ? minimalBold ? 0.78 : cleanSaas ? 0.8 : 0.76
                   : index % 3 === 2
-                    ? 0.82
+                    ? minimalBold ? 0.92 : cleanSaas ? 0.88 : 0.82
                     : 0.92;
             const color = item.active
-              ? "#FFD700"
+              ? minimalBold ? "#ffffff" : "#FFD700"
               : powerWord
-                ? ((item.sourceIndex + sceneIndex) % 2 === 0 ? "#67e8f9" : "#fde68a")
+                ? minimalBold ? "#FFD700" : ((item.sourceIndex + sceneIndex) % 2 === 0 ? "#67e8f9" : "#fde68a")
                 : captionColors[(item.sourceIndex + sceneIndex) % captionColors.length];
             const strokeWidth = demoReadable
               ? item.active ? 1.4 : powerWord ? 1 : 0.7
-              : item.active ? 2.7 : powerWord ? 2 : 1.35;
+              : minimalBold ? (item.active ? 2 : 1.2) : cleanSaas ? (item.active ? 2.2 : powerWord ? 1.7 : 1.1) : item.active ? 2.7 : powerWord ? 2 : 1.35;
             return (
               <React.Fragment key={`${item.word}-${item.sourceIndex}`}>
                 <span
@@ -1852,6 +1871,7 @@ function HookVideoLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl,
           compact
           sceneDurationFrames={sceneDurationFrames}
           sceneIndex={sceneIndex}
+          captionStyle={assets?.captionStyle}
         />
       ) : null}
     </AbsoluteFill>
@@ -1922,6 +1942,7 @@ function AvatarVideoLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUr
           compact
           sceneDurationFrames={sceneDurationFrames}
           sceneIndex={sceneIndex}
+          captionStyle={assets?.captionStyle}
         />
       ) : null}
     </AbsoluteFill>
@@ -1996,6 +2017,7 @@ function CtaAvatarLeadScene({ scene, sceneIndex, totalScenes, toolName, toolUrl,
           compact
           sceneDurationFrames={sceneDurationFrames}
           sceneIndex={sceneIndex}
+          captionStyle={assets?.captionStyle}
         />
       ) : null}
     </AbsoluteFill>
@@ -2082,7 +2104,7 @@ function IntroScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
       </div>
 
       {captionsEnabledForScene(assets, sceneIndex, totalScenes) ? (
-        <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact sceneDurationFrames={sceneDurationFrames} sceneIndex={sceneIndex} />
+        <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact sceneDurationFrames={sceneDurationFrames} sceneIndex={sceneIndex} captionStyle={assets?.captionStyle} />
       ) : null}
       <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
       <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
@@ -2169,6 +2191,7 @@ function DemoScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, 
           demoReadable={readableDemoMedia}
           sceneDurationFrames={sceneDurationFrames}
           sceneIndex={sceneIndex}
+          captionStyle={assets?.captionStyle}
         />
       ) : null}
       {!readableDemoMedia ? (
@@ -2335,7 +2358,7 @@ function ProofScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets,
       ) : null}
 
       {captionsEnabledForScene(assets, sceneIndex, totalScenes) ? (
-        <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} sceneDurationFrames={sceneDurationFrames} sceneIndex={sceneIndex} />
+        <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} sceneDurationFrames={sceneDurationFrames} sceneIndex={sceneIndex} captionStyle={assets?.captionStyle} />
       ) : null}
       <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
       <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>
@@ -2455,7 +2478,7 @@ function CtaScene({ scene, sceneIndex, totalScenes, toolName, toolUrl, assets, t
       {showRegularOutroUi ? (
         <>
           {captionsEnabledForScene(assets, sceneIndex, totalScenes) ? (
-            <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact sceneDurationFrames={sceneDurationFrames} sceneIndex={sceneIndex} />
+            <ReelCaption text={scene.voiceover} frame={frame} fps={fps} accent={accent} compact sceneDurationFrames={sceneDurationFrames} sceneIndex={sceneIndex} captionStyle={assets?.captionStyle} />
           ) : null}
           <ProgressBar frame={frame} sceneDurationFrames={sceneDurationFrames} accent={accent} />
           <div style={{ position: "absolute", left: 76, right: 76, bottom: 38, color: Palette.muted, fontSize: 22, fontWeight: 650 }}>

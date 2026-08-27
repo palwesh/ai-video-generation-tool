@@ -95,7 +95,91 @@ export function viralSignals(row = {}) {
     security: /security|phishing|scam|fraud|risk|vulnerability|credential|secret|policy|audit/.test(text),
     checker: /check|checker|review|inspect|audit|validate|warning|risk|compare/.test(text),
     converter: /convert|format|clean|extract|generate|builder|formatter/.test(text),
-    creator: /creator|reel|video|caption|influencer|social|instagram|youtube/.test(text)
+    creator: /creator|reel|video|caption|influencer|social|instagram|youtube/.test(text),
+    organizer: /organize|organise|store|vault|receipt|warranty|bookmark|archive|tracker|record/.test(text)
+  };
+}
+
+export function viralToolType(row = {}) {
+  const signals = viralSignals(row);
+  if (signals.privacy) return "privacy_safety";
+  if (signals.security) return "risk_checker";
+  if (signals.checker) return "checker_review";
+  if (signals.creator) return "creator_workflow";
+  if (signals.organizer) return "organizer_vault";
+  if (signals.converter) return "converter_generator";
+  return "micro_tool";
+}
+
+export function viralToolTemplate(row = {}) {
+  const language = viralLanguage(row);
+  const type = viralToolType(row);
+  const templates = {
+    privacy_safety: {
+      label: "Privacy Safety Tool",
+      hook_focus: "Start with the risk of sharing private/sensitive data by mistake.",
+      body_focus: "Show input, masking/redaction, then safe review before sharing.",
+      cta_focus: "Ask viewers to save it before they paste/share anything sensitive."
+    },
+    risk_checker: {
+      label: "Risk Checker Tool",
+      hook_focus: "Start with a hidden-risk mistake people do not notice.",
+      body_focus: "Show quick check, warning points, and decision support.",
+      cta_focus: "Ask viewers to review once, then try the AltFTool link."
+    },
+    checker_review: {
+      label: "Checker / Review Tool",
+      hook_focus: "Start with a missed-detail problem in quick review work.",
+      body_focus: "Show checklist, output review, and next action.",
+      cta_focus: "Ask viewers to save the review workflow."
+    },
+    converter_generator: {
+      label: "Converter / Generator Tool",
+      hook_focus: "Start with repetitive manual formatting or generation work.",
+      body_focus: "Show fictional input, one visible action, and clean output.",
+      cta_focus: "Ask viewers to try the tool and comment TOOL for the next demo."
+    },
+    creator_workflow: {
+      label: "Creator Workflow Tool",
+      hook_focus: "Start with content creation/editing feeling slow or messy.",
+      body_focus: "Show idea to output workflow with post-ready proof.",
+      cta_focus: "Ask viewers to save/share for their next content task."
+    },
+    organizer_vault: {
+      label: "Organizer / Vault Tool",
+      hook_focus: "Start with losing an important receipt, warranty, or detail.",
+      body_focus: "Show store, organize, search/find, and review flow.",
+      cta_focus: "Ask viewers to save it before they need an old detail."
+    },
+    micro_tool: {
+      label: "Focused Micro Tool",
+      hook_focus: "Start with one specific manual task or confusing moment.",
+      body_focus: "Show real page, input, action, output, and review.",
+      cta_focus: "Ask viewers to save it and try the AltFTool caption link."
+    }
+  };
+  const template = templates[type] || templates.micro_tool;
+  if (language === "Hindi") {
+    return {
+      type,
+      label: template.label,
+      hook_focus: template.hook_focus,
+      body_focus: template.body_focus,
+      cta_focus: template.cta_focus,
+      language_note: "Hindi/Hinglish words simple रखो; first listen me point clear hona chahiye."
+    };
+  }
+  if (language === "English") {
+    return {
+      type,
+      ...template,
+      language_note: "Keep it conversational, clear, and specific to one real workflow."
+    };
+  }
+  return {
+    type,
+    ...template,
+    language_note: "Hinglish natural rakho; viewer ko pehle 3 seconds me pain aur result samajh aaye."
   };
 }
 
@@ -119,6 +203,9 @@ export function viralBenefitLine(row = {}) {
     if (signals.creator) {
       return "makes the content workflow faster, cleaner, and post-ready";
     }
+    if (signals.organizer) {
+      return "keeps important details organized and easy to find";
+    }
     return limitViralWords(row.main_benefit || row.description || text || "makes manual work faster and cleaner", 12).replace(/\.$/, "");
   }
   if (language === "Hindi") {
@@ -137,6 +224,9 @@ export function viralBenefitLine(row = {}) {
     if (signals.creator) {
       return "content workflow को faster, cleaner और post-ready बनाता है";
     }
+    if (signals.organizer) {
+      return "important details को organized और easy-to-find बनाता है";
+    }
     return limitViralWords(row.main_benefit || row.description || text || "manual work को faster और cleaner बनाता है", 12).replace(/\.$/, "");
   }
   if (signals.privacy) {
@@ -154,6 +244,9 @@ export function viralBenefitLine(row = {}) {
   if (signals.creator) {
     return "content workflow ko faster, cleaner aur post-ready banata hai";
   }
+  if (signals.organizer) {
+    return "important details ko organized aur easy-to-find banata hai";
+  }
   return limitViralWords(row.main_benefit || row.description || text || "manual work ko faster aur cleaner banata hai", 12).replace(/\.$/, "");
 }
 
@@ -163,47 +256,217 @@ export function viralPainLine(row = {}) {
   const topic = viralTopic(row).toLowerCase();
   if (language === "English") {
     if (signals.privacy) {
-      return "private data accidentally lands in AI, email, or a public document";
+      return "private data leaks into AI or a public file";
     }
     if (signals.security) {
       return "a hidden risk turns into an expensive mistake later";
     }
     if (signals.checker) {
-      return "you need a fast review but keep missing checklist points";
+      return "quick review details are easy to miss";
     }
     if (signals.converter) {
-      return "converting raw input into clean output feels repetitive";
+      return "cleaning the same messy input again and again";
+    }
+    if (signals.organizer) {
+      return "important details are hard to find when you need them";
     }
     return `the manual ${topic} step is slowing down your deadline`;
   }
   if (language === "Hindi") {
     if (signals.privacy) {
-      return "private data galti se AI, email ya public doc में चला जाए";
+      return "private data AI या public file में leak हो जाए";
     }
     if (signals.security) {
       return "hidden risk baad में costly mistake बन जाए";
     }
     if (signals.checker) {
-      return "fast review चाहिए लेकिन checklist points miss हो रहे हों";
+      return "quick review में important details miss हो सकती हों";
     }
     if (signals.converter) {
-      return "raw input ko clean output में convert करना repetitive लग रहा हो";
+      return "same messy input को बार-बार clean करना पड़ रहा हो";
+    }
+    if (signals.organizer) {
+      return "जरूरत के time important details मिल न रही हों";
     }
     return `${topic} ka manual step deadline slow कर रहा हो`;
   }
   if (signals.privacy) {
-    return "private data galti se AI, email ya public doc me chala jaye";
+    return "private data AI ya public file me leak ho jaye";
   }
   if (signals.security) {
     return "ek hidden risk baad me expensive mistake ban jaye";
   }
   if (signals.checker) {
-    return "aapko fast review chahiye par checklist miss ho rahi ho";
+    return "quick review me important details miss ho sakti ho";
   }
   if (signals.converter) {
-    return "raw input clean output me convert karna repetitive lag raha ho";
+    return "same messy input ko baar-baar clean karna pad raha ho";
+  }
+  if (signals.organizer) {
+    return "zarurat ke time important details mil na rahi ho";
   }
   return `${topic} ka manual step deadline me slow kar raha ho`;
+}
+
+export function viralRelatableMoment(row = {}) {
+  const signals = viralSignals(row);
+  const language = viralLanguage(row);
+  const topic = viralTopic(row).toLowerCase();
+  if (language === "English") {
+    if (signals.privacy) {
+      return "you are about to share a screenshot, document, or AI prompt";
+    }
+    if (signals.security) {
+      return "you need a quick decision but the risk is not obvious";
+    }
+    if (signals.checker) {
+      return "you are checking something quickly and do not want to miss details";
+    }
+    if (signals.converter) {
+      return "messy input is blocking the clean output you actually need";
+    }
+    if (signals.creator) {
+      return "content is ready, but editing and posting still feels slow";
+    }
+    if (signals.organizer) {
+      return "one old receipt or detail is suddenly needed";
+    }
+    return `you are stuck doing ${topic} manually`;
+  }
+  if (language === "Hindi") {
+    if (signals.privacy) {
+      return "aap screenshot, document ya AI prompt share karne wale ho";
+    }
+    if (signals.security) {
+      return "decision jaldi lena ho, par risk clearly visible na ho";
+    }
+    if (signals.checker) {
+      return "aap quick check kar rahe ho aur details miss nahi karni";
+    }
+    if (signals.converter) {
+      return "messy input ki wajah se clean output atak raha ho";
+    }
+    if (signals.creator) {
+      return "content ready ho, par editing aur posting abhi bhi slow lagti ho";
+    }
+    if (signals.organizer) {
+      return "achanak koi old receipt ya detail chahiye ho";
+    }
+    return `aap ${topic} manually karte karte stuck ho`;
+  }
+  if (signals.privacy) {
+    return "aap screenshot, document ya AI prompt share karne wale ho";
+  }
+  if (signals.security) {
+    return "decision jaldi lena ho, par risk clearly visible na ho";
+  }
+  if (signals.checker) {
+    return "aap quick check kar rahe ho aur details miss nahi karni";
+  }
+  if (signals.converter) {
+    return "messy input ki wajah se clean output atak raha ho";
+  }
+  if (signals.creator) {
+    return "content ready ho, par editing aur posting abhi bhi slow lagti ho";
+  }
+  if (signals.organizer) {
+    return "achanak koi old receipt ya detail chahiye ho";
+  }
+  return `aap ${topic} manually karte karte stuck ho`;
+}
+
+export function viralResultLine(row = {}) {
+  const signals = viralSignals(row);
+  const language = viralLanguage(row);
+  if (language === "English") {
+    if (signals.privacy) return "cleaner sharing with fewer privacy mistakes";
+    if (signals.security) return "a clearer risk check before you act";
+    if (signals.checker) return "a review-ready checklist in seconds";
+    if (signals.converter) return "clean output without repeating the same steps";
+    if (signals.creator) return "a faster path from idea to post-ready content";
+    if (signals.organizer) return "organized details you can find faster";
+    return "a faster workflow with less manual back-and-forth";
+  }
+  if (language === "Hindi") {
+    if (signals.privacy) return "privacy mistakes ke bina cleaner sharing";
+    if (signals.security) return "action se pehle clearer risk check";
+    if (signals.checker) return "seconds me review-ready checklist";
+    if (signals.converter) return "same steps repeat kiye bina clean output";
+    if (signals.creator) return "idea se post-ready content tak faster workflow";
+    if (signals.organizer) return "organized details jo faster mil jayein";
+    return "less manual back-and-forth ke saath faster workflow";
+  }
+  if (signals.privacy) return "privacy mistakes ke bina cleaner sharing";
+  if (signals.security) return "action se pehle clearer risk check";
+  if (signals.checker) return "seconds me review-ready checklist";
+  if (signals.converter) return "same steps repeat kiye bina clean output";
+  if (signals.creator) return "idea se post-ready content tak faster workflow";
+  if (signals.organizer) return "organized details jo faster mil jayein";
+  return "less manual back-and-forth ke saath faster workflow";
+}
+
+function hookScoreDetail(hook = {}, row = {}) {
+  const voiceover = clean(hook.voiceover);
+  const onscreen = clean(hook.onscreen_text);
+  const label = viralToolLabel(row).toLowerCase();
+  const topic = viralTopic(row).toLowerCase();
+  const text = `${voiceover} ${onscreen}`.toLowerCase();
+  const words = voiceover.split(/\s+/).filter(Boolean);
+  const lengthScore = words.length >= 10 && words.length <= 21
+    ? 100
+    : words.length >= 7 && words.length <= 24
+      ? 82
+      : words.length >= 5 && words.length <= 28
+        ? 62
+        : 38;
+  const clarityHits = [
+    label && text.includes(label),
+    topic && text.includes(topic.slice(0, Math.min(topic.length, 16))),
+    /\b(demo|workflow|result|input|run|review|screen|real|try|save)\b/i.test(text),
+    /[.!?।]/.test(voiceover)
+  ].filter(Boolean).length;
+  const curiosityHits = [
+    /\b(stop|wait|before|most|mistake|risk|hidden|pov|watch|need|save|tiny|secret)\b/i.test(text),
+    /\?/.test(voiceover),
+    /before|after|difference|miss|skip/i.test(text)
+  ].filter(Boolean).length;
+  const relatableHits = [
+    /\b(aap|agar|jab|pov|manual|messy|galti|stuck|slow|repeat|need|chahiye|miss|find|share)\b/i.test(text),
+    viralPainLine(row).split(/\s+/).some((word) => word.length > 4 && text.includes(word.toLowerCase())),
+    viralRelatableMoment(row).split(/\s+/).some((word) => word.length > 4 && text.includes(word.toLowerCase()))
+  ].filter(Boolean).length;
+  const toolHits = [
+    label && text.includes(label),
+    /\baltf|altftool|tool\b/i.test(text),
+    viralBenefitLine(row).split(/\s+/).some((word) => word.length > 5 && text.includes(word.toLowerCase()))
+  ].filter(Boolean).length;
+  const clarity = Math.min(100, 46 + clarityHits * 16 + (words.length <= 24 ? 8 : -10));
+  const curiosity = Math.min(100, 46 + curiosityHits * 18 + (/^(stop|wait|ruk|dekho|pov|before)/i.test(voiceover) ? 8 : 0));
+  const relatable = Math.min(100, 44 + relatableHits * 18);
+  const tool_relevance = Math.min(100, 54 + toolHits * 18);
+  const score = Math.round((clarity * 0.3) + (curiosity * 0.24) + (relatable * 0.24) + (tool_relevance * 0.22) + (lengthScore - 80) * 0.15);
+  const warnings = [
+    words.length > 24 ? "Too long for a natural 6-10 sec avatar hook." : "",
+    words.length < 7 ? "Too short; add a clear pain or promise." : "",
+    tool_relevance < 70 ? "Tool name or outcome is not clear enough." : "",
+    curiosity < 70 ? "Curiosity/pattern interrupt can be stronger." : "",
+    relatable < 70 ? "Add a more relatable viewer moment." : ""
+  ].filter(Boolean);
+  return {
+    score: Math.max(0, Math.min(100, score)),
+    clarity,
+    curiosity,
+    relatable,
+    tool_relevance,
+    length: lengthScore,
+    word_count: words.length,
+    status: score >= 82 ? "strong" : score >= 68 ? "usable" : "rewrite",
+    warnings
+  };
+}
+
+export function scoreViralHook(hook = {}, row = {}) {
+  return hookScoreDetail(hook, row);
 }
 
 export function buildViralHookOptions(row = {}) {
@@ -211,6 +474,8 @@ export function buildViralHookOptions(row = {}) {
   const topic = viralTopic(row).toLowerCase();
   const benefit = viralBenefitLine(row);
   const pain = viralPainLine(row);
+  const moment = viralRelatableMoment(row);
+  const result = viralResultLine(row);
   const signals = viralSignals(row);
   const language = viralLanguage(row);
 
@@ -223,12 +488,12 @@ export function buildViralHookOptions(row = {}) {
     {
       framework: "mistake_avoidance",
       onscreen_text: "Avoid this mistake",
-      voiceover: `This small mistake can happen when ${pain}. First watch ${label}'s simple workflow.`
+      voiceover: `This risk appears when ${pain}. Watch ${label}'s workflow first.`
     },
     {
       framework: "save_for_later",
       onscreen_text: "Save before needed",
-      voiceover: `You will remember this tool when ${pain}. Save it now and watch the demo.`
+      voiceover: `When ${pain}, ${label} helps. Save this real demo.`
     },
     {
       framework: "three_step_shortcut",
@@ -238,12 +503,42 @@ export function buildViralHookOptions(row = {}) {
     {
       framework: "curiosity_gap",
       onscreen_text: "Most people miss this",
-      voiceover: `Most people skip this step in ${topic}. Look at ${label}'s result; the difference is clear.`
+      voiceover: `Most people skip this ${topic} step. Watch ${label}'s result; the difference is clear.`
     },
     {
       framework: "benefit_first",
       onscreen_text: "Cleaner output fast",
       voiceover: `${label} ${benefit}. No heavy setup, just a quick real tool demo.`
+    },
+    {
+      framework: "pov_relatable",
+      onscreen_text: "POV: this saves time",
+      voiceover: `POV: ${label} helps when ${moment}. Watch the real demo.`
+    },
+    {
+      framework: "before_after_preview",
+      onscreen_text: "Before vs after",
+      voiceover: `Before: ${topic} feels messy. After: ${label} shows the clean workflow. Watch the real result.`
+    },
+    {
+      framework: "one_screen_demo",
+      onscreen_text: "One screen demo",
+      voiceover: `Give me one screen and 30 seconds; I will show exactly how ${label} helps with ${topic}.`
+    },
+    {
+      framework: "comment_bait_value",
+      onscreen_text: "Need this?",
+      voiceover: `If ${moment}, comment TOOL after this. First watch ${label} in action.`
+    },
+    {
+      framework: "myth_buster",
+      onscreen_text: "Not a long setup",
+      voiceover: `${topic} does not need a long setup. ${label} is open, and this is the real workflow.`
+    },
+    {
+      framework: "micro_tool_discovery",
+      onscreen_text: "Tiny tool, real use",
+      voiceover: `Tiny tool, real use case: ${label} helps when ${pain}. Save it before you need it.`
     }
   ] : language === "Hindi" ? [
     {
@@ -254,12 +549,12 @@ export function buildViralHookOptions(row = {}) {
     {
       framework: "mistake_avoidance",
       onscreen_text: "ये गलती मत करो",
-      voiceover: `ये छोटी mistake तब हो सकती है जब ${pain}. पहले ${label} का simple workflow देख लो.`
+      voiceover: `Ye risk tab hota hai jab ${pain}. Pehle ${label} workflow dekh lo.`
     },
     {
       framework: "save_for_later",
       onscreen_text: "Save कर लो",
-      voiceover: `ये tool तब याद आएगा जब ${pain}. इसलिए अभी save करो और demo देखो.`
+      voiceover: `Jab ${pain}, ${label} help karega. Abhi real demo dekh lo.`
     },
     {
       framework: "three_step_shortcut",
@@ -269,12 +564,42 @@ export function buildViralHookOptions(row = {}) {
     {
       framework: "curiosity_gap",
       onscreen_text: "लोग ये miss करते हैं",
-      voiceover: `Most लोग ${topic} में ये step skip कर देते हैं. ${label} का result देखिए, difference clear है.`
+      voiceover: `Most log ${topic} me ye step skip kar dete hain. ${label} ka result dekho, difference clear hai.`
     },
     {
       framework: "benefit_first",
       onscreen_text: "Fast clean output",
       voiceover: `${label} ${benefit}. Heavy setup नहीं, बस real tool page पर quick demo.`
+    },
+    {
+      framework: "pov_relatable",
+      onscreen_text: "POV: time save",
+      voiceover: `POV: ${label} tab help karta hai jab ${moment}. Real demo dekho.`
+    },
+    {
+      framework: "before_after_preview",
+      onscreen_text: "Before vs after",
+      voiceover: `Before: ${topic} messy लगता है. After: ${label} clean workflow दिखाता है. Real result देखिए.`
+    },
+    {
+      framework: "one_screen_demo",
+      onscreen_text: "One screen demo",
+      voiceover: `Mujhe ek screen aur 30 seconds do; ${label} ka exact workflow clear ho jayega.`
+    },
+    {
+      framework: "comment_bait_value",
+      onscreen_text: "ये चाहिए?",
+      voiceover: `Agar ${moment}, demo ke baad comment TOOL. Pehle ${label} in action dekho.`
+    },
+    {
+      framework: "myth_buster",
+      onscreen_text: "Long setup nahi",
+      voiceover: `${topic} ke liye long setup nahi chahiye. ${label} open hai, real workflow dekho.`
+    },
+    {
+      framework: "micro_tool_discovery",
+      onscreen_text: "Tiny tool, real use",
+      voiceover: `Tiny tool, real use case: ${label} tab help karta hai jab ${pain}. Save kar lo.`
     }
   ] : [
     {
@@ -285,12 +610,12 @@ export function buildViralHookOptions(row = {}) {
     {
       framework: "mistake_avoidance",
       onscreen_text: "Avoid this mistake",
-      voiceover: `Ye chhoti mistake ${pain}. Pehle ${label} ka simple workflow dekh lo.`
+      voiceover: `Ye risk tab hota hai jab ${pain}. Pehle ${label} workflow dekh lo.`
     },
     {
       framework: "save_for_later",
       onscreen_text: "Save before needed",
-      voiceover: `Ye tool tab yaad aayega jab ${pain}. Isliye abhi save karo, demo dekho.`
+      voiceover: `Jab ${pain}, ${label} help karega. Abhi real demo dekh lo.`
     },
     {
       framework: "three_step_shortcut",
@@ -306,6 +631,36 @@ export function buildViralHookOptions(row = {}) {
       framework: "benefit_first",
       onscreen_text: "Cleaner output fast",
       voiceover: `${label} ${benefit}. Setup nahi, bas real tool page par quick demo.`
+    },
+    {
+      framework: "pov_relatable",
+      onscreen_text: "POV: time save",
+      voiceover: `POV: ${label} tab help karta hai jab ${moment}. Real demo dekho.`
+    },
+    {
+      framework: "before_after_preview",
+      onscreen_text: "Before vs after",
+      voiceover: `Before: ${topic} messy lagta hai. After: ${label} clean workflow dikhata hai. Real result dekho.`
+    },
+    {
+      framework: "one_screen_demo",
+      onscreen_text: "One screen demo",
+      voiceover: `Mujhe ek screen aur 30 seconds do; ${label} ka exact workflow clear ho jayega.`
+    },
+    {
+      framework: "comment_bait_value",
+      onscreen_text: "Ye chahiye?",
+      voiceover: `Agar ${moment}, demo ke baad comment TOOL. Pehle ${label} in action dekho.`
+    },
+    {
+      framework: "myth_buster",
+      onscreen_text: "Long setup nahi",
+      voiceover: `${topic} ke liye long setup nahi chahiye. ${label} open hai, real workflow dekho.`
+    },
+    {
+      framework: "micro_tool_discovery",
+      onscreen_text: "Tiny tool, real use",
+      voiceover: `Tiny tool, real use case: ${label} tab help karta hai jab ${pain}. Save kar lo.`
     }
   ];
 
@@ -347,16 +702,30 @@ export function buildViralHookOptions(row = {}) {
     hooks.unshift(...privacyHooks);
   }
 
-  return hooks.map((hook) => ({
-    ...hook,
-    voiceover: limitViralWords(hook.voiceover, 24)
-  }));
+  return hooks.map((hook) => {
+    const normalizedHook = {
+      ...hook,
+      voiceover: limitViralWords(hook.voiceover, 24)
+    };
+    return {
+      ...normalizedHook,
+      hook_score: scoreViralHook(normalizedHook, row)
+    };
+  });
 }
 
 export function selectViralHook(row = {}, offset = 0) {
   const hooks = buildViralHookOptions(row);
   const seed = Number(row.source_row_number || row.row || 0) + hashText(viralToolName(row)) + Number(offset || 0);
-  return hooks[Math.abs(seed) % hooks.length] || hooks[0];
+  const ranked = hooks
+    .map((hook, index) => ({ hook, index }))
+    .sort((a, b) => (b.hook.hook_score?.score || 0) - (a.hook.hook_score?.score || 0) || a.index - b.index);
+  const strong = ranked
+    .filter((item) => (item.hook.hook_score?.score || 0) >= 74)
+    .slice(0, 5)
+    .map((item) => item.hook);
+  const pool = strong.length ? strong : ranked.slice(0, 5).map((item) => item.hook);
+  return pool[Math.abs(seed) % pool.length] || hooks[0];
 }
 
 export function viralOnscreenTextForRole(roleId, row = {}) {
@@ -453,7 +822,11 @@ export function buildViralSeoData(row = {}, plan = {}) {
   const toolName = viralToolName(row);
   const topic = clean(row.topic || toolName, toolName);
   const benefit = viralBenefitLine(row);
-  const hookOptions = buildViralHookOptions(row).slice(0, 5);
+  const selectedHook = selectViralHook(row);
+  const hookOptions = [
+    selectedHook,
+    ...buildViralHookOptions(row).filter((option) => option.framework !== selectedHook?.framework)
+  ].filter(Boolean).slice(0, 8);
   const language = viralLanguage(row);
   const toolUrl = clean(row.tool_url || row.url, "");
   const brandedToolName = language === "English" ? `AltFTool's ${toolName}` : `AltFTool ka ${toolName}`;

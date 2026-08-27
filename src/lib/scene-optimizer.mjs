@@ -2,8 +2,11 @@ import { resolveReelConfig, roleForScene } from "./reel-planner.mjs";
 import {
   buildViralHookOptions,
   normalizeViralLanguage,
+  selectViralHook,
+  scoreViralHook,
   viralBenefitLine,
   viralOnscreenTextForRole,
+  viralToolTemplate,
   viralVoiceoverForRole
 } from "./viral-script.mjs";
 
@@ -42,6 +45,36 @@ function safeToolUrl(value) {
 
 function safeToolName(row) {
   return clean(row.tool_name || row.topic, "this micro tool");
+}
+
+function hookVariantLabel(framework = "") {
+  const key = String(framework || "").trim().toLowerCase();
+  if (/mistake|warning|risk|privacy|hidden/.test(key)) return "Problem Hook";
+  if (/pov|relatable/.test(key)) return "POV Hook";
+  if (/before|after|proof/.test(key)) return "Before/After Hook";
+  if (/screen|demo|shortcut|benefit/.test(key)) return "Demo Hook";
+  if (/comment|save/.test(key)) return "Engagement Hook";
+  return "Curiosity Hook";
+}
+
+function threeHookVariants(hookOptions = []) {
+  const preferred = ["Problem Hook", "POV Hook", "Before/After Hook"];
+  const used = new Set();
+  const variants = [];
+  for (const label of preferred) {
+    const match = hookOptions.find((hook) => hookVariantLabel(hook.framework) === label && !used.has(hook.framework));
+    if (match) {
+      used.add(match.framework);
+      variants.push({ ...match, variant_label: label });
+    }
+  }
+  for (const hook of hookOptions) {
+    if (variants.length >= 3) break;
+    if (used.has(hook.framework)) continue;
+    used.add(hook.framework);
+    variants.push({ ...hook, variant_label: hookVariantLabel(hook.framework) });
+  }
+  return variants;
 }
 
 function safeBenefit(row) {
@@ -266,8 +299,15 @@ export function buildReelScriptPackage(scenePlan, row, capture = {}, reelConfig 
   const hook = scenes[0]?.voiceover || "";
   const cta = scenes.at(-1)?.voiceover || "";
   const body = scenes.slice(1, -1).map((scene) => scene.voiceover).join(" ");
-  const hookOptions = buildViralHookOptions(row).slice(0, 5);
+  const selectedHook = selectViralHook(row);
+  const hookOptions = [
+    selectedHook,
+    ...buildViralHookOptions(row).filter((option) => option.framework !== selectedHook?.framework)
+  ].filter(Boolean).slice(0, 8);
+  const hookScore = selectedHook?.hook_score || scoreViralHook(selectedHook, row);
+  const hookVariants = threeHookVariants(hookOptions);
   const guide = captureUseGuide(capture);
+  const toolTemplate = viralToolTemplate(row);
   return {
     tool_name: safeToolName(row),
     tool_url: safeToolUrl(row.tool_url),
@@ -278,6 +318,8 @@ export function buildReelScriptPackage(scenePlan, row, capture = {}, reelConfig 
     script_angle: `${scriptLanguage(row)} Instagram retention-first tool promo`,
     hook,
     hook_options: hookOptions,
+    hook_variants: hookVariants,
+    hook_quality: hookScore,
     body,
     cta,
     final_script: scenes.map((scene) => `Scene ${scene.scene_number}: ${scene.voiceover}`).join("\n"),
@@ -289,8 +331,23 @@ export function buildReelScriptPackage(scenePlan, row, capture = {}, reelConfig 
       output_preview: guide.outputPreview || "",
       demo_steps: guide.demoSteps || []
     },
+    tool_type_template: toolTemplate,
+    hook_strategy: {
+      selected_framework: selectedHook?.framework || hookOptions[0]?.framework || "",
+      selected_score: hookScore?.score || 0,
+      goal: "First 3 seconds should feel relatable, specific to the tool, and easy to understand without context.",
+      rules: [
+        "No generic greeting.",
+        "Name the viewer's real problem or moment first.",
+        "Promise one clear outcome, then prove it with the actual tool demo.",
+        "Keep the avatar hook short enough for 6-10 seconds of natural speech.",
+        "Rotate frameworks across rows so every reel does not start the same way."
+      ],
+      alternate_hook_count: hookOptions.length
+    },
     retention_notes: [
-      "Open with a pattern interrupt or mistake-avoidance hook, not a greeting.",
+      "Open with a relatable problem, mistake, POV, before/after, or curiosity hook; avoid repeated generic starts.",
+      "Make the hook understandable in one listen: who it helps, what pain it removes, and why to keep watching.",
       "Show real tool proof before abstract benefits.",
       "Use the body to teach how the tool works: open, input, action, result, review.",
       "Keep captions 3-7 words, high contrast, and easy to read on mobile.",

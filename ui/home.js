@@ -139,6 +139,12 @@ const els = {
   viewScriptFolderBtn: document.getElementById("viewScriptFolderBtn"),
   scriptEditorPanel: document.getElementById("scriptEditorPanel"),
   scriptEditorMeta: document.getElementById("scriptEditorMeta"),
+  scriptHookQualityPanel: document.getElementById("scriptHookQualityPanel"),
+  scriptHookScoreLabel: document.getElementById("scriptHookScoreLabel"),
+  scriptHookTemplateTitle: document.getElementById("scriptHookTemplateTitle"),
+  scriptHookTemplateMeta: document.getElementById("scriptHookTemplateMeta"),
+  scriptHookQualityList: document.getElementById("scriptHookQualityList"),
+  scriptHookVariantList: document.getElementById("scriptHookVariantList"),
   scriptHookEditor: document.getElementById("scriptHookEditor"),
   scriptBodyEditor: document.getElementById("scriptBodyEditor"),
   scriptCtaEditor: document.getElementById("scriptCtaEditor"),
@@ -203,6 +209,7 @@ const els = {
   finalUseVidsVoiceoverFirst: document.getElementById("finalUseVidsVoiceoverFirst"),
   finalRequireVidsVoiceover: document.getElementById("finalRequireVidsVoiceover"),
   finalCaptionModeSelect: document.getElementById("finalCaptionModeSelect"),
+  finalCaptionStyleSelect: document.getElementById("finalCaptionStyleSelect"),
   finalAvatarAudioModeSelect: document.getElementById("finalAvatarAudioModeSelect"),
   finalAvatarCaptionModeSelect: document.getElementById("finalAvatarCaptionModeSelect"),
   finalAltCardSecondsInput: document.getElementById("finalAltCardSecondsInput"),
@@ -2147,6 +2154,7 @@ function currentFinalRenderConfig() {
     useVidsVoiceoverFirst: els.finalUseVidsVoiceoverFirst ? els.finalUseVidsVoiceoverFirst.checked !== false : true,
     requireVidsVoiceover: Boolean(els.finalRequireVidsVoiceover?.checked),
     captionMode: els.finalCaptionModeSelect?.value || "body",
+    captionStyle: els.finalCaptionStyleSelect?.value || "trending-pop",
     avatarAudioMode: els.finalAvatarAudioModeSelect?.value || "keep",
     avatarCaptionMode: els.finalAvatarCaptionModeSelect?.value || "auto",
     altfOpenCardSeconds: finiteClamp(els.finalAltCardSecondsInput?.value, 4, 0, 6),
@@ -2201,6 +2209,12 @@ function finalRenderPreflightWarnings(readiness = currentFinalReadiness()) {
   }
   if (!readiness.hasScript) {
     warnings.push("Reel script missing: Generate/Edit Script first.");
+  } else {
+    const scriptPackage = state.currentScriptBuild?.scriptPackage || state.currentScriptBuild?.plan?.metadata?.script_package || {};
+    const hookScore = Number(scriptPackage.hook_quality?.score || scriptPackage.hook_options?.[0]?.hook_score?.score || 0);
+    if (hookScore && hookScore < 68) {
+      warnings.push(`Hook score low (${hookScore}/100): choose a stronger hook variant or edit hook line.`);
+    }
   }
   if (!readiness.hasHook) {
     warnings.push("Vids hook avatar missing: final render will use local presenter fallback.");
@@ -2239,6 +2253,7 @@ function renderFinalConfigReview(finalReel = {}) {
       finalAssetMapItem("Script", hasScript, hasScript ? shortPath(state.lastScriptFolder) : "Generate/edit script first", hasScript ? "complete" : "warning"),
       finalAssetMapItem("Body voice", hasVidsVoice, hasVidsVoice ? "Google Vids voiceover priority" : `${els.finalVoiceProviderSelect?.value || "free"} fallback`, hasVidsVoice ? "complete" : "warning"),
       finalAssetMapItem("Captions", config.captionMode !== "off", config.captionMode === "body" ? "Only body/demo scenes" : config.captionMode, config.captionMode !== "off" ? "complete" : "warning"),
+      finalAssetMapItem("Caption style", config.captionMode !== "off", config.captionStyle === "clean-saas" ? "Clean SaaS" : config.captionStyle === "minimal-bold" ? "Minimal bold" : "Trending word pop", config.captionMode !== "off" ? "complete" : "warning"),
       finalAssetMapItem("Avatar captions", config.avatarCaptionMode !== "off", config.avatarCaptionMode === "auto" ? "Auto if missing" : config.avatarCaptionMode, config.avatarCaptionMode !== "off" ? "complete" : "warning"),
       finalAssetMapItem("CTA avatar", hasCta, config.assetOverrides.ctaAvatarVideo ? shortPath(config.assetOverrides.ctaAvatarVideo) : hasCta ? "Latest avatar pack CTA" : "Local CTA if missing", hasCta ? "complete" : "warning"),
       finalAssetMapItem("End card", config.postAvatarOutroSeconds > 0, config.postAvatarOutroSeconds > 0 ? `${config.postAvatarOutroSeconds}s brand close` : "Disabled", config.postAvatarOutroSeconds > 0 ? "complete" : "warning")
@@ -2248,11 +2263,12 @@ function renderFinalConfigReview(finalReel = {}) {
   if (els.finalConfigSummary) {
     const voice = hasVidsVoice && config.useVidsVoiceoverFirst ? "Vids voice first" : `${els.finalVoiceProviderSelect?.value || "free"} voice`;
     const caption = config.captionMode === "off" ? "captions off" : `${config.captionMode} captions`;
+    const captionStyle = config.captionMode === "off" ? "no style" : (config.captionStyle || "trending-pop").replace(/-/g, " ");
     const avatarCaption = config.avatarCaptionMode === "off" ? "avatar cap off" : `avatar cap ${config.avatarCaptionMode}`;
     const override = overrideCount ? `${overrideCount} override(s)` : "auto assets";
     const rendered = finalReel.videoPath || finalReel.outputPath ? "final ready" : "ready to review";
     const readinessLabel = preflightWarnings.length ? `draft: ${preflightWarnings.length} warning(s)` : "post-ready setup";
-    els.finalConfigSummary.textContent = `${readinessLabel} | ${voice} | ${caption} | ${avatarCaption} | AltF ${config.altfOpenCardSeconds}s | ${override} | ${rendered}`;
+    els.finalConfigSummary.textContent = `${readinessLabel} | ${voice} | ${caption} | ${captionStyle} | ${avatarCaption} | AltF ${config.altfOpenCardSeconds}s | ${override} | ${rendered}`;
   }
 }
 
@@ -2287,6 +2303,11 @@ function renderFinalReview(finalReel = {}) {
   const selectedName = toolDisplayName(tool || {});
   const profileReady = safe || readyProfileCount > 0 || selectedProfilePaths.length > 0;
   const preflightWarnings = finalRenderPreflightWarnings(readiness);
+  const scriptPackage = state.currentScriptBuild?.scriptPackage || state.currentScriptBuild?.plan?.metadata?.script_package || {};
+  const hookQuality = scriptPackage.hook_quality || scriptPackage.hook_options?.[0]?.hook_score || {};
+  const hookScore = Number(hookQuality.score || 0);
+  const rowVideoStatus = state.toolVideoStatusByRow.get(String(row)) || {};
+  const versionCount = Number(rowVideoStatus.videoCount || rowVideoStatus.versions?.length || 0);
   const profileDetail = safe
     ? "Credit Safe ON, local render allowed."
     : readyProfileCount > 0
@@ -2299,11 +2320,13 @@ function renderFinalReview(finalReel = {}) {
     finalReviewItem("Post-ready", preflightWarnings.length === 0, preflightWarnings.length ? preflightWarnings.slice(0, 2).join(" | ") : "Hook/video/voice assets ready.", preflightWarnings.length ? "warning" : "complete"),
     finalReviewItem("Real assets", assetsReady, assetsReady ? shortPath(state.lastAssetFolder) : "Build or load old assets first.", assetsReady ? "complete" : "warning"),
     finalReviewItem("Reel script", scriptReady, scriptReady ? shortPath(state.lastScriptFolder) : "Generate or load old script.", scriptReady ? "complete" : "warning"),
+    finalReviewItem("Hook score", hookScore >= 68, hookScore ? `${hookScore}/100 | ${hookQuality.status || "review"}` : "Generate script to score hook.", hookScore >= 82 ? "complete" : hookScore ? "warning" : "pending"),
     finalReviewItem("Vids mode", true, safe ? "Credit Safe local render." : lowCredit ? "Hook-only Vids, local body/CTA." : "Full hook/focus/CTA avatar pack."),
     finalReviewItem("Avatar", hookVideoReady, hookVideoReady ? (lowCredit ? "Hook video available." : "Hook/focus/CTA video available.") : hookPrepared ? (lowCredit ? "Hook prompt ready, video optional." : "Prompt pack ready, video optional.") : (lowCredit ? "Prepare hook prompt or load old hook." : "Prepare avatar pack or load old avatar."), hookVideoReady ? "complete" : hookPrepared ? "warning" : "pending"),
     finalReviewItem("Voice", true, hasVidsVoiceover ? "Saved Google Vids voiceover will be used first." : voiceMode === "free" ? "Free/local voice selected." : `${voiceMode} selected. Review credits/API first.`),
     finalReviewItem("Profiles", profileReady, profileDetail, safe || (readyProfileCount > 0 && !selectedNeedsLogin) ? "complete" : selectedProfilePaths.length ? "warning" : "warning"),
     finalReviewItem("Quick preview", Boolean(previewVideo || finalVideo), previewVideo ? shortPath(previewVideo) : finalVideo ? "Final render available." : "Optional 15 sec local preview before full render.", previewVideo || finalVideo ? "complete" : "pending"),
+    finalReviewItem("Reel history", true, versionCount ? `${versionCount} old version(s) saved. New render will not overwrite old videos.` : "First video version for this row."),
     finalReviewItem("Final QA", Boolean(finalVideo), finalVideo ? `${warnings.length ? "Review needed" : "Final ready"}${qualityScore ? ` | Quality ${qualityScore}/100` : ""}` : "Render will create final MP4.", finalVideo ? (warnings.length ? "warning" : "complete") : "pending")
   ];
   els.finalReviewChecklist.innerHTML = checks.join("");
@@ -3855,6 +3878,99 @@ function scriptEditorSeed(scriptBuild = {}) {
   };
 }
 
+function hookScoreTone(score = 0) {
+  const value = Number(score || 0);
+  if (value >= 82) return "success";
+  if (value >= 68) return "warning";
+  return "error";
+}
+
+function hookVariantLabel(framework = "") {
+  const key = String(framework || "").toLowerCase();
+  if (/mistake|warning|risk|privacy|hidden/.test(key)) return "Problem Hook";
+  if (/pov|relatable/.test(key)) return "POV Hook";
+  if (/before|after|proof/.test(key)) return "Before/After Hook";
+  if (/screen|demo|shortcut|benefit/.test(key)) return "Demo Hook";
+  if (/comment|save/.test(key)) return "Engagement Hook";
+  return "Curiosity Hook";
+}
+
+function hookVariantsForEditor(scriptBuild = {}) {
+  const pkg = scriptBuild.scriptPackage || scriptBuild.plan?.metadata?.script_package || {};
+  const variants = Array.isArray(pkg.hook_variants) && pkg.hook_variants.length
+    ? pkg.hook_variants
+    : Array.isArray(pkg.hook_options)
+      ? pkg.hook_options
+      : [];
+  const preferred = ["Problem Hook", "POV Hook", "Before/After Hook"];
+  const used = new Set();
+  const selected = [];
+  for (const label of preferred) {
+    const match = variants.find((hook) => hookVariantLabel(hook.framework) === label && !used.has(hook.framework));
+    if (match) {
+      used.add(match.framework);
+      selected.push({ ...match, variant_label: match.variant_label || label });
+    }
+  }
+  for (const hook of variants) {
+    if (selected.length >= 3) break;
+    if (used.has(hook.framework)) continue;
+    used.add(hook.framework);
+    selected.push({ ...hook, variant_label: hook.variant_label || hookVariantLabel(hook.framework) });
+  }
+  return selected.slice(0, 3);
+}
+
+function renderScriptHookQuality(scriptBuild = {}) {
+  const pkg = scriptBuild.scriptPackage || scriptBuild.plan?.metadata?.script_package || {};
+  const quality = pkg.hook_quality || pkg.hook_options?.[0]?.hook_score || {};
+  const template = pkg.tool_type_template || {};
+  const score = Number(quality.score || 0);
+
+  if (els.scriptHookScoreLabel) {
+    els.scriptHookScoreLabel.textContent = score ? `Hook ${score}/100` : "Hook score pending";
+    els.scriptHookScoreLabel.dataset.tone = score ? hookScoreTone(score) : "idle";
+  }
+  if (els.scriptHookTemplateTitle) {
+    els.scriptHookTemplateTitle.textContent = template.label || "Tool template";
+  }
+  if (els.scriptHookTemplateMeta) {
+    const pieces = [
+      template.hook_focus,
+      template.language_note
+    ].filter(Boolean);
+    els.scriptHookTemplateMeta.textContent = pieces.join(" | ") || "Generate script to see best angle and quality tips.";
+  }
+  if (els.scriptHookQualityList) {
+    const checks = [
+      quality.clarity ? ["Clarity", quality.clarity] : null,
+      quality.curiosity ? ["Curiosity", quality.curiosity] : null,
+      quality.relatable ? ["Relatable", quality.relatable] : null,
+      quality.tool_relevance ? ["Tool relevance", quality.tool_relevance] : null
+    ].filter(Boolean);
+    const warningHtml = (quality.warnings || []).slice(0, 2).map((warning) => (
+      `<span data-tone="warning">${escapeHtml(warning)}</span>`
+    )).join("");
+    els.scriptHookQualityList.innerHTML = [
+      ...checks.map(([label, value]) => `<span data-tone="${escapeHtml(hookScoreTone(value))}">${escapeHtml(label)} ${escapeHtml(value)}/100</span>`),
+      warningHtml
+    ].filter(Boolean).join("") || '<span class="muted">Hook quality checks will appear here.</span>';
+  }
+  if (els.scriptHookVariantList) {
+    const variants = hookVariantsForEditor(scriptBuild);
+    els.scriptHookVariantList.innerHTML = variants.map((hook, index) => {
+      const hookScore = hook.hook_score?.score || 0;
+      return `
+        <button class="hook-variant-card" type="button" data-hook-variant-index="${escapeHtml(index)}">
+          <span>${escapeHtml(hook.variant_label || hookVariantLabel(hook.framework))}</span>
+          <strong>${escapeHtml(hook.voiceover || "")}</strong>
+          <small>${escapeHtml(hook.framework || "hook")}${hookScore ? ` | ${escapeHtml(hookScore)}/100` : ""}</small>
+        </button>
+      `;
+    }).join("") || '<span class="muted">Three hook variants will appear here.</span>';
+  }
+}
+
 function splitBodyForSceneCount(body, sceneCount) {
   const count = Math.max(0, Number(sceneCount || 0));
   const clean = normalizeScriptEditorText(body);
@@ -3895,6 +4011,7 @@ function renderScriptEditor(scriptBuild = {}) {
   if (els.scriptEditorPanel) {
     els.scriptEditorPanel.open = true;
   }
+  renderScriptHookQuality(scriptBuild);
   if (els.scriptSceneEditorList) {
     els.scriptSceneEditorList.innerHTML = scenes.map((scene, index) => `
       <article class="script-scene-editor-item" data-editor-scene="${escapeHtml(scene.scene_number || index + 1)}">
@@ -4722,6 +4839,7 @@ function finalReelPayload(extra = {}) {
     requireVidsVoiceover: Boolean(renderConfig.requireVidsVoiceover && hasSavedVidsVoiceover),
     renderConfig,
     captionMode: renderConfig.captionMode,
+    captionStyle: renderConfig.captionStyle,
     avatarAudioMode: renderConfig.avatarAudioMode,
     avatarCaptionMode: renderConfig.avatarCaptionMode,
     altfOpenCardSeconds: renderConfig.altfOpenCardSeconds,
@@ -5669,6 +5787,7 @@ for (const control of [
   els.finalUseVidsVoiceoverFirst,
   els.finalRequireVidsVoiceover,
   els.finalCaptionModeSelect,
+  els.finalCaptionStyleSelect,
   els.finalAvatarAudioModeSelect,
   els.finalAvatarCaptionModeSelect,
   els.finalAltCardSecondsInput,
@@ -6122,6 +6241,18 @@ for (const editor of [
 }
 
 els.scriptSceneEditorList?.addEventListener("input", markMainScriptEdited);
+
+els.scriptHookVariantList?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-hook-variant-index]");
+  if (!button || !state.currentScriptBuild) return;
+  const variants = hookVariantsForEditor(state.currentScriptBuild);
+  const hook = variants[Number(button.dataset.hookVariantIndex || 0)] || null;
+  if (!hook?.voiceover || !els.scriptHookEditor) return;
+  els.scriptHookEditor.value = hook.voiceover;
+  markMainScriptEdited();
+  setTask("Hook variant selected", `${hook.variant_label || hookVariantLabel(hook.framework)} | Save Update before render.`, "success");
+  setTerminalStatus(`Hook variant selected: ${hook.framework || "hook"}`);
+});
 
 els.prepareHookAvatarBtn.addEventListener("click", async () => {
   try {

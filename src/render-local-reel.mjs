@@ -844,6 +844,7 @@ async function runRender(propsPath, outputPath) {
 
 const renderConfig = {
   captionMode: choiceOr(args["caption-mode"], ["body", "body-cta", "all", "off"], "body"),
+  captionStyle: choiceOr(args["caption-style"], ["trending-pop", "clean-saas", "minimal-bold"], "trending-pop"),
   avatarAudioMode: choiceOr(args["avatar-audio-mode"], ["keep", "mute"], "keep"),
   avatarCaptionMode: choiceOr(args["avatar-caption-mode"], ["auto", "always", "off"], "auto"),
   altfOpenCardSeconds: clampNumber(numberOr(args["altf-open-card-seconds"], 4), 0, 6),
@@ -913,6 +914,7 @@ const assets = {
   hookAvatarStyle: ["female", "male", "auto"].includes(hookAvatarStyle) ? hookAvatarStyle : "female",
   toolUseGuide: manifest.capture?.toolUseGuide || manifest.capture?.tool_use_guide || {},
   captionMode: renderConfig.captionMode,
+  captionStyle: renderConfig.captionStyle,
   avatarAudioMode: renderConfig.avatarAudioMode,
   avatarCaptionMode: renderConfig.avatarCaptionMode,
   altfOpenCardSeconds: renderConfig.altfOpenCardSeconds,

@@ -648,6 +648,21 @@
                     <span class="state-pill">Single source</span>
                   </summary>
                   <div class="script-editor-body">
+                    <div id="scriptHookQualityPanel" class="hook-quality-panel" aria-live="polite">
+                      <div class="hook-quality-main">
+                        <span id="scriptHookScoreLabel" class="state-pill">Hook score pending</span>
+                        <div>
+                          <strong id="scriptHookTemplateTitle">Tool template loading</strong>
+                          <small id="scriptHookTemplateMeta">Generate script to see best angle, hook variants, and quality tips.</small>
+                        </div>
+                      </div>
+                      <div id="scriptHookQualityList" class="hook-quality-list">
+                        <span class="muted">Hook quality checks will appear here.</span>
+                      </div>
+                      <div id="scriptHookVariantList" class="hook-variant-list">
+                        <span class="muted">Three hook variants will appear here.</span>
+                      </div>
+                    </div>
                     <div class="script-editor-grid">
                       <label class="field-label script-edit-field" for="scriptHookEditor">
                         <span>Hook line</span>
@@ -898,6 +913,14 @@
                         <option value="body-cta">Body + local CTA</option>
                         <option value="all">All local scenes</option>
                         <option value="off">Off</option>
+                      </select>
+                    </label>
+                    <label class="field-label" for="finalCaptionStyleSelect">
+                      <span>Caption style</span>
+                      <select id="finalCaptionStyleSelect">
+                        <option value="trending-pop" selected>Trending word pop</option>
+                        <option value="clean-saas">Clean SaaS</option>
+                        <option value="minimal-bold">Minimal bold</option>
                       </select>
                     </label>
                     <label class="field-label" for="finalAvatarAudioModeSelect">
